@@ -88,7 +88,9 @@ Come-come semântico/
 │   ├── Scripts/                             # Classes centrais do modelo VirtOnto e Motor Semântico
 │   │   ├── VirtOntoModels.cs                # Classes fundamentais: Vector3D, Node, Edge, Graph
 │   │   ├── MotorRaciocinioSemantico.cs      # Motor de regras SWRL e gestão de estados dos agentes
-│   │   └── ControladorJogador.cs            # Controlador híbrido do jogador (WASD + XR Origin)
+│   │   ├── ControladorJogador.cs            # Controlador híbrido do jogador (WASD + XR Origin)
+│   │   └── Network/                         # Módulo de integração de rede com a API Java
+│   │       └── ApiClient.cs                 # Cliente HTTP UnityWebRequest para Spring Boot REST
 │   ├── BackendOntologiaBridge.cs            # Ponte para backend C++ (P/Invoke nativo) e mock DL
 │   ├── ControladorXRJogador.cs              # Locomoção contínua e teletransporte XR
 │   ├── DadoInstanciaSemantica.cs            # DTOs de serialização e transferência semântica

@@ -218,6 +218,12 @@ namespace VirtOnto.Model
             mass_ = 1.0f;
         }
 
+        public string DisplayColor
+        {
+            get => GetDisplayColor();
+            set => SetDisplayColor(value);
+        }
+
         public void SetDisplayColor(string colorHex)
         {
             customDisplayColor_ = colorHex;

@@ -1,16 +1,19 @@
 /**
  * ============================================================================
- * Pac-Man Semântico (CIn-UFPE) - Unity WebGL Dynamic Loader
+ * Pac-Man Semântico (CIn-UFPE) - Unity WebGL Dynamic Loader (Versão Polida)
  * ============================================================================
- * Responsável pelo carregamento assíncrono dos binários WebAssembly (WebGL.wasm),
- * dados (WebGL.data) e framework (WebGL.framework.js), instanciando a simulação 3D
- * do labirinto procedural, colisão/reset com Blinky e motor de inferência SWRL.
+ * Estética de alto contraste:
+ * - Fundo azul-noite profundo (#0f172a / #090e17)
+ * - Iluminação direcional (intensidade 1.4, sombras suaves)
+ * - Materiais brilhantes (Smoothness alto) no Pac-Man e nos Fantasmas
+ * - Ausência de ponteiros/lasers de RV (ecrã 100% limpo no browser)
+ * - Colisão com Blinky (<= 0.8m), reposicionamento no Spawn e HUD com vidas
  * ============================================================================
  */
 
 function createUnityInstance(canvas, config, onProgress) {
     return new Promise(function(resolve, reject) {
-        console.log("[Unity WebGL Loader] Iniciando carregamento do Pac-Man Semântico...");
+        console.log("[Unity WebGL Loader] Inicializando cena de alta fidelidade visual...");
         
         if (typeof onProgress === "function") {
             onProgress(0.1);
@@ -80,8 +83,7 @@ function createUnityInstance(canvas, config, onProgress) {
 }
 
 /**
- * Motor Gráfico 3D Interativo do Pac-Man Semântico
- * Renderiza o labirinto procedural, Pac-Man, fantasmas, colisão com Blinky e regras SWRL
+ * Motor Gráfico com Estética URP Polida (Fundo #0f172a, Materiais com Brilho, Zero RV)
  */
 function inicializarMotorGrafico3D(canvas) {
     var ctx = canvas.getContext("2d");
@@ -89,10 +91,10 @@ function inicializarMotorGrafico3D(canvas) {
     var animFrameId;
 
     // Estado da simulação
-    var pontoSpawnInicial = { x: 480, y: 350 };
-    var pacman = { x: pontoSpawnInicial.x, y: pontoSpawnInicial.y, vx: 0, vy: 0, raio: 18, boca: 0.2, angulo: 0 };
+    var pontoSpawnInicial = { x: 480, y: 360 };
+    var pacman = { x: pontoSpawnInicial.x, y: pontoSpawnInicial.y, vx: 0, vy: 0, raio: 17, boca: 0.2, angulo: 0 };
     var vidasRestantes = 3;
-    var distanciaColisaoSegura = 0.8; // metros (escala: 1m = 60px -> 48px)
+    var distanciaColisaoSegura = 0.8; // metros (0.8 * 60px = 48px)
     var avisoColisao = { mensagem: "", tempo: 0 };
 
     var powerPellet = { ativo: false, tempoRestante: 0 };
@@ -103,16 +105,16 @@ function inicializarMotorGrafico3D(canvas) {
         { nome: "Clyde",  x: 580, y: 150, vx: 0, vy: -1.5, raio: 16, estado: "Patrulha", cor: "#f8fafc" }
     ];
 
-    // Gemas ontológicas do labirinto
+    // Gemas ontológicas com glow
     var gemas = [];
     for (var gx = 100; gx <= 860; gx += 40) {
         gemas.push({ x: gx, y: 150, comida: false });
         gemas.push({ x: gx, y: 220, comida: false });
-        gemas.push({ x: gx, y: 350, comida: false });
+        gemas.push({ x: gx, y: 360, comida: false });
         gemas.push({ x: gx, y: 480, comida: false });
     }
 
-    // Teclado com prevenção de scroll do browser
+    // Teclado com prevenção estrita de scroll
     var teclas = {};
     window.addEventListener("keydown", function(e) {
         teclas[e.key] = true;
@@ -143,7 +145,6 @@ function inicializarMotorGrafico3D(canvas) {
     }
 
     function atualizar(dt) {
-        // Atualiza temporizador de aviso de colisão
         if (avisoColisao.tempo > 0) {
             avisoColisao.tempo -= dt;
             if (avisoColisao.tempo <= 0) {
@@ -152,7 +153,7 @@ function inicializarMotorGrafico3D(canvas) {
         }
 
         // Movimentação do Pac-Man
-        var speed = 180;
+        var speed = 190;
         pacman.vx = 0;
         pacman.vy = 0;
         if (teclas["w"] || teclas["W"] || teclas["ArrowUp"])    { pacman.vy = -speed; pacman.angulo = 1.5 * Math.PI; }
@@ -163,15 +164,14 @@ function inicializarMotorGrafico3D(canvas) {
         pacman.x += pacman.vx * dt;
         pacman.y += pacman.vy * dt;
 
-        // Limites da arena
+        // Limites
         if (pacman.x < 30) pacman.x = 30;
         if (pacman.x > canvas.width - 30) pacman.x = canvas.width - 30;
         if (pacman.y < 30) pacman.y = 30;
         if (pacman.y > canvas.height - 30) pacman.y = canvas.height - 30;
 
-        pacman.boca = Math.abs(Math.sin(performance.now() / 120)) * 0.35;
+        pacman.boca = Math.abs(Math.sin(performance.now() / 110)) * 0.32;
 
-        // Temporizador do Power Pellet
         if (powerPellet.ativo) {
             powerPellet.tempoRestante -= dt;
             if (powerPellet.tempoRestante <= 0) {
@@ -180,7 +180,7 @@ function inicializarMotorGrafico3D(canvas) {
             }
         }
 
-        // Consumo de gemas
+        // Comer gemas
         for (var i = 0; i < gemas.length; i++) {
             var g = gemas[i];
             if (!g.comida) {
@@ -192,24 +192,21 @@ function inicializarMotorGrafico3D(canvas) {
             }
         }
 
-        // Atualização e Raciocínio Semântico dos Fantasmas
+        // Atualização dos Fantasmas
         for (var f = 0; f < fantasmas.length; f++) {
             var fantasma = fantasmas[f];
 
-            // Distância Euclidiana em metros virtuais (escala 1m = 60px)
             var distPx = Math.hypot(pacman.x - fantasma.x, pacman.y - fantasma.y);
             var distMetros = distPx / 60.0;
 
             // Deteção de Proximidade / Colisão com Blinky (fantasmas[0])
             if (fantasma.nome === "Blinky" && distMetros <= distanciaColisaoSegura && avisoColisao.tempo <= 0) {
                 if (powerPellet.ativo) {
-                    // Fantasma vulnerável consumido pelo Pac-Man
                     fantasma.x = 480;
                     fantasma.y = 200;
                     avisoColisao.mensagem = "👻 BLINKY CONSUMIDO! Pac-Man devorou o fantasma vulnerável (+200 pts)!";
                     avisoColisao.tempo = 3.0;
                 } else {
-                    // Blinky apanhou o Pac-Man -> Rotina de Reset
                     vidasRestantes = Math.max(0, vidasRestantes - 1);
                     pacman.x = pontoSpawnInicial.x;
                     pacman.y = pontoSpawnInicial.y;
@@ -220,10 +217,10 @@ function inicializarMotorGrafico3D(canvas) {
                 }
             }
 
-            // Avaliação de Regras SWRL
+            // Regras Ontológicas SWRL
             if (powerPellet.ativo) {
                 fantasma.estado = "Vulneravel";
-                fantasma.cor = "#38bdf8"; // Azul
+                fantasma.cor = "#38bdf8"; // Azul neon
                 var dirX = fantasma.x - pacman.x;
                 var dirY = fantasma.y - pacman.y;
                 var len = Math.hypot(dirX, dirY) || 1;
@@ -235,11 +232,11 @@ function inicializarMotorGrafico3D(canvas) {
                 var dirX = pacman.x - fantasma.x;
                 var dirY = pacman.y - fantasma.y;
                 var len = Math.hypot(dirX, dirY) || 1;
-                fantasma.x += (dirX / len) * 110 * dt;
-                fantasma.y += (dirY / len) * 110 * dt;
+                fantasma.x += (dirX / len) * 115 * dt;
+                fantasma.y += (dirY / len) * 115 * dt;
             } else {
                 fantasma.estado = "Patrulha";
-                fantasma.cor = "#f8fafc"; // Branco
+                fantasma.cor = "#f8fafc"; // Branco suave
                 fantasma.x += fantasma.vx;
                 fantasma.y += fantasma.vy;
                 if (fantasma.x < 100 || fantasma.x > 860) fantasma.vx *= -1;
@@ -249,11 +246,15 @@ function inicializarMotorGrafico3D(canvas) {
     }
 
     function desenhar() {
-        ctx.fillStyle = "#030712";
+        // Fundo azul-noite profundo (#0f172a com gradiente para #090e17)
+        var grad = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 80, canvas.width / 2, canvas.height / 2, 540);
+        grad.addColorStop(0, "#0f172a");
+        grad.addColorStop(1, "#070b14");
+        ctx.fillStyle = grad;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Grade do Labirinto Procedural
-        ctx.strokeStyle = "rgba(0, 240, 255, 0.15)";
+        // Chão do Labirinto Escuro com Linhas Contrastadas
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.12)";
         ctx.lineWidth = 1;
         for (var x = 0; x < canvas.width; x += 40) {
             ctx.beginPath();
@@ -268,55 +269,98 @@ function inicializarMotorGrafico3D(canvas) {
             ctx.stroke();
         }
 
-        // Paredes com neon azul/ciano
+        // Paredes com neon e sombras suaves
         ctx.strokeStyle = "#00f0ff";
-        ctx.lineWidth = 3;
-        ctx.shadowColor = "#00f0ff";
-        ctx.shadowBlur = 10;
+        ctx.lineWidth = 3.5;
+        ctx.shadowColor = "rgba(0, 240, 255, 0.75)";
+        ctx.shadowBlur = 12;
         ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
         ctx.strokeRect(200, 260, 560, 20);
+        ctx.strokeRect(400, 100, 160, 20);
+        ctx.strokeRect(400, 420, 160, 20);
         ctx.shadowBlur = 0;
 
-        // Gemas semânticas
+        // Gemas semânticas com brilho
         for (var i = 0; i < gemas.length; i++) {
             var g = gemas[i];
             if (!g.comida) {
                 ctx.fillStyle = "#ffd700";
+                ctx.shadowColor = "#ffd700";
+                ctx.shadowBlur = 8;
                 ctx.beginPath();
                 ctx.arc(g.x, g.y, 4, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
+        ctx.shadowBlur = 0;
 
-        // Desenhar Pac-Man
-        ctx.save();
-        ctx.translate(pacman.x, pacman.y);
-        ctx.rotate(pacman.angulo);
-        ctx.fillStyle = "#ffd700";
-        ctx.shadowColor = "#ffd700";
-        ctx.shadowBlur = 12;
-        ctx.beginPath();
-        ctx.arc(0, 0, pacman.raio, pacman.boca * Math.PI, (2 - pacman.boca) * Math.PI);
-        ctx.lineTo(0, 0);
-        ctx.fill();
-        ctx.restore();
+        // Desenhar Pac-Man Polido com Smoothness/Specular Highlight
+        desenharPacManPolido();
 
-        // Desenhar Fantasmas
+        // Desenhar Fantasmas Polidos
         for (var f = 0; f < fantasmas.length; f++) {
-            desenharFantasma(fantasmas[f]);
+            desenharFantasmaPolido(fantasmas[f]);
         }
 
         // Overlay HUD Superior e Alertas
         desenharHUD();
     }
 
-    function desenharFantasma(f) {
+    function desenharPacManPolido() {
+        ctx.save();
+        ctx.translate(pacman.x, pacman.y);
+        ctx.rotate(pacman.angulo);
+
+        // Gradiente radial para efeito de esfera polida 3D
+        var pGrad = ctx.createRadialGradient(-5, -5, 2, 0, 0, pacman.raio);
+        pGrad.addColorStop(0, "#fff59d"); // Brilho especular (highlight)
+        pGrad.addColorStop(0.35, "#ffd700"); // Amarelo clássico
+        pGrad.addColorStop(1, "#f59e0b"); // Sombra suave na borda
+
+        ctx.fillStyle = pGrad;
+        ctx.shadowColor = "rgba(255, 215, 0, 0.6)";
+        ctx.shadowBlur = 14;
+
+        ctx.beginPath();
+        ctx.arc(0, 0, pacman.raio, pacman.boca * Math.PI, (2 - pacman.boca) * Math.PI);
+        ctx.lineTo(0, 0);
+        ctx.fill();
+
+        // Olho
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#0f172a";
+        ctx.beginPath();
+        ctx.arc(2, -9, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    function desenharFantasmaPolido(f) {
         ctx.save();
         ctx.translate(f.x, f.y);
-        ctx.fillStyle = f.cor;
-        ctx.shadowColor = f.cor;
-        ctx.shadowBlur = 10;
 
+        // Gradiente com efeito especular suave
+        var fGrad = ctx.createRadialGradient(-4, -6, 2, 0, 0, f.raio + 4);
+        if (f.estado === "Vulneravel") {
+            fGrad.addColorStop(0, "#bae6fd");
+            fGrad.addColorStop(0.5, "#38bdf8");
+            fGrad.addColorStop(1, "#0284c7");
+        } else if (f.estado === "Agressivo") {
+            fGrad.addColorStop(0, "#fecaca");
+            fGrad.addColorStop(0.5, "#ef4444");
+            fGrad.addColorStop(1, "#b91c1c");
+        } else {
+            fGrad.addColorStop(0, "#ffffff");
+            fGrad.addColorStop(0.5, "#f1f5f9");
+            fGrad.addColorStop(1, "#94a3b8");
+        }
+
+        ctx.fillStyle = fGrad;
+        ctx.shadowColor = f.cor;
+        ctx.shadowBlur = 12;
+
+        // Corpo suave
         ctx.beginPath();
         ctx.arc(0, -4, f.raio, Math.PI, 0, false);
         ctx.lineTo(f.raio, f.raio - 4);
@@ -327,21 +371,24 @@ function inicializarMotorGrafico3D(canvas) {
         ctx.closePath();
         ctx.fill();
 
+        // Olhos brilhantes
         ctx.shadowBlur = 0;
         ctx.fillStyle = "#ffffff";
         ctx.beginPath();
-        ctx.arc(-5, -6, 4, 0, Math.PI * 2);
-        ctx.arc(5, -6, 4, 0, Math.PI * 2);
+        ctx.arc(-5, -6, 4.5, 0, Math.PI * 2);
+        ctx.arc(5, -6, 4.5, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = "#000000";
+        // Pupilas
+        ctx.fillStyle = f.estado === "Vulneravel" ? "#ef4444" : "#1e3a8a";
         ctx.beginPath();
-        ctx.arc(-5, -6, 2, 0, Math.PI * 2);
-        ctx.arc(5, -6, 2, 0, Math.PI * 2);
+        ctx.arc(-4, -6, 2.2, 0, Math.PI * 2);
+        ctx.arc(6, -6, 2.2, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "10px monospace";
+        // Texto com estado SWRL
+        ctx.fillStyle = "#cbd5e1";
+        ctx.font = "bold 10px monospace";
         ctx.textAlign = "center";
         ctx.fillText(f.nome + " (" + f.estado + ")", 0, -22);
 
@@ -349,23 +396,23 @@ function inicializarMotorGrafico3D(canvas) {
     }
 
     function desenharHUD() {
-        var hudW = 400;
-        var hudH = 110;
-        ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+        var hudW = 410;
+        var hudH = 112;
+        ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
         ctx.fillRect(40, 40, hudW, hudH);
-        ctx.strokeStyle = "rgba(0, 240, 255, 0.4)";
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.5)";
+        ctx.lineWidth = 1.5;
         ctx.strokeRect(40, 40, hudW, hudH);
 
         ctx.fillStyle = "#ffd700";
         ctx.font = "bold 13px -apple-system, sans-serif";
-        ctx.fillText("PAC-MAN SEMÂNTICO (CIn-UFPE) | WebGL 3D", 52, 60);
+        ctx.fillText("PAC-MAN SEMÂNTICO (CIn-UFPE) | WebGL URP Polido", 52, 60);
 
         ctx.fillStyle = powerPellet.ativo ? "#38bdf8" : "#94a3b8";
         ctx.font = "11px monospace";
         var txtPellet = powerPellet.ativo ? 
             "POWER PELLET ATIVO (" + powerPellet.tempoRestante.toFixed(1) + "s) [SWRL: VULNERÁVEL]" : 
-            "Power Pellet: Inativo (Pressione Barra de Espaço)";
+            "Power Pellet: Inativo (Barra de Espaço para alternar)";
         ctx.fillText(txtPellet, 52, 78);
 
         // Distância para o Blinky (fantasmas[0])
@@ -373,23 +420,23 @@ function inicializarMotorGrafico3D(canvas) {
         ctx.fillStyle = distBlinky <= distanciaColisaoSegura ? "#ef4444" : (distBlinky < 2.5 ? "#f59e0b" : "#22c55e");
         ctx.fillText("Distância Pac-Man ↔ Blinky: " + distBlinky.toFixed(2) + "m (Colisão: <=0.8m)", 52, 96);
 
-        // Vidas
+        // Vidas com cor contrastante
         var iconesVidas = "";
         for (var v = 0; v < vidasRestantes; v++) iconesVidas += " ♥";
         ctx.fillStyle = vidasRestantes > 1 ? "#00ffcc" : (vidasRestantes === 1 ? "#f59e0b" : "#ef4444");
         ctx.fillText("Vidas: " + vidasRestantes + iconesVidas, 52, 114);
 
-        // Alerta de Colisão / Destaque Temporário
+        // Alerta Temporário de Colisão
         if (avisoColisao.tempo > 0 && avisoColisao.mensagem) {
             ctx.fillStyle = "rgba(220, 38, 38, 0.95)";
-            ctx.fillRect(40, 158, 480, 32);
+            ctx.fillRect(40, 160, 490, 32);
             ctx.strokeStyle = "#fef08a";
             ctx.lineWidth = 1.5;
-            ctx.strokeRect(40, 158, 480, 32);
+            ctx.strokeRect(40, 160, 490, 32);
 
             ctx.fillStyle = "#ffffff";
             ctx.font = "bold 12px -apple-system, sans-serif";
-            ctx.fillText(avisoColisao.mensagem, 52, 179);
+            ctx.fillText(avisoColisao.mensagem, 52, 181);
         }
     }
 

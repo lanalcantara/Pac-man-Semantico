@@ -122,6 +122,90 @@ namespace PacMan.Editor
                                  "Certifique-se de que os ficheiros binários em Builds/WebGL/Build/ estão sincronizados para o deploy.");
             }
         }
+
+        /// <summary>
+        /// Aplica os refinamentos visuais na CenaDemoWeb:
+        /// - Ajusta câmera: FOV 65, Near 0.05, Pac-Man afastado da lente.
+        /// - Iluminação: Directional Light com intensidade 1.4, rotação (55, -35, 0), sombras suaves.
+        /// - Ambiente: Azul-noite profundo (#0f172a).
+        /// - Oculta ponteiros/lasers de RV.
+        /// - Material escuro de alto contraste no chão do labirinto.
+        /// </summary>
+        [MenuItem("Pac-Man Semântico/8. Polir Visual da Cena Demo WebGL (Luz, FOV, Materiais)", false, 8)]
+        public static void PolirVisualCenaDemoWeb()
+        {
+            Debug.Log("<color=#00FFFF><b>[Polimento Visual WebGL]</b></color> Aplicando polimento estético na CenaDemoWeb...");
+
+            var scene = EditorSceneManager.OpenScene(CaminhoCenaDemo, OpenSceneMode.Single);
+            if (!scene.IsValid())
+            {
+                Debug.LogError("Não foi possível abrir CenaDemoWeb.unity para polimento.");
+                return;
+            }
+
+            // 1. Câmera Principal
+            Camera cam = Camera.main;
+            if (cam != null)
+            {
+                cam.fieldOfView = 65f;
+                cam.nearClipPlane = 0.05f;
+                cam.backgroundColor = new Color(0.059f, 0.090f, 0.165f, 1f); // #0f172a
+                Debug.Log("<color=#00FF99>✔ Câmera ajustada:</color> FOV=65, NearClip=0.05, Background=#0f172a.");
+            }
+
+            // 2. Afastamento do Pac-Man da lente da câmera
+            GameObject pacmanVisual = GameObject.Find("Visual_PacMan");
+            if (pacmanVisual != null)
+            {
+                pacmanVisual.transform.localPosition = new Vector3(0f, -0.52f, 1.15f);
+                pacmanVisual.transform.localScale = new Vector3(0.38f, 0.38f, 0.38f);
+                Debug.Log("<color=#00FF99>✔ Modelo Pac-Man reposicionado:</color> afastado da lente para não tapar o campo de visão.");
+            }
+
+            // 3. Directional Light
+            Light[] lights = Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+            foreach (var l in lights)
+            {
+                if (l.type == LightType.Directional)
+                {
+                    l.intensity = 1.4f;
+                    l.color = new Color(1f, 0.96f, 0.90f, 1f);
+                    l.shadows = LightShadows.Soft;
+                    l.shadowStrength = 0.85f;
+                    l.transform.localEulerAngles = new Vector3(55f, -35f, 0f);
+                    Debug.Log("<color=#00FF99>✔ Directional Light ajustada:</color> Intensidade=1.4, Rotação=(55, -35, 0), Sombras Suaves.");
+                }
+            }
+
+            // 4. Ocultação de elementos de RV (Left/Right Hand Controller)
+            GameObject leftHand = GameObject.Find("Left Hand Controller");
+            if (leftHand != null) leftHand.SetActive(false);
+            GameObject rightHand = GameObject.Find("Right Hand Controller");
+            if (rightHand != null) rightHand.SetActive(false);
+            Debug.Log("<color=#00FF99>✔ Elementos de RV ocultados:</color> Lasers e ponteiros desativados na cena WebGL.");
+
+            // 5. Chão do labirinto escuro
+            GameObject plane = GameObject.Find("Plane");
+            if (plane != null)
+            {
+                Material matChao = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_ChaoLabirinto_Escuro.mat");
+                if (matChao != null)
+                {
+                    var renderer = plane.GetComponent<MeshRenderer>();
+                    if (renderer != null) renderer.sharedMaterial = matChao;
+                    Debug.Log("<color=#00FF99>✔ Chão do labirinto atualizado:</color> Mat_ChaoLabirinto_Escuro aplicado.");
+                }
+            }
+
+            // 6. Ambiente / Iluminação
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientSkyColor = new Color(0.059f, 0.090f, 0.165f, 1f); // #0f172a
+            RenderSettings.subtractiveShadowColor = new Color(0.05f, 0.08f, 0.15f, 1f);
+            RenderSettings.skybox = null;
+
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log("<color=#00FF99><b>✔ [Polimento Concluído com Sucesso]</b></color> CenaDemoWeb.unity salva com estética premium.");
+        }
     }
 }
 #endif

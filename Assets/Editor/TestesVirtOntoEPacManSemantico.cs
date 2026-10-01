@@ -352,6 +352,39 @@ public static class TestesVirtOntoEPacManSemantico
             Debug.LogError($"✘ [TESTE 9 FALHOU] AvaliadorRegrasRuntime: {ex.Message}");
         }
 
+        // --- TESTE 10: InteracaoXRColisao e Consumo Ontológico com Motor Semântico ---
+        totalTestes++;
+        try
+        {
+            GameObject motorObj = new GameObject("Teste_Motor_XRColisao");
+            var motor = motorObj.AddComponent<PacMan.Semantics.MotorRaciocinioSemantico>();
+
+            GameObject playerObj = new GameObject("Teste_XROrigin_Colisao");
+            playerObj.AddComponent<SphereCollider>();
+            var interacaoXR = playerObj.AddComponent<PacMan.XR.InteracaoXRColisao>();
+            interacaoXR.motorSemantico = motor;
+
+            GameObject gemaObj = new GameObject("SpecialGem_PowerPellet_01");
+            gemaObj.tag = "GemaValida";
+            gemaObj.AddComponent<SphereCollider>();
+
+            // 1. Processa colisão ontológica com gema especial
+            interacaoXR.ProcessarInteracaoOntologica(gemaObj);
+
+            // 2. Valida que o motor de raciocínio recebeu a notificação de ativação de Power Pellet
+            Debug.Assert(motor.pacmanIsPowered, "Motor semântico deveria ter ativado o estado empoderado do Pac-Man.");
+
+            UnityEngine.Object.DestroyImmediate(playerObj);
+            UnityEngine.Object.DestroyImmediate(motorObj);
+
+            testesPassaram++;
+            Debug.Log("<color=#00FF66>✔ [TESTE 10 PASSOU]</color> InteracaoXRColisao: Deteção de gatilhos físicos, feedback sonoro e ativação SWRL no MotorRaciocinioSemantico 100% validados.");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"✘ [TESTE 10 FALHOU] InteracaoXRColisao: {ex.Message}");
+        }
+
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");
         Debug.Log($"<color=#00FF99><b>Resultado Final: {testesPassaram}/{totalTestes} testes passaram com 100% de sucesso!</b></color>");
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");

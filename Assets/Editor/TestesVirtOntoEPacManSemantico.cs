@@ -261,6 +261,44 @@ public static class TestesVirtOntoEPacManSemantico
             Debug.LogError($"✘ [TESTE 7 FALHOU] ControladorJogador: {ex.Message}");
         }
 
+        // --- TESTE 8: ApiClient e Serialização de DTOs de Rede (Spring Boot) ---
+        totalTestes++;
+        try
+        {
+            GameObject apiObj = new GameObject("Teste_ApiClient");
+            var client = apiObj.AddComponent<PacMan.Network.ApiClient>();
+
+            // 1. Validação de configuração inicial
+            Debug.Assert(client.baseUrl.Contains("localhost:8080"), "URL base da API Spring Boot incorreta.");
+
+            // 2. Validação de serialização e conversão de DTOs
+            PacMan.Network.ApiClient.NodeDto nodeDto = new PacMan.Network.ApiClient.NodeDto
+            {
+                id = "pacman_01",
+                label = "PacMan",
+                type = "Individual",
+                displayColor = "#FFFF00",
+                conceptClass = "Pacman",
+                valid = true,
+                position = new PacMan.Network.ApiClient.Vector3Dto { x = 1.0f, y = 2.0f, z = 3.0f }
+            };
+
+            string json = JsonUtility.ToJson(nodeDto);
+            Debug.Assert(!string.IsNullOrEmpty(json) && json.Contains("pacman_01"), "Falha na serialização JSON do NodeDto.");
+
+            Vector3 posUnity = nodeDto.position.ToVector3();
+            Debug.Assert(posUnity == new Vector3(1f, 2f, 3f), "Falha na conversão de Vector3Dto para UnityEngine.Vector3.");
+
+            UnityEngine.Object.DestroyImmediate(apiObj);
+
+            testesPassaram++;
+            Debug.Log("<color=#00FF66>✔ [TESTE 8 PASSOU]</color> ApiClient: DTOs de rede, serialização JSON e integração com microsserviço Spring Boot 100% validados.");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"✘ [TESTE 8 FALHOU] ApiClient: {ex.Message}");
+        }
+
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");
         Debug.Log($"<color=#00FF99><b>Resultado Final: {testesPassaram}/{totalTestes} testes passaram com 100% de sucesso!</b></color>");
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");

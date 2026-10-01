@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using VirtOnto.Model;
 using PacMan.Semantics;
+using PacMan.Network;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -34,7 +35,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         BackendCppNativo,
         ArquivoJson,
         GrafoOntologicoVirtOnto,
-        InjecaoExternaDinamica
+        InjecaoExternaDinamica,
+        BackendJavaSpringBoot
     }
 
     [Header("Identidade do Projeto")]
@@ -112,6 +114,10 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     [Tooltip("Motor de Raciocínio Semântico que avalia regras SWRL e gere comportamentos dos agentes.")]
     public MotorRaciocinioSemantico motorRaciocinio;
 
+    [Header("Conexão com Backend Java (Spring Boot)")]
+    [Tooltip("Cliente de rede REST para sincronização com o microsserviço Java Spring Boot.")]
+    public ApiClient apiClient;
+
     [Header("Status do Grafo Ontológico (VirtOnto C#)")]
     [SerializeField] private string m_NomeOntologiaAtiva = "Pac-Man Semantic Ontology";
     [SerializeField] private string m_VersaoAxiomas = "ALCQ(D)";
@@ -141,6 +147,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         CarregarPrefabsAutomaticamente();
         LocalizarPlanoChao();
         InicializarMotorRaciocinio();
+        InicializarApiClient();
     }
 
     public void InicializarMotorRaciocinio()
@@ -157,6 +164,23 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         if (motorRaciocinio != null)
         {
             motorRaciocinio.gerenciadorCenario = this;
+        }
+    }
+
+    public void InicializarApiClient()
+    {
+        if (apiClient == null)
+        {
+            apiClient = GetComponent<ApiClient>() ?? FindAnyObjectByType<ApiClient>();
+            if (apiClient == null)
+            {
+                apiClient = gameObject.AddComponent<ApiClient>();
+            }
+        }
+
+        if (apiClient != null)
+        {
+            apiClient.gerenciadorCenario = this;
         }
     }
 
@@ -231,6 +255,15 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
             case OrigemDadosOntologia.InjecaoExternaDinamica:
                 Debug.Log("[Pac-Man Semântico] Modo de Injeção Dinâmica Ativo. Aguardando chamada de CarregarCenarioDeDados().");
+                return;
+
+            case OrigemDadosOntologia.BackendJavaSpringBoot:
+                Debug.Log("<color=#00DDFF><b>[Pac-Man Semântico - Backend Java Spring Boot]</b></color> Consultando microsserviço REST em " + (apiClient != null ? apiClient.baseUrl : "http://localhost:8080/api/ontology") + "...");
+                InicializarApiClient();
+                if (apiClient != null)
+                {
+                    apiClient.SincronizarCenarioComBackend();
+                }
                 return;
 
             case OrigemDadosOntologia.ProceduralInterno:
@@ -951,6 +984,16 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         }
 
         GrafoOntologico.AvaliarRegrasSWRL(msg => Debug.Log($"<color=#9B59B6><b>[VirtOnto SWRL]</b></color> {msg}"));
+    }
+
+    [ContextMenu("Pac-Man Semântico/Sincronizar com Backend Java (Spring Boot)")]
+    public void MenuSincronizarComBackendJava()
+    {
+        InicializarApiClient();
+        if (apiClient != null)
+        {
+            apiClient.SincronizarCenarioComBackend();
+        }
     }
 
     /// <summary>

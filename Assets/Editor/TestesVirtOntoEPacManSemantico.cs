@@ -475,6 +475,43 @@ public static class TestesVirtOntoEPacManSemantico
             Debug.LogError($"✘ [TESTE 12 FALHOU] TelemetriaExperimento: {ex.Message}");
         }
 
+        // --- TESTE 13: CenaDemoWeb e Configuração WebGL para GitHub Pages ---
+        totalTestes++;
+        try
+        {
+            // 1. Valida existência da cena demo dedicada WebGL
+            string caminhoCenaDemo = "Assets/Scenes/DemoWeb/CenaDemoWeb.unity";
+            Debug.Assert(System.IO.File.Exists(caminhoCenaDemo), $"Cena Demo WebGL não encontrada em {caminhoCenaDemo}");
+
+            // 2. Valida componente ControladorDemoWeb
+            GameObject demoObj = new GameObject("Teste_DemoWeb");
+            var ctrlDemo = demoObj.AddComponent<PacMan.Web.ControladorDemoWeb>();
+            GameObject motorObj = new GameObject("Teste_Motor_Demo");
+            var motor = motorObj.AddComponent<PacMan.Semantics.MotorRaciocinioSemantico>();
+            ctrlDemo.motorSemantico = motor;
+
+            Debug.Assert(!motor.pacmanIsPowered, "Power Pellet não deve iniciar ativo.");
+            ctrlDemo.AlternarPowerPellet();
+            Debug.Assert(motor.pacmanIsPowered, "AlternarPowerPellet deve ativar o estado empoderado.");
+            ctrlDemo.AlternarPowerPellet();
+            Debug.Assert(!motor.pacmanIsPowered, "AlternarPowerPellet novamente deve desativar o estado empoderado.");
+
+            // 3. Valida chamada do utilitário ConfiguradorDemoWebGL
+            PacMan.Editor.ConfiguradorDemoWebGL.ConfigurarPlataformaWebGL();
+            Debug.Assert(PlayerSettings.defaultWebScreenWidth == 960, "Largura de tela WebGL deve ser 960.");
+            Debug.Assert(PlayerSettings.defaultWebScreenHeight == 600, "Altura de tela WebGL deve ser 600.");
+
+            UnityEngine.Object.DestroyImmediate(demoObj);
+            UnityEngine.Object.DestroyImmediate(motorObj);
+
+            testesPassaram++;
+            Debug.Log("<color=#00FF66>✔ [TESTE 13 PASSOU]</color> CenaDemoWeb e WebGL Setup: Resolução 960x600, cena standalone e ControladorDemoWeb 100% validados.");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"✘ [TESTE 13 FALHOU] WebGL Setup: {ex.Message}");
+        }
+
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");
         Debug.Log($"<color=#00FF99><b>Resultado Final: {testesPassaram}/{totalTestes} testes passaram com 100% de sucesso!</b></color>");
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");

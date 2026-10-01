@@ -2,10 +2,14 @@
 
 [![Unity](https://img.shields.io/badge/Unity-6000.3.24f1%20(Unity%206)-blue.svg?logo=unity)](https://unity.com/)
 [![XR](https://img.shields.io/badge/XR-OpenXR%20%7C%20XR%20Interaction%20Toolkit-purple.svg)](https://docs.unity3d.com/Packages/com.unity.xr.interaction.toolkit@latest)
+[![WebGL](https://img.shields.io/badge/WebGL-Live%20Demo-blueviolet.svg?logo=webgl)](https://lanalcantara.github.io/Pac-man-Semantico/)
 [![Spring Boot](https://img.shields.io/badge/Backend-Java%2017%20%7C%20Spring%20Boot%203.2-brightgreen.svg?logo=springboot)](https://spring.io/projects/spring-boot)
 [![Ontology](https://img.shields.io/badge/Ontology-OWL%20%7C%20SWRL%20%7C%20ALCQ(D)-orange.svg)](https://www.w3.org/standards/semanticweb/ontology)
 [![VirtOnto](https://img.shields.io/badge/Architecture-VirtOnto%20Spatial%20Graph-emerald.svg)](https://github.com/lanalcantara/Pac-man-Semantico)
 [![Institution](https://img.shields.io/badge/Institution-CIn--UFPE-red.svg)](https://www.cin.ufpe.br/)
+
+> ### [🎮 Testar Demonstração Interativa no Browser (WebGL)](https://lanalcantara.github.io/Pac-man-Semantico/)
+> Experimente o Pac-Man Semântico diretamente no navegador web via GitHub Pages: labirinto procedural, movimentação fluida (WASD / Mouse) e avaliação contínua de regras ontológicas SWRL (fantasmas azuis quando vulneráveis, vermelhos quando agressivos e brancos em patrulha).
 
 ---
 
@@ -176,12 +180,26 @@ curl http://localhost:8080/api/ontology/status
 
 ---
 
-### Passo 3: Executar a Suíte de Testes Automatizados
+### Passo 3: Executar a Demonstração WebGL Leve (GitHub Pages)
+
+Para testar ou compilar a versão leve para a web:
+1. Abra a cena dedicada: **`Assets/Scenes/DemoWeb/CenaDemoWeb.unity`**.
+2. Essa cena é 100% autônoma e executa a simulação ontológica VirtOnto com o `AvaliadorRegrasRuntime` e o overlay gráfico `ControladorDemoWeb`.
+3. Pressione **Play** no Editor ou exporte via WebGL para hospedar no GitHub Pages:
+   - **Link Online no GitHub Pages:** [https://lanalcantara.github.io/Pac-man-Semantico/](https://lanalcantara.github.io/Pac-man-Semantico/)
+   - **Controles no Browser:**
+     - **WASD / Teclas de Seta:** Movimentação contínua do Pac-Man pelo labirinto.
+     - **Botão Direito do Mouse / Q-E:** Rotação livre de câmera / olhar 3D.
+     - **Barra de Espaço / Botão HUD:** Ativação instantânea de Power Pellet (regra SWRL: fantasmas tornam-se azuis e fogem).
+
+---
+
+### Passo 4: Executar a Suíte de Testes Automatizados
 
 No menu superior do Unity Editor, clique em:
 **`Pac-Man Semântico -> 4. Executar Testes de Validação (VirtOnto + Bounds + Prefabs)`**.
 
-A suíte executará **11 baterias de testes automatizados**:
+A suíte executará **13 baterias de testes automatizados**:
 1. Álgebra vetorial e conversão de `Vector3D`.
 2. Hierarquia ontológica e nós `OntologyElement`, `Node`, `Edge`.
 3. Indexação e regras SWRL no `Graph` VirtOnto.
@@ -193,6 +211,8 @@ A suíte executará **11 baterias de testes automatizados**:
 9. Inferência visual contínua e validação de altitude do `AvaliadorRegrasRuntime`.
 10. Deteção física e consumo ontológico no `InteracaoXRColisao`.
 11. Injeção e conversão de coordenadas C++ no `LeitorCoordenadasCpp`.
+12. Coleta de telemetria, medição de FPS e gravação CSV no `TelemetriaExperimento`.
+13. Configuração de plataforma, resolução e cena autônoma no `ConfiguradorDemoWebGL`.
 
 ---
 

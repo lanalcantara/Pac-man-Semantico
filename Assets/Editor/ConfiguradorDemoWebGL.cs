@@ -73,6 +73,33 @@ namespace PacMan.Editor
                 Debug.Log($"<color=#00FF99><b>[WebGL Setup]</b></color> Cena '{CaminhoCenaDemo}' adicionada como cena principal de build.");
             }
         }
+
+        /// <summary>
+        /// Executa o pipeline de build WebGL exportando exatamente para ./Builds/WebGL
+        /// </summary>
+        [MenuItem("Pac-Man Semântico/7. Executar Build WebGL para ./Builds/WebGL", false, 7)]
+        public static void ExecutarBuildWebGL()
+        {
+            ConfigurarPlataformaWebGL();
+
+            string outputFolder = "Builds/WebGL";
+            if (!Directory.Exists(outputFolder))
+            {
+                Directory.CreateDirectory(outputFolder);
+            }
+
+            BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions
+            {
+                scenes = new[] { CaminhoCenaDemo },
+                locationPathName = outputFolder,
+                target = BuildTarget.WebGL,
+                options = BuildOptions.None
+            };
+
+            Debug.Log($"<color=#00FFFF><b>[WebGL Build]</b></color> Iniciando build WebGL para {outputFolder}...");
+            var report = BuildPipeline.BuildPlayer(buildPlayerOptions);
+            Debug.Log($"<color=#00FF99><b>[WebGL Build]</b></color> Resultado do Build: {report.summary.result} ({report.summary.totalErrors} erros)");
+        }
     }
 }
 #endif

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pac-Man Semântico (CIn-UFPE) | Demonstração WebGL</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at center, #0e121b 0%, #06080c 100%);
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .card {
+      background: rgba(18, 24, 38, 0.85);
+      border: 1px solid rgba(0, 255, 204, 0.25);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 255, 204, 0.15);
+      border-radius: 16px;
+      padding: 36px;
+      max-width: 720px;
+      width: 100%;
+      backdrop-filter: blur(12px);
+    }
+    h1 {
+      font-size: 2.2rem;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #ffff00 0%, #00ffcc 50%, #3399ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .badge-container {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 16px 0 24px 0;
+    }
+    .badge {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .badge.cyan { color: #00ffff; border-color: rgba(0, 255, 255, 0.4); }
+    .badge.yellow { color: #ffd700; border-color: rgba(255, 215, 0, 0.4); }
+    .badge.blue { color: #60a5fa; border-color: rgba(96, 165, 250, 0.4); }
+    p {
+      line-height: 1.6;
+      color: #94a3b8;
+      margin-bottom: 20px;
+      font-size: 1.05rem;
+    }
+    .features {
+      text-align: left;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .features li {
+      margin-left: 20px;
+      margin-bottom: 8px;
+      color: #cbd5e1;
+    }
+    .btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #00ffcc, #0088ff);
+      color: #050b14;
+      font-weight: 700;
+      text-decoration: none;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-size: 1rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 18px rgba(0, 255, 204, 0.35);
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(0, 255, 204, 0.55);
+    }
+    footer {
+      margin-top: 24px;
+      font-size: 0.85rem;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Pac-Man Semântico (CIn-UFPE)</h1>
+    <div class="badge-container">
+      <span class="badge yellow">Unity 6 WebGL</span>
+      <span class="badge cyan">SWRL & ALCQ(D)</span>
+      <span class="badge blue">VirtOnto Spatial Graph</span>
+    </div>
+
+    <p>
+      Ambiente de demonstração interativa do projeto de pesquisa de Mestrado no 
+      <strong>Centro de Informática da Universidade Federal de Pernambuco (CIn-UFPE)</strong>.
+      Integração de modelos de conhecimento da Web Semântica com computação gráfica 3D e Realidade Virtual.
+    </p>
+
+    <div class="features">
+      <ul>
+        <li><strong>Labirinto Procedural:</strong> Instanciado a partir do Grafo Ontológico VirtOnto.</li>
+        <li><strong>Inferência SWRL Dinâmica:</strong> Transições de estado dos agentes em tempo real (Patrol, Aggressive, Vulnerable).</li>
+        <li><strong>Feedback Visual:</strong> Fantasmas azuis quando vulneráveis (Power Pellet), vermelhos quando agressivos e brancos em patrulha.</li>
+        <li><strong>Controles:</strong> Suporte a teclado (WASD / Setas), rotação de câmera (mouse) e telemetria integrada.</li>
+      </ul>
+    </div>
+
+    <a class="btn" href="https://github.com/lanalcantara/Pac-man-Semantico" target="_blank" rel="noopener">
+      Ver Repositório no GitHub
+    </a>
+  </div>
+
+  <footer>
+    Pesquisa de Mestrado em Ciência da Computação — CIn-UFPE | Autora: Lana Alcântara
+  </footer>
+</body>
+</html>

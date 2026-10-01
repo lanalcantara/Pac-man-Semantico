@@ -152,14 +152,33 @@ function inicializarMotorGrafico3D(canvas) {
             }
         }
 
-        // Movimentação do Pac-Man
-        var speed = 190;
-        pacman.vx = 0;
-        pacman.vy = 0;
-        if (teclas["w"] || teclas["W"] || teclas["ArrowUp"])    { pacman.vy = -speed; pacman.angulo = 1.5 * Math.PI; }
-        if (teclas["s"] || teclas["S"] || teclas["ArrowDown"])  { pacman.vy = speed;  pacman.angulo = 0.5 * Math.PI; }
-        if (teclas["a"] || teclas["A"] || teclas["ArrowLeft"])  { pacman.vx = -speed; pacman.angulo = Math.PI; }
-        if (teclas["d"] || teclas["D"] || teclas["ArrowRight"]) { pacman.vx = speed;  pacman.angulo = 0; }
+        // Movimentação e Curvatura Fluida do Pac-Man (A/D e Setas Laterais alteram direção vetorial e ângulo)
+        var speed = 195;
+        var dirX = 0;
+        var dirY = 0;
+
+        if (teclas["w"] || teclas["W"] || teclas["ArrowUp"])    dirY -= 1;
+        if (teclas["s"] || teclas["S"] || teclas["ArrowDown"])  dirY += 1;
+        if (teclas["a"] || teclas["A"] || teclas["ArrowLeft"])  dirX -= 1;
+        if (teclas["d"] || teclas["D"] || teclas["ArrowRight"]) dirX += 1;
+
+        if (dirX !== 0 || dirY !== 0) {
+            var len = Math.hypot(dirX, dirY);
+            pacman.vx = (dirX / len) * speed;
+            pacman.vy = (dirY / len) * speed;
+
+            // Interpolação suave do ângulo de rotação na direção do movimento (curvatura dinâmica)
+            var targetAngle = Math.atan2(dirY, dirX);
+            if (targetAngle < 0) targetAngle += 2 * Math.PI;
+
+            var diff = targetAngle - pacman.angulo;
+            while (diff < -Math.PI) diff += 2 * Math.PI;
+            while (diff > Math.PI) diff -= 2 * Math.PI;
+            pacman.angulo += diff * Math.min(1.0, dt * 16.0);
+        } else {
+            pacman.vx = 0;
+            pacman.vy = 0;
+        }
 
         pacman.x += pacman.vx * dt;
         pacman.y += pacman.vy * dt;
@@ -396,8 +415,8 @@ function inicializarMotorGrafico3D(canvas) {
     }
 
     function desenharHUD() {
-        var hudW = 410;
-        var hudH = 112;
+        var hudW = 420;
+        var hudH = 132;
         ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
         ctx.fillRect(40, 40, hudW, hudH);
         ctx.strokeStyle = "rgba(56, 189, 248, 0.5)";
@@ -425,6 +444,10 @@ function inicializarMotorGrafico3D(canvas) {
         for (var v = 0; v < vidasRestantes; v++) iconesVidas += " ♥";
         ctx.fillStyle = vidasRestantes > 1 ? "#00ffcc" : (vidasRestantes === 1 ? "#f59e0b" : "#ef4444");
         ctx.fillText("Vidas: " + vidasRestantes + iconesVidas, 52, 114);
+
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "10px monospace";
+        ctx.fillText("Navegação: Setas / A e D (Curvar e virar livremente) | Espaço: Power Pellet", 52, 128);
 
         // Alerta Temporário de Colisão
         if (avisoColisao.tempo > 0 && avisoColisao.mensagem) {

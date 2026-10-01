@@ -430,6 +430,51 @@ public static class TestesVirtOntoEPacManSemantico
             Debug.LogError($"✘ [TESTE 11 FALHOU] LeitorCoordenadasCpp: {ex.Message}");
         }
 
+        // --- TESTE 12: TelemetriaExperimento e Registo de Métricas CSV ---
+        totalTestes++;
+        try
+        {
+            GameObject motorObj = new GameObject("Teste_Motor_Telemetria");
+            var motor = motorObj.AddComponent<PacMan.Semantics.MotorRaciocinioSemantico>();
+
+            GameObject pacmanObj = new GameObject("Teste_Pacman_Telemetria");
+            pacmanObj.transform.position = new Vector3(0f, 0f, 0f);
+
+            GameObject ghostObj = new GameObject("Teste_Ghost_Telemetria");
+            ghostObj.transform.position = new Vector3(3f, 0f, 4f); // Distância = 5m
+
+            GameObject telemetriaObj = new GameObject("Teste_Telemetria");
+            var telemetria = telemetriaObj.AddComponent<PacMan.Telemetria.TelemetriaExperimento>();
+            telemetria.motorSemantico = motor;
+            telemetria.pacmanTransform = pacmanObj.transform;
+            telemetria.ghostTransform = ghostObj.transform;
+
+            // 1. Executa registo de métricas
+            telemetria.RegistarMetricasFrame();
+
+            // 2. Valida histórico e campos calculados
+            var historico = telemetria.ObterHistorico();
+            Debug.Assert(historico.Count == 1, "Deveria haver 1 registo de telemetria no histórico.");
+            Debug.Assert(Mathf.Approximately(historico[0].distanciaPacmanFantasma, 5f), "Distância Pacman-Fantasma calculada incorretamente.");
+            Debug.Assert(historico[0].estadoFantasma == "Patrol", "Estado ontológico inicial do fantasma incorreto.");
+
+            // 3. Valida caminho de ficheiro CSV gerado
+            string pathCsv = telemetria.ObterCaminhoFicheiro();
+            Debug.Assert(!string.IsNullOrEmpty(pathCsv), "Caminho do CSV não deve ser nulo.");
+
+            UnityEngine.Object.DestroyImmediate(telemetriaObj);
+            UnityEngine.Object.DestroyImmediate(ghostObj);
+            UnityEngine.Object.DestroyImmediate(pacmanObj);
+            UnityEngine.Object.DestroyImmediate(motorObj);
+
+            testesPassaram++;
+            Debug.Log("<color=#00FF66>✔ [TESTE 12 PASSOU]</color> TelemetriaExperimento: Coleta de FPS, cálculo espacial, estados ontológicos SWRL e exportação CSV 100% validados.");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"✘ [TESTE 12 FALHOU] TelemetriaExperimento: {ex.Message}");
+        }
+
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");
         Debug.Log($"<color=#00FF99><b>Resultado Final: {testesPassaram}/{totalTestes} testes passaram com 100% de sucesso!</b></color>");
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");

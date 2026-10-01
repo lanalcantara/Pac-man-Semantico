@@ -360,6 +360,11 @@ namespace PacMan.Semantics
         }
 
         /// <summary>
+        /// Retorna o estado ontológico atual de um fantasma pelo ID (compatibilidade com Telemetria).
+        /// </summary>
+        public GameEntityState ObterEstadoAtualFantasma(string id) => ObterEstadoEntidade(id);
+
+        /// <summary>
         /// Reseta os estados internos das entidades no motor de inferência.
         /// </summary>
         public void ResetarEstados()

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using VirtOnto.Model;
+using PacMan.Semantics;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -107,6 +108,10 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     [Tooltip("Mapeamentos personalizados entre classes da ontologia C++/OWL e modelos 3D específicos.")]
     public List<MapeamentoClassePrefab> mapeamentoClassesCustomizadas = new List<MapeamentoClassePrefab>();
 
+    [Header("Raciocínio Ontológico (SWRL Engine)")]
+    [Tooltip("Motor de Raciocínio Semântico que avalia regras SWRL e gere comportamentos dos agentes.")]
+    public MotorRaciocinioSemantico motorRaciocinio;
+
     [Header("Status do Grafo Ontológico (VirtOnto C#)")]
     [SerializeField] private string m_NomeOntologiaAtiva = "Pac-Man Semantic Ontology";
     [SerializeField] private string m_VersaoAxiomas = "ALCQ(D)";
@@ -135,6 +140,24 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     {
         CarregarPrefabsAutomaticamente();
         LocalizarPlanoChao();
+        InicializarMotorRaciocinio();
+    }
+
+    public void InicializarMotorRaciocinio()
+    {
+        if (motorRaciocinio == null)
+        {
+            motorRaciocinio = GetComponent<MotorRaciocinioSemantico>() ?? FindAnyObjectByType<MotorRaciocinioSemantico>();
+            if (motorRaciocinio == null)
+            {
+                motorRaciocinio = gameObject.AddComponent<MotorRaciocinioSemantico>();
+            }
+        }
+
+        if (motorRaciocinio != null)
+        {
+            motorRaciocinio.gerenciadorCenario = this;
+        }
     }
 
     private void Start()
@@ -289,6 +312,12 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
         // 3. Avaliação inicial de regras SWRL sobre o grafo instanciado
         GrafoOntologico.AvaliarRegrasSWRL(msg => Debug.Log($"<color=#9B59B6><b>[VirtOnto SWRL]</b></color> {msg}"));
+
+        // 4. Conecta e sincroniza o Grafo Ontológico com o Motor de Raciocínio Semântico
+        if (motorRaciocinio != null)
+        {
+            motorRaciocinio.SetSemanticGraph(GrafoOntologico);
+        }
 
         Debug.Log($"<color=#00FF99><b>[Pac-Man Semântico CIn-UFPE]</b></color> Cenário '<b>{m_NomeOntologiaAtiva}</b>' ({m_VersaoAxiomas}) instanciado com sucesso!\n" +
                   $"• Instâncias Físicas: {m_TotalInstanciasInstanciadas} ({contadorValidos} Gemas Válidas / {contadorInvalidos} Obstáculos/Fantasmas)\n" +
@@ -978,5 +1007,6 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         m_PosicoesOcupadas.Clear();
         m_TotalInstanciasInstanciadas = 0;
         InstanciaSemanticaBase.instanciasValidasRestantes = 0;
+        motorRaciocinio?.ResetarEstados();
     }
 }

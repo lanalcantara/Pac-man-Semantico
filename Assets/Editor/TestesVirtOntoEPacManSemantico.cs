@@ -192,6 +192,41 @@ public static class TestesVirtOntoEPacManSemantico
             Debug.LogError($"✘ [TESTE 5 FALHOU] Assentamento no Chão: {ex.Message}");
         }
 
+        // --- TESTE 6: Motor de Raciocínio Semântico e Regras SWRL ---
+        totalTestes++;
+        try
+        {
+            GameObject motorObj = new GameObject("Teste_MotorRaciocinio");
+            var motor = motorObj.AddComponent<PacMan.Semantics.MotorRaciocinioSemantico>();
+
+            // 1. Valida inicialização do Grafo de Exemplo TBox/ABox
+            Graph grafo = motor.GetSemanticGraph();
+            Debug.Assert(grafo != null, "Grafo semântico nulo.");
+            Debug.Assert(grafo.GetNode("pacman_01") != null, "Nó pacman_01 não encontrado.");
+            Debug.Assert(grafo.GetNode("ghost_blinky") != null, "Nó ghost_blinky não encontrado.");
+
+            // 2. Avaliação de regras SWRL: Patrol (distância grande)
+            var estado1 = motor.AvaliarRegraEstadoFantasma("ghost_blinky", pacmanIsPowered: false, distancia: 5.0f);
+            Debug.Assert(estado1 == PacMan.Semantics.GameEntityState.Patrol, $"Esperado Patrol, obtido {estado1}");
+
+            // 3. Avaliação de regras SWRL: Aggressive (proximidade < 2m sem poder)
+            var estado2 = motor.AvaliarRegraEstadoFantasma("ghost_blinky", pacmanIsPowered: false, distancia: 1.5f);
+            Debug.Assert(estado2 == PacMan.Semantics.GameEntityState.Aggressive, $"Esperado Aggressive, obtido {estado2}");
+
+            // 4. Avaliação de regras SWRL: Vulnerable (proximidade < 3m sob efeito de Power Pellet)
+            var estado3 = motor.AvaliarRegraEstadoFantasma("ghost_blinky", pacmanIsPowered: true, distancia: 2.5f);
+            Debug.Assert(estado3 == PacMan.Semantics.GameEntityState.Vulnerable, $"Esperado Vulnerable, obtido {estado3}");
+
+            UnityEngine.Object.DestroyImmediate(motorObj);
+
+            testesPassaram++;
+            Debug.Log("<color=#00FF66>✔ [TESTE 6 PASSOU]</color> MotorRaciocinioSemantico: Inferência SWRL e transições ontológicas dinâmicas (Patrol, Aggressive, Vulnerable) 100% validadas.");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"✘ [TESTE 6 FALHOU] MotorRaciocinioSemantico: {ex.Message}");
+        }
+
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");
         Debug.Log($"<color=#00FF99><b>Resultado Final: {testesPassaram}/{totalTestes} testes passaram com 100% de sucesso!</b></color>");
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");

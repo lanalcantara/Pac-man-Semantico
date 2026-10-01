@@ -256,8 +256,8 @@ function inicializarMotorGrafico3D(canvas) {
             } else {
                 fantasma.estado = "Patrulha";
                 fantasma.cor = "#f8fafc"; // Branco suave
-                fantasma.x += fantasma.vx;
-                fantasma.y += fantasma.vy;
+                fantasma.x += fantasma.vx * 60 * dt;
+                fantasma.y += fantasma.vy * 60 * dt;
                 if (fantasma.x < 100 || fantasma.x > 860) fantasma.vx *= -1;
                 if (fantasma.y < 80  || fantasma.y > 520) fantasma.vy *= -1;
             }
@@ -288,15 +288,34 @@ function inicializarMotorGrafico3D(canvas) {
             ctx.stroke();
         }
 
-        // Paredes com neon e sombras suaves
+        // Paredes com neon e sombras suaves (Delimitação Completa do Labirinto)
         ctx.strokeStyle = "#00f0ff";
         ctx.lineWidth = 3.5;
         ctx.shadowColor = "rgba(0, 240, 255, 0.75)";
         ctx.shadowBlur = 12;
+
+        // Paredes Perimetrais Externas
         ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
-        ctx.strokeRect(200, 260, 560, 20);
-        ctx.strokeRect(400, 100, 160, 20);
-        ctx.strokeRect(400, 420, 160, 20);
+
+        // Bloco Central (Ghost House)
+        ctx.strokeRect(390, 240, 180, 120);
+
+        // Corredores em L nos quatro cantos
+        ctx.strokeRect(160, 110, 160, 22);
+        ctx.strokeRect(300, 110, 22, 100);
+
+        ctx.strokeRect(640, 110, 160, 22);
+        ctx.strokeRect(640, 110, 22, 100);
+
+        ctx.strokeRect(160, 468, 160, 22);
+        ctx.strokeRect(300, 390, 22, 100);
+
+        ctx.strokeRect(640, 468, 160, 22);
+        ctx.strokeRect(640, 390, 22, 100);
+
+        // Divisórias dos corredores centrais Norte e Sul
+        ctx.strokeRect(390, 110, 180, 22);
+        ctx.strokeRect(390, 468, 180, 22);
         ctx.shadowBlur = 0;
 
         // Gemas semânticas com brilho

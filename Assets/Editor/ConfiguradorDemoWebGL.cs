@@ -19,7 +19,8 @@ namespace PacMan.Editor
         private const string CaminhoCenaDemo = "Assets/Scenes/DemoWeb/CenaDemoWeb.unity";
 
         /// <summary>
-        /// Garante automaticamente que CenaDemoWeb.unity é a cena de início ao dar Play no Unity Editor.
+        /// Garante automaticamente que CenaDemoWeb.unity é a cena ativa e de início ao dar Play no Unity Editor,
+        /// descarregando qualquer cena residual como SampleScene.
         /// </summary>
         [InitializeOnLoadMethod]
         public static void GarantirCenaDemoWebAoIniciar()
@@ -29,16 +30,42 @@ namespace PacMan.Editor
             {
                 EditorSceneManager.playModeStartScene = sceneAsset;
             }
+
+            EditorApplication.delayCall += () =>
+            {
+                for (int i = 0; i < EditorSceneManager.sceneCount; i++)
+                {
+                    var sc = EditorSceneManager.GetSceneAt(i);
+                    if (sc.name.Contains("SampleScene") && sc.isLoaded)
+                    {
+                        EditorSceneManager.CloseScene(sc, true);
+                    }
+                }
+
+                var activeScene = EditorSceneManager.GetActiveScene();
+                if (activeScene.path != CaminhoCenaDemo && !Application.isPlaying)
+                {
+                    EditorSceneManager.OpenScene(CaminhoCenaDemo, OpenSceneMode.Single);
+                }
+            };
         }
 
         /// <summary>
-        /// Abre e seleciona exclusivamente a cena WebGL leve (CenaDemoWeb.unity)
-        /// garantindo que cenas de Realidade Virtual (como SampleScene) não estejam ativas.
+        /// Fecha e descarrega explicitamente a SampleScene e abre exclusivamente a CenaDemoWeb.unity.
         /// </summary>
         [MenuItem("Pac-Man Semântico/5. Selecionar e Abrir Cena Demo WebGL (CenaDemoWeb)", false, 5)]
         public static void AbrirCenaDemoWeb()
         {
-            Debug.Log("<color=#00FFFF><b>[Cena WebGL]</b></color> Abrindo cena dedicada CenaDemoWeb.unity...");
+            Debug.Log("<color=#00FFFF><b>[Cena WebGL]</b></color> Fechando SampleScene e abrindo exclusivamente CenaDemoWeb.unity...");
+
+            for (int i = 0; i < EditorSceneManager.sceneCount; i++)
+            {
+                var sc = EditorSceneManager.GetSceneAt(i);
+                if (sc.name.Contains("SampleScene") && sc.isLoaded)
+                {
+                    EditorSceneManager.CloseScene(sc, true);
+                }
+            }
             
             if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
             {
@@ -49,7 +76,7 @@ namespace PacMan.Editor
                     EditorSceneManager.playModeStartScene = sceneAsset;
                 }
                 ConfigurarCenasNoBuild();
-                Debug.Log($"<color=#00FF99><b>✔ [Cena WebGL Ativa]</b></color> '{scene.name}' aberta com sucesso. Apenas ela está configurada para build.");
+                Debug.Log($"<color=#00FF99><b>✔ [Cena WebGL Ativa]</b></color> '{scene.name}' aberta com sucesso. SampleScene fechada e apenas CenaDemoWeb está no Build.");
             }
         }
 

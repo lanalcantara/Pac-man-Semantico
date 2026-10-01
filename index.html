@@ -94,6 +94,10 @@
       height: 100%;
       background: #050811;
       display: block;
+      outline: none;
+    }
+    #unity-canvas:focus {
+      outline: none;
     }
 
     /* Loading Overlay */
@@ -405,6 +409,35 @@
       const warningBanner = document.querySelector("#unity-warning");
       const fullscreenButton = document.querySelector("#unity-fullscreen-button");
       const statusText = document.querySelector("#unity-status-text");
+      const unityContainer = document.querySelector("#unity-container");
+
+      // -------------------------------------------------------------
+      // Prevenção de Scroll e Gestão de Foco do Canvas (Setas e Espaço)
+      // -------------------------------------------------------------
+      const teclasBloqueioScroll = new Set([
+        "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+        " ", "Space", "Spacebar"
+      ]);
+
+      window.addEventListener("keydown", function(e) {
+        if (teclasBloqueioScroll.has(e.key) || teclasBloqueioScroll.has(e.code)) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+
+      function focarCanvas() {
+        if (canvas) {
+          canvas.focus();
+        }
+      }
+
+      // Foco automático no carregamento e em cliques na área do jogo
+      window.addEventListener("load", focarCanvas);
+      document.addEventListener("DOMContentLoaded", focarCanvas);
+      if (canvas) canvas.addEventListener("click", focarCanvas);
+      if (unityContainer) unityContainer.addEventListener("click", focarCanvas);
+      setTimeout(focarCanvas, 300);
+      setTimeout(focarCanvas, 1000);
 
       function unityShowBanner(msg, type) {
         warningBanner.innerHTML = msg;
@@ -454,6 +487,7 @@
             setTimeout(() => { loadingContainer.style.display = "none"; }, 400);
 
             statusText.textContent = "Sessão Ativa (Unity 6 WebGL)";
+            focarCanvas();
             fullscreenButton.onclick = () => {
               unityInstance.SetFullscreen(1);
             };

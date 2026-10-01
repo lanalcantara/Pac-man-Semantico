@@ -108,6 +108,9 @@ namespace VirtOnto.Model
             set => label_ = value;
         }
 
+        public string GetLabel() => label_;
+        public string GetId() => id_;
+
         public Dictionary<string, string> Properties
         {
             get => properties_;
@@ -148,7 +151,14 @@ namespace VirtOnto.Model
         INDIVIDUAL = 1,    // Indivíduo ABox instanciado no labirinto
         PROPERTY = 2,      // Object/Data Property (ex: consumes, isNearTo)
         RULE = 3,          // Regra SWRL
-        AXIOM = 4          // Axioma de Description Logic
+        AXIOM = 4,         // Axioma de Description Logic
+
+        // Aliases em PascalCase para interoperabilidade
+        Class = 0,
+        Individual = 1,
+        Property = 2,
+        Rule = 3,
+        Axiom = 4
     }
 
     /// <summary>
@@ -163,6 +173,7 @@ namespace VirtOnto.Model
         [SerializeField] private Vector3D position_;
         [SerializeField] private Vector3D velocity_;
         [SerializeField] private float mass_ = 1.0f;
+        [SerializeField] private string customDisplayColor_ = null;
 
         // Propriedades semânticas Description Logic
         public string ConceptClass { get; set; } = string.Empty;
@@ -207,12 +218,18 @@ namespace VirtOnto.Model
             mass_ = 1.0f;
         }
 
-        public Node(string id, NodeType type, string label) : this(id, label, type)
+        public void SetDisplayColor(string colorHex)
         {
+            customDisplayColor_ = colorHex;
         }
 
         public override string GetDisplayColor()
         {
+            if (!string.IsNullOrEmpty(customDisplayColor_))
+            {
+                return customDisplayColor_;
+            }
+
             switch (type_)
             {
                 case NodeType.CLASS:

@@ -385,6 +385,51 @@ public static class TestesVirtOntoEPacManSemantico
             Debug.LogError($"✘ [TESTE 10 FALHOU] InteracaoXRColisao: {ex.Message}");
         }
 
+        // --- TESTE 11: LeitorCoordenadasCpp e Bridge C++ com Grafo Ontológico ---
+        totalTestes++;
+        try
+        {
+            GameObject leitorObj = new GameObject("Teste_LeitorCpp");
+            var leitor = leitorObj.AddComponent<PacMan.Integration.LeitorCoordenadasCpp>();
+
+            // Configura pontos de saída C++ simulados
+            leitor.pontosSaidaCpp.Add(new PacMan.Integration.CoordenadaPontoSaidaDto
+            {
+                id = "cpp_exit_01",
+                x = 10.5f,
+                y = 0.0f,
+                z = -4.2f
+            });
+            leitor.pontosSaidaCpp.Add(new PacMan.Integration.CoordenadaPontoSaidaDto
+            {
+                id = "cpp_exit_02",
+                x = -10.5f,
+                y = 0.0f,
+                z = 8.4f
+            });
+
+            Graph grafoTeste = new Graph();
+            leitor.ProcessarPontosSaida(grafoTeste);
+
+            // 1. Valida que os 2 nós individuais foram injetados no grafo
+            Debug.Assert(grafoTeste.GetNodeCount() == 2, $"Esperado 2 nós no grafo, obtido {grafoTeste.GetNodeCount()}");
+
+            Node noSaida1 = grafoTeste.GetNode("cpp_exit_01");
+            Debug.Assert(noSaida1 != null, "Nó 'cpp_exit_01' não encontrado no grafo.");
+            Debug.Assert(noSaida1.Type == NodeType.Individual, "Tipo de nó deve ser Individual.");
+            Debug.Assert(noSaida1.GetDisplayColor() == "#00FFFF", "Cor de exibição do ponto C++ deve ser #00FFFF (Ciano).");
+            Debug.Assert(Mathf.Approximately((float)noSaida1.Position.x, 10.5f), "Posição X incorreta.");
+
+            UnityEngine.Object.DestroyImmediate(leitorObj);
+
+            testesPassaram++;
+            Debug.Log("<color=#00FF66>✔ [TESTE 11 PASSOU]</color> LeitorCoordenadasCpp: Injeção de coordenadas 3D, DTOs e conversão em nós VirtOnto 100% validados.");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"✘ [TESTE 11 FALHOU] LeitorCoordenadasCpp: {ex.Message}");
+        }
+
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");
         Debug.Log($"<color=#00FF99><b>Resultado Final: {testesPassaram}/{totalTestes} testes passaram com 100% de sucesso!</b></color>");
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");

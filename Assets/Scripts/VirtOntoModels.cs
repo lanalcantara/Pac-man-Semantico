@@ -198,6 +198,13 @@ namespace VirtOnto.Model
             set => position_ = value;
         }
 
+        public void SetPosition(Vector3D pos)
+        {
+            position_ = pos;
+        }
+
+        public Vector3D GetPosition() => position_;
+
         public Vector3D Velocity
         {
             get => velocity_;

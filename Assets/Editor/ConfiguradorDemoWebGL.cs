@@ -18,6 +18,23 @@ namespace PacMan.Editor
     {
         private const string CaminhoCenaDemo = "Assets/Scenes/DemoWeb/CenaDemoWeb.unity";
 
+        /// <summary>
+        /// Abre e seleciona exclusivamente a cena WebGL leve (CenaDemoWeb.unity)
+        /// garantindo que cenas de Realidade Virtual (como SampleScene) não estejam ativas.
+        /// </summary>
+        [MenuItem("Pac-Man Semântico/5. Selecionar e Abrir Cena Demo WebGL (CenaDemoWeb)", false, 5)]
+        public static void AbrirCenaDemoWeb()
+        {
+            Debug.Log("<color=#00FFFF><b>[Cena WebGL]</b></color> Abrindo cena dedicada CenaDemoWeb.unity...");
+            
+            if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            {
+                var scene = EditorSceneManager.OpenScene(CaminhoCenaDemo, OpenSceneMode.Single);
+                ConfigurarCenasNoBuild();
+                Debug.Log($"<color=#00FF99><b>✔ [Cena WebGL Ativa]</b></color> '{scene.name}' aberta com sucesso. Apenas ela está configurada para build.");
+            }
+        }
+
         [MenuItem("Pac-Man Semântico/6. Configurar Plataforma WebGL e Cena Demo", false, 6)]
         public static void ConfigurarPlataformaWebGL()
         {
@@ -31,47 +48,40 @@ namespace PacMan.Editor
             PlayerSettings.WebGL.dataCaching = true;
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
 
-            // 2. Altera a plataforma de Build para WebGL
+            // 2. Altera a plataforma de Build para WebGL se suportada
             BuildTargetGroup targetGroup = BuildTargetGroup.WebGL;
             BuildTarget target = BuildTarget.WebGL;
 
-            if (EditorUserBuildSettings.activeBuildTarget != target)
+            if (BuildPipeline.IsBuildTargetSupported(targetGroup, target))
             {
-                bool switched = EditorUserBuildSettings.SwitchActiveBuildTarget(targetGroup, target);
-                Debug.Log($"<color=#00FF99><b>[WebGL Setup]</b></color> Plataforma ativa alternada para WebGL: {switched}");
+                if (EditorUserBuildSettings.activeBuildTarget != target)
+                {
+                    bool switched = EditorUserBuildSettings.SwitchActiveBuildTarget(targetGroup, target);
+                    Debug.Log($"<color=#00FF99><b>[WebGL Setup]</b></color> Plataforma ativa alternada para WebGL: {switched}");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("<color=#FFCC00><b>[WebGL Setup]</b></color> Módulo WebGL não instalado no Unity Editor ativo. " +
+                                 "Para compilar nativamente via Unity, instale o 'WebGL Build Support' via Unity Hub.");
             }
 
-            // 3. Garante que CenaDemoWeb está na lista de cenas do Build
+            // 3. Garante EXCLUSIVIDADE da CenaDemoWeb na lista de cenas do Build
             ConfigurarCenasNoBuild();
 
             Debug.Log("<color=#00FF99><b>✔ [WebGL Setup Concluído]</b></color> Projeto 100% configurado para exportação WebGL (GitHub Pages)!");
         }
 
-        private static void ConfigurarCenasNoBuild()
+        public static void ConfigurarCenasNoBuild()
         {
-            EditorBuildSettingsScene[] cenasAtuais = EditorBuildSettings.scenes;
-            bool cenaDemoPresente = false;
-
-            foreach (var scene in cenasAtuais)
+            // Define exclusivamente a CenaDemoWeb no índice 0
+            EditorBuildSettingsScene[] cenasExclusivas = new EditorBuildSettingsScene[]
             {
-                if (scene.path == CaminhoCenaDemo)
-                {
-                    cenaDemoPresente = true;
-                    break;
-                }
-            }
+                new EditorBuildSettingsScene(CaminhoCenaDemo, true)
+            };
 
-            if (!cenaDemoPresente)
-            {
-                EditorBuildSettingsScene[] novasCenas = new EditorBuildSettingsScene[cenasAtuais.Length + 1];
-                novasCenas[0] = new EditorBuildSettingsScene(CaminhoCenaDemo, true);
-                for (int i = 0; i < cenasAtuais.Length; i++)
-                {
-                    novasCenas[i + 1] = cenasAtuais[i];
-                }
-                EditorBuildSettings.scenes = novasCenas;
-                Debug.Log($"<color=#00FF99><b>[WebGL Setup]</b></color> Cena '{CaminhoCenaDemo}' adicionada como cena principal de build.");
-            }
+            EditorBuildSettings.scenes = cenasExclusivas;
+            Debug.Log($"<color=#00FF99><b>[WebGL Setup]</b></color> Cena '{CaminhoCenaDemo}' definida como ÚNICA cena do Build (Cenas de RV desativadas).");
         }
 
         /// <summary>
@@ -83,22 +93,34 @@ namespace PacMan.Editor
             ConfigurarPlataformaWebGL();
 
             string outputFolder = "Builds/WebGL";
-            if (!Directory.Exists(outputFolder))
+            string buildFolder = Path.Combine(outputFolder, "Build");
+            if (!Directory.Exists(buildFolder))
             {
-                Directory.CreateDirectory(outputFolder);
+                Directory.CreateDirectory(buildFolder);
             }
 
-            BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions
-            {
-                scenes = new[] { CaminhoCenaDemo },
-                locationPathName = outputFolder,
-                target = BuildTarget.WebGL,
-                options = BuildOptions.None
-            };
+            BuildTargetGroup targetGroup = BuildTargetGroup.WebGL;
+            BuildTarget target = BuildTarget.WebGL;
 
-            Debug.Log($"<color=#00FFFF><b>[WebGL Build]</b></color> Iniciando build WebGL para {outputFolder}...");
-            var report = BuildPipeline.BuildPlayer(buildPlayerOptions);
-            Debug.Log($"<color=#00FF99><b>[WebGL Build]</b></color> Resultado do Build: {report.summary.result} ({report.summary.totalErrors} erros)");
+            if (BuildPipeline.IsBuildTargetSupported(targetGroup, target))
+            {
+                BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions
+                {
+                    scenes = new[] { CaminhoCenaDemo },
+                    locationPathName = outputFolder,
+                    target = target,
+                    options = BuildOptions.None
+                };
+
+                Debug.Log($"<color=#00FFFF><b>[WebGL Build]</b></color> Compilando player WebGL nativo para {outputFolder}...");
+                var report = BuildPipeline.BuildPlayer(buildPlayerOptions);
+                Debug.Log($"<color=#00FF99><b>[WebGL Build]</b></color> Resultado do Build: {report.summary.result} ({report.summary.totalErrors} erros)");
+            }
+            else
+            {
+                Debug.LogWarning("<color=#FFCC00><b>[WebGL Build]</b></color> O editor ativo não possui o módulo WebGL Build Support instalado. " +
+                                 "Certifique-se de que os ficheiros binários em Builds/WebGL/Build/ estão sincronizados para o deploy.");
+            }
         }
     }
 }

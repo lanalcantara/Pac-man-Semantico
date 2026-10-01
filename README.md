@@ -102,6 +102,16 @@ Come-come semântico/
 │   ├── OntologiaExemplo_DL.json             # Exemplo serializado de ontologia ALCQ(D)
 │   ├── OntologiaPacManSemantico.puml        # Diagrama formal da ontologia em PlantUML
 │   └── RotacaoFlutuante.cs                  # Rotação suave no eixo Y sincronizada com o piso
+├── MotorJava/                               # Microsserviço REST em Spring Boot (Java 17)
+│   ├── pom.xml                              # Gerenciador de dependências Maven
+│   ├── README.md                            # Documentação específica da API REST
+│   └── src/
+│       ├── main/java/com/virtonto/
+│       │   ├── VirtOntoApplication.java     # Ponto de entrada do serviço Spring Boot
+│       │   ├── config/CorsConfig.java       # Configuração de CORS para Unity / XR
+│       │   ├── controller/OntologyController.java # Endpoints REST para nós, arestas e SWRL
+│       │   └── model/                       # Modelos VirtOnto em Java (Vector3D, Node, Edge, Graph)
+│       └── test/java/com/virtonto/          # Testes automatizados da API
 ├── ProjectSettings/                         # Configurações de física, URP, XR e packages
 ├── README.md                                # Documentação técnica principal do repositório
 └── Come-come semântico.slnx                 # Solução C# do projeto
@@ -113,8 +123,9 @@ Come-come semântico/
 
 ### Pré-requisitos
 1. **Unity Hub** e **Unity Editor 6000.3.24f1 (Unity 6)** instalados.
-2. Módulo de suporte a **Windows Build Support** (e opcionalmente OpenXR para dispositivos VR como Meta Quest, HTC Vive ou Valve Index).
-3. **Git** configurado localmente.
+2. **Java JDK 17** e **Apache Maven 3.9+** (para o backend Spring Boot).
+3. Módulo de suporte a **Windows Build Support** (e opcionalmente OpenXR para dispositivos VR como Meta Quest, HTC Vive ou Valve Index).
+4. **Git** configurado localmente.
 
 ### Passos de Execução
 1. **Clonar o Repositório:**

@@ -4,7 +4,7 @@
  * ============================================================================
  * Responsável pelo carregamento assíncrono dos binários WebAssembly (WebGL.wasm),
  * dados (WebGL.data) e framework (WebGL.framework.js), instanciando a simulação 3D
- * do labirinto procedural e motor de inferência SWRL diretamente no Canvas HTML5.
+ * do labirinto procedural, colisão/reset com Blinky e motor de inferência SWRL.
  * ============================================================================
  */
 
@@ -16,7 +16,6 @@ function createUnityInstance(canvas, config, onProgress) {
             onProgress(0.1);
         }
 
-        // 1. Carrega scripts e binários assincronamente
         var pData = fetch(config.dataUrl).then(function(r) { return r.arrayBuffer(); });
         var pWasm = fetch(config.codeUrl).then(function(r) { return r.arrayBuffer(); });
         var pFramework = fetch(config.frameworkUrl).then(function(r) { return r.text(); });
@@ -28,13 +27,11 @@ function createUnityInstance(canvas, config, onProgress) {
 
             if (typeof onProgress === "function") onProgress(0.4);
 
-            // Executa framework script
             var evalFn = new Function(frameworkCode);
             evalFn();
 
             if (typeof onProgress === "function") onProgress(0.7);
 
-            // Instancia WebAssembly
             var importObject = {
                 env: {
                     memory: new WebAssembly.Memory({ initial: 256, maximum: 512 }),
@@ -45,10 +42,8 @@ function createUnityInstance(canvas, config, onProgress) {
             WebAssembly.instantiate(wasmBuffer, importObject).then(function(wasmResult) {
                 if (typeof onProgress === "function") onProgress(1.0);
 
-                // Inicializa o motor gráfico 3D no Canvas
                 var engine = inicializarMotorGrafico3D(canvas);
 
-                // Instância de controle do Unity retornada à Promise
                 var unityInstance = {
                     Module: window.VirtOntoModule,
                     wasmInstance: wasmResult.instance,
@@ -71,7 +66,6 @@ function createUnityInstance(canvas, config, onProgress) {
                 resolve(unityInstance);
             }).catch(function(err) {
                 console.warn("[WASM Warning]", err);
-                // Mesmo se WebAssembly estrito falhar por sandbox, executa motor JS
                 var engine = inicializarMotorGrafico3D(canvas);
                 resolve({
                     SetFullscreen: function() { canvas.requestFullscreen(); },
@@ -87,7 +81,7 @@ function createUnityInstance(canvas, config, onProgress) {
 
 /**
  * Motor Gráfico 3D Interativo do Pac-Man Semântico
- * Renderiza o labirinto procedural, Pac-Man, fantasmas e regras SWRL no Canvas
+ * Renderiza o labirinto procedural, Pac-Man, fantasmas, colisão com Blinky e regras SWRL
  */
 function inicializarMotorGrafico3D(canvas) {
     var ctx = canvas.getContext("2d");
@@ -95,7 +89,12 @@ function inicializarMotorGrafico3D(canvas) {
     var animFrameId;
 
     // Estado da simulação
-    var pacman = { x: 480, y: 350, vx: 0, vy: 0, raio: 18, boca: 0.2, angulo: 0 };
+    var pontoSpawnInicial = { x: 480, y: 350 };
+    var pacman = { x: pontoSpawnInicial.x, y: pontoSpawnInicial.y, vx: 0, vy: 0, raio: 18, boca: 0.2, angulo: 0 };
+    var vidasRestantes = 3;
+    var distanciaColisaoSegura = 0.8; // metros (escala: 1m = 60px -> 48px)
+    var avisoColisao = { mensagem: "", tempo: 0 };
+
     var powerPellet = { ativo: false, tempoRestante: 0 };
     var fantasmas = [
         { nome: "Blinky", x: 280, y: 220, vx: 1.8, vy: 0, raio: 16, estado: "Patrulha", cor: "#f8fafc" },
@@ -113,7 +112,7 @@ function inicializarMotorGrafico3D(canvas) {
         gemas.push({ x: gx, y: 480, comida: false });
     }
 
-    // Teclado
+    // Teclado com prevenção de scroll do browser
     var teclas = {};
     window.addEventListener("keydown", function(e) {
         teclas[e.key] = true;
@@ -144,6 +143,14 @@ function inicializarMotorGrafico3D(canvas) {
     }
 
     function atualizar(dt) {
+        // Atualiza temporizador de aviso de colisão
+        if (avisoColisao.tempo > 0) {
+            avisoColisao.tempo -= dt;
+            if (avisoColisao.tempo <= 0) {
+                avisoColisao.mensagem = "";
+            }
+        }
+
         // Movimentação do Pac-Man
         var speed = 180;
         pacman.vx = 0;
@@ -156,16 +163,15 @@ function inicializarMotorGrafico3D(canvas) {
         pacman.x += pacman.vx * dt;
         pacman.y += pacman.vy * dt;
 
-        // Limites da tela
+        // Limites da arena
         if (pacman.x < 30) pacman.x = 30;
         if (pacman.x > canvas.width - 30) pacman.x = canvas.width - 30;
         if (pacman.y < 30) pacman.y = 30;
         if (pacman.y > canvas.height - 30) pacman.y = canvas.height - 30;
 
-        // Animação da boca
         pacman.boca = Math.abs(Math.sin(performance.now() / 120)) * 0.35;
 
-        // Power Pellet temporizador
+        // Temporizador do Power Pellet
         if (powerPellet.ativo) {
             powerPellet.tempoRestante -= dt;
             if (powerPellet.tempoRestante <= 0) {
@@ -174,7 +180,7 @@ function inicializarMotorGrafico3D(canvas) {
             }
         }
 
-        // Colisão com gemas
+        // Consumo de gemas
         for (var i = 0; i < gemas.length; i++) {
             var g = gemas[i];
             if (!g.comida) {
@@ -190,15 +196,34 @@ function inicializarMotorGrafico3D(canvas) {
         for (var f = 0; f < fantasmas.length; f++) {
             var fantasma = fantasmas[f];
 
-            // Distância Euclidiana em "metros" virtuais (escala 1m = 60px)
+            // Distância Euclidiana em metros virtuais (escala 1m = 60px)
             var distPx = Math.hypot(pacman.x - fantasma.x, pacman.y - fantasma.y);
             var distMetros = distPx / 60.0;
 
-            // Avaliação de Regras Ontológicas (SWRL)
+            // Deteção de Proximidade / Colisão com Blinky (fantasmas[0])
+            if (fantasma.nome === "Blinky" && distMetros <= distanciaColisaoSegura && avisoColisao.tempo <= 0) {
+                if (powerPellet.ativo) {
+                    // Fantasma vulnerável consumido pelo Pac-Man
+                    fantasma.x = 480;
+                    fantasma.y = 200;
+                    avisoColisao.mensagem = "👻 BLINKY CONSUMIDO! Pac-Man devorou o fantasma vulnerável (+200 pts)!";
+                    avisoColisao.tempo = 3.0;
+                } else {
+                    // Blinky apanhou o Pac-Man -> Rotina de Reset
+                    vidasRestantes = Math.max(0, vidasRestantes - 1);
+                    pacman.x = pontoSpawnInicial.x;
+                    pacman.y = pontoSpawnInicial.y;
+                    pacman.vx = 0;
+                    pacman.vy = 0;
+                    avisoColisao.mensagem = "⚠️ PAC-MAN APANHADO PELO BLINKY! Perdeu 1 vida. Vidas restantes: " + vidasRestantes;
+                    avisoColisao.tempo = 3.5;
+                }
+            }
+
+            // Avaliação de Regras SWRL
             if (powerPellet.ativo) {
                 fantasma.estado = "Vulneravel";
                 fantasma.cor = "#38bdf8"; // Azul
-                // Foge do Pac-Man
                 var dirX = fantasma.x - pacman.x;
                 var dirY = fantasma.y - pacman.y;
                 var len = Math.hypot(dirX, dirY) || 1;
@@ -207,7 +232,6 @@ function inicializarMotorGrafico3D(canvas) {
             } else if (distMetros < 2.5) {
                 fantasma.estado = "Agressivo";
                 fantasma.cor = "#ef4444"; // Vermelho
-                // Persegue o Pac-Man
                 var dirX = pacman.x - fantasma.x;
                 var dirY = pacman.y - fantasma.y;
                 var len = Math.hypot(dirX, dirY) || 1;
@@ -228,7 +252,7 @@ function inicializarMotorGrafico3D(canvas) {
         ctx.fillStyle = "#030712";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Grade do Labirinto Procedural (VirtOnto Graph)
+        // Grade do Labirinto Procedural
         ctx.strokeStyle = "rgba(0, 240, 255, 0.15)";
         ctx.lineWidth = 1;
         for (var x = 0; x < canvas.width; x += 40) {
@@ -279,11 +303,10 @@ function inicializarMotorGrafico3D(canvas) {
 
         // Desenhar Fantasmas
         for (var f = 0; f < fantasmas.length; f++) {
-            var fantasma = fantasmas[f];
-            desenharFantasma(fantasma);
+            desenharFantasma(fantasmas[f]);
         }
 
-        // Overlay HUD Superior
+        // Overlay HUD Superior e Alertas
         desenharHUD();
     }
 
@@ -294,11 +317,9 @@ function inicializarMotorGrafico3D(canvas) {
         ctx.shadowColor = f.cor;
         ctx.shadowBlur = 10;
 
-        // Corpo
         ctx.beginPath();
         ctx.arc(0, -4, f.raio, Math.PI, 0, false);
         ctx.lineTo(f.raio, f.raio - 4);
-        // Pés ondulados
         ctx.lineTo(f.raio * 0.5, f.raio - 8);
         ctx.lineTo(0, f.raio - 4);
         ctx.lineTo(-f.raio * 0.5, f.raio - 8);
@@ -306,7 +327,6 @@ function inicializarMotorGrafico3D(canvas) {
         ctx.closePath();
         ctx.fill();
 
-        // Olhos
         ctx.shadowBlur = 0;
         ctx.fillStyle = "#ffffff";
         ctx.beginPath();
@@ -320,7 +340,6 @@ function inicializarMotorGrafico3D(canvas) {
         ctx.arc(5, -6, 2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Texto com estado SWRL
         ctx.fillStyle = "#94a3b8";
         ctx.font = "10px monospace";
         ctx.textAlign = "center";
@@ -330,11 +349,13 @@ function inicializarMotorGrafico3D(canvas) {
     }
 
     function desenharHUD() {
-        ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
-        ctx.fillRect(40, 40, 360, 75);
+        var hudW = 400;
+        var hudH = 110;
+        ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+        ctx.fillRect(40, 40, hudW, hudH);
         ctx.strokeStyle = "rgba(0, 240, 255, 0.4)";
         ctx.lineWidth = 1;
-        ctx.strokeRect(40, 40, 360, 75);
+        ctx.strokeRect(40, 40, hudW, hudH);
 
         ctx.fillStyle = "#ffd700";
         ctx.font = "bold 13px -apple-system, sans-serif";
@@ -345,19 +366,33 @@ function inicializarMotorGrafico3D(canvas) {
         var txtPellet = powerPellet.ativo ? 
             "POWER PELLET ATIVO (" + powerPellet.tempoRestante.toFixed(1) + "s) [SWRL: VULNERÁVEL]" : 
             "Power Pellet: Inativo (Pressione Barra de Espaço)";
-        ctx.fillText(txtPellet, 52, 80);
+        ctx.fillText(txtPellet, 52, 78);
 
-        var menorDist = 999;
-        for (var f = 0; f < fantasmas.length; f++) {
-            var d = Math.hypot(pacman.x - fantasmas[f].x, pacman.y - fantasmas[f].y) / 60.0;
-            if (d < menorDist) menorDist = d;
+        // Distância para o Blinky (fantasmas[0])
+        var distBlinky = Math.hypot(pacman.x - fantasmas[0].x, pacman.y - fantasmas[0].y) / 60.0;
+        ctx.fillStyle = distBlinky <= distanciaColisaoSegura ? "#ef4444" : (distBlinky < 2.5 ? "#f59e0b" : "#22c55e");
+        ctx.fillText("Distância Pac-Man ↔ Blinky: " + distBlinky.toFixed(2) + "m (Colisão: <=0.8m)", 52, 96);
+
+        // Vidas
+        var iconesVidas = "";
+        for (var v = 0; v < vidasRestantes; v++) iconesVidas += " ♥";
+        ctx.fillStyle = vidasRestantes > 1 ? "#00ffcc" : (vidasRestantes === 1 ? "#f59e0b" : "#ef4444");
+        ctx.fillText("Vidas: " + vidasRestantes + iconesVidas, 52, 114);
+
+        // Alerta de Colisão / Destaque Temporário
+        if (avisoColisao.tempo > 0 && avisoColisao.mensagem) {
+            ctx.fillStyle = "rgba(220, 38, 38, 0.95)";
+            ctx.fillRect(40, 158, 480, 32);
+            ctx.strokeStyle = "#fef08a";
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(40, 158, 480, 32);
+
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 12px -apple-system, sans-serif";
+            ctx.fillText(avisoColisao.mensagem, 52, 179);
         }
-
-        ctx.fillStyle = menorDist < 2.5 ? "#ef4444" : "#22c55e";
-        ctx.fillText("Distância Fantasma Mais Próximo: " + menorDist.toFixed(2) + "m", 52, 100);
     }
 
-    // Inicia loop de renderização
     animFrameId = requestAnimationFrame(loop);
 
     return {

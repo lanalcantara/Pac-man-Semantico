@@ -18,4 +18,8 @@ Module.evaluateSemanticRule = function(distancia, powerPelletAtivo) {
     }
 };
 
+Module.checkCollision = function(distancia, limiteSeguro) {
+    return distancia <= (limiteSeguro || 0.8);
+};
+
 window.VirtOntoModule = Module;

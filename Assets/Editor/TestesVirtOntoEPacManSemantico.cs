@@ -496,11 +496,27 @@ public static class TestesVirtOntoEPacManSemantico
             ctrlDemo.AlternarPowerPellet();
             Debug.Assert(!motor.pacmanIsPowered, "AlternarPowerPellet novamente deve desativar o estado empoderado.");
 
-            // 3. Valida chamada do utilitário ConfiguradorDemoWebGL
+            // 3. Valida rotina de colisão e reset de vidas
+            GameObject pacmanObj = new GameObject("Teste_Pacman");
+            GameObject blinkyObj = new GameObject("Teste_Blinky");
+            ctrlDemo.pacmanTransform = pacmanObj.transform;
+            ctrlDemo.ghostBlinkyTransform = blinkyObj.transform;
+            ctrlDemo.pontoSpawnInicial = new Vector3(0, 0, 0);
+            pacmanObj.transform.position = new Vector3(10, 0, 0);
+            blinkyObj.transform.position = new Vector3(10.5f, 0, 0); // Distância = 0.5m <= 0.8m
+
+            int vidasAntes = ctrlDemo.vidasRestantes;
+            ctrlDemo.VerificarColisaoPacmanBlinky();
+            Debug.Assert(ctrlDemo.vidasRestantes == vidasAntes - 1, "Colisão com Blinky deve subtrair 1 vida.");
+            Debug.Assert(pacmanObj.transform.position == ctrlDemo.pontoSpawnInicial, "Pac-Man deve ser reposicionado no Spawn inicial.");
+
+            // 4. Valida chamada do utilitário ConfiguradorDemoWebGL
             PacMan.Editor.ConfiguradorDemoWebGL.ConfigurarPlataformaWebGL();
             Debug.Assert(PlayerSettings.defaultWebScreenWidth == 960, "Largura de tela WebGL deve ser 960.");
             Debug.Assert(PlayerSettings.defaultWebScreenHeight == 600, "Altura de tela WebGL deve ser 600.");
 
+            UnityEngine.Object.DestroyImmediate(pacmanObj);
+            UnityEngine.Object.DestroyImmediate(blinkyObj);
             UnityEngine.Object.DestroyImmediate(demoObj);
             UnityEngine.Object.DestroyImmediate(motorObj);
 

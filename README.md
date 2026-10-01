@@ -87,7 +87,8 @@ Come-come semântico/
 │   │   └── SampleScene.unity                # Cena principal configurada com Rig XR e Plane
 │   ├── Scripts/                             # Classes centrais do modelo VirtOnto e Motor Semântico
 │   │   ├── VirtOntoModels.cs                # Classes fundamentais: Vector3D, Node, Edge, Graph
-│   │   └── MotorRaciocinioSemantico.cs      # Motor de regras SWRL e gestão de estados dos agentes
+│   │   ├── MotorRaciocinioSemantico.cs      # Motor de regras SWRL e gestão de estados dos agentes
+│   │   └── ControladorJogador.cs            # Controlador híbrido do jogador (WASD + XR Origin)
 │   ├── BackendOntologiaBridge.cs            # Ponte para backend C++ (P/Invoke nativo) e mock DL
 │   ├── ControladorXRJogador.cs              # Locomoção contínua e teletransporte XR
 │   ├── DadoInstanciaSemantica.cs            # DTOs de serialização e transferência semântica

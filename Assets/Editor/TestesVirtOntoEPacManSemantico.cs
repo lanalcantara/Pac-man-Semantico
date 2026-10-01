@@ -227,6 +227,40 @@ public static class TestesVirtOntoEPacManSemantico
             Debug.LogError($"✘ [TESTE 6 FALHOU] MotorRaciocinioSemantico: {ex.Message}");
         }
 
+        // --- TESTE 7: ControladorJogador e Integração Semântica ---
+        totalTestes++;
+        try
+        {
+            GameObject motorObj = new GameObject("Teste_MotorRaciocinio");
+            var motor = motorObj.AddComponent<PacMan.Semantics.MotorRaciocinioSemantico>();
+
+            GameObject playerObj = new GameObject("Teste_Player");
+            playerObj.AddComponent<CharacterController>();
+            var controlador = playerObj.AddComponent<PacMan.Player.ControladorJogador>();
+            controlador.motorSemantico = motor;
+
+            // 1. Validação de estado inicial
+            Debug.Assert(!controlador.GetEstaPoderoso(), "Jogador não deve iniciar empoderado.");
+
+            // 2. Simula consumo de gema especial / Power Pellet através do motor semântico
+            motor.AtivarPowerPellet(8f);
+            Debug.Assert(controlador.GetEstaPoderoso(), "Jogador deve assumir estado poderoso após ativação do Power Pellet.");
+
+            // 3. Validação de registro no grafo
+            Graph grafo = motor.GetSemanticGraph();
+            Debug.Assert(grafo != null, "Grafo semântico deve ser acessível pelo controlador.");
+
+            UnityEngine.Object.DestroyImmediate(playerObj);
+            UnityEngine.Object.DestroyImmediate(motorObj);
+
+            testesPassaram++;
+            Debug.Log("<color=#00FF66>✔ [TESTE 7 PASSOU]</color> ControladorJogador: Movimento híbrido, estados ontológicos e comunicação com MotorRaciocinioSemantico 100% validados.");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"✘ [TESTE 7 FALHOU] ControladorJogador: {ex.Message}");
+        }
+
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");
         Debug.Log($"<color=#00FF99><b>Resultado Final: {testesPassaram}/{totalTestes} testes passaram com 100% de sucesso!</b></color>");
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");

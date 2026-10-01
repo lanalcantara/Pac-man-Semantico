@@ -322,7 +322,7 @@ public class ControladorXRJogador : MonoBehaviour
 
     private void ProcessarSimuladorDesktop()
     {
-        if (!habilitarSimuladorDesktop || !Application.isEditor) return;
+        if (!habilitarSimuladorDesktop) return;
 
         if (Input.GetMouseButton(1))
         {

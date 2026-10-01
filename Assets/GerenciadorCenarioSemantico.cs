@@ -122,6 +122,24 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     [Tooltip("Adaptador para importação e leitura de coordenadas geradas pelo motor C++.")]
     public PacMan.Integration.LeitorCoordenadasCpp leitorCpp;
 
+    [Header("Labirinto 3D (Paredes Físicas e Delimitação)")]
+    [Tooltip("Gera as paredes físicas perimetrais e internas do labirinto.")]
+    public bool instanciarLabirinto3D = true;
+
+    [Tooltip("Altura das paredes 3D do labirinto.")]
+    public float alturaParedes = 2.4f;
+
+    [Tooltip("Espessura das paredes.")]
+    public float espessuraParedes = 0.8f;
+
+    [Tooltip("Dimensão total do labirinto em metros (X e Z).")]
+    public float tamanhoLabirinto = 28f;
+
+    [Tooltip("Material customizado para as paredes (se nulo, cria material escuro neon polido).")]
+    public Material materialParedes;
+
+    private GameObject m_ContainerParedes;
+
     [Header("Status do Grafo Ontológico (VirtOnto C#)")]
     [SerializeField] private string m_NomeOntologiaAtiva = "Pac-Man Semantic Ontology";
     [SerializeField] private string m_VersaoAxiomas = "ALCQ(D)";
@@ -300,6 +318,12 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         m_VersaoAxiomas = string.IsNullOrEmpty(cenario.versaoAxiomas) ? "v1.0" : cenario.versaoAxiomas;
 
         PrepararMateriaisProcedurais();
+
+        // 0. Instanciação física do Labirinto 3D (Paredes delimitadoras)
+        if (instanciarLabirinto3D)
+        {
+            ConstruirLabirinto3D();
+        }
 
         // 1. Espelhamento formal: Constrói e indexa o Grafo VirtOnto a partir do DTO
         GrafoOntologico.BuildFromCenarioDTO(cenario);
@@ -957,6 +981,92 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         return mat;
     }
 
+    /// <summary>
+    /// Instancia as paredes perimetrais e corredores internos do labirinto 3D com BoxColliders e materiais polidos.
+    /// </summary>
+    public void ConstruirLabirinto3D()
+    {
+        if (m_ContainerParedes != null)
+        {
+            if (Application.isPlaying) Destroy(m_ContainerParedes);
+            else DestroyImmediate(m_ContainerParedes);
+            m_ContainerParedes = null;
+        }
+
+        m_ContainerParedes = new GameObject("Labirinto_Paredes_3D");
+        m_ContainerParedes.transform.SetParent(transform);
+        m_ContainerParedes.transform.localPosition = Vector3.zero;
+
+        Material matParede = materialParedes;
+        if (matParede == null)
+        {
+            matParede = CriarMaterialDinamico(
+                corBase: new Color(0.06f, 0.12f, 0.22f, 1f),
+                corEmissao: new Color(0f, 0.7f, 1f, 1f) * 0.4f,
+                suavidade: 0.9f
+            );
+        }
+
+        float metade = tamanhoLabirinto / 2f;
+        float yCentro = transform.position.y + (alturaParedes / 2f);
+
+        // 1. Paredes Perimetrais Externas (Fecham o labirinto)
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(0f, yCentro, metade), new Vector3(tamanhoLabirinto + espessuraParedes, alturaParedes, espessuraParedes), matParede, "Parede_Norte");
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(0f, yCentro, -metade), new Vector3(tamanhoLabirinto + espessuraParedes, alturaParedes, espessuraParedes), matParede, "Parede_Sul");
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(metade, yCentro, 0f), new Vector3(espessuraParedes, alturaParedes, tamanhoLabirinto), matParede, "Parede_Leste");
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(-metade, yCentro, 0f), new Vector3(espessuraParedes, alturaParedes, tamanhoLabirinto), matParede, "Parede_Oeste");
+
+        // 2. Corredores Internos Clássicos do Pac-Man
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(-3.5f, yCentro, 0f), new Vector3(espessuraParedes, alturaParedes, 5.5f), matParede, "Parede_Centro_Esq");
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(3.5f, yCentro, 0f), new Vector3(espessuraParedes, alturaParedes, 5.5f), matParede, "Parede_Centro_Dir");
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(0f, yCentro, -2.75f), new Vector3(7f, alturaParedes, espessuraParedes), matParede, "Parede_Centro_Sul");
+
+        // Blocos em L nos quadrantes
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(-7f, yCentro, 6f), new Vector3(6f, alturaParedes, espessuraParedes), matParede, "Parede_NW_H");
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(-7f, yCentro, 8.5f), new Vector3(espessuraParedes, alturaParedes, 5f), matParede, "Parede_NW_V");
+
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(7f, yCentro, 6f), new Vector3(6f, alturaParedes, espessuraParedes), matParede, "Parede_NE_H");
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(7f, yCentro, 8.5f), new Vector3(espessuraParedes, alturaParedes, 5f), matParede, "Parede_NE_V");
+
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(-7f, yCentro, -6f), new Vector3(6f, alturaParedes, espessuraParedes), matParede, "Parede_SW_H");
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(-7f, yCentro, -8.5f), new Vector3(espessuraParedes, alturaParedes, 5f), matParede, "Parede_SW_V");
+
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(7f, yCentro, -6f), new Vector3(6f, alturaParedes, espessuraParedes), matParede, "Parede_SE_H");
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(7f, yCentro, -8.5f), new Vector3(espessuraParedes, alturaParedes, 5f), matParede, "Parede_SE_V");
+
+        // Divisórias dos corredores centrais Norte e Sul
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(0f, yCentro, 8.5f), new Vector3(6f, alturaParedes, espessuraParedes), matParede, "Parede_Norte_T");
+        CriarBlocoParede(m_ContainerParedes.transform, new Vector3(0f, yCentro, -8.5f), new Vector3(6f, alturaParedes, espessuraParedes), matParede, "Parede_Sul_T");
+
+        Debug.Log($"<color=#00FF99><b>[Labirinto 3D]</b></color> {m_ContainerParedes.transform.childCount} paredes 3D instanciadas com BoxColliders e acabamento polido.");
+    }
+
+    private GameObject CriarBlocoParede(Transform pai, Vector3 pos, Vector3 escala, Material mat, string nome)
+    {
+        GameObject parede = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        parede.name = nome;
+        parede.transform.SetParent(pai);
+        parede.transform.position = pos;
+        parede.transform.localScale = escala;
+        parede.layer = 0;
+
+        Renderer rend = parede.GetComponent<Renderer>();
+        if (rend != null)
+        {
+            rend.material = mat;
+            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+            rend.receiveShadows = true;
+        }
+
+        BoxCollider col = parede.GetComponent<BoxCollider>();
+        if (col != null)
+        {
+            col.isTrigger = false;
+        }
+
+        return parede;
+    }
+
     // =========================================================================
     // 5. INTEGRAÇÃO COM VIRTONTO C# GRAPH (OWL / SWRL)
     // =========================================================================
@@ -1048,6 +1158,13 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     [ContextMenu("Pac-Man Semântico/Limpar Cenário")]
     public void LimparCenarioExistente()
     {
+        if (m_ContainerParedes != null)
+        {
+            if (Application.isPlaying) Destroy(m_ContainerParedes);
+            else DestroyImmediate(m_ContainerParedes);
+            m_ContainerParedes = null;
+        }
+
         for (int i = transform.childCount - 1; i >= 0; i--)
         {
             Transform filho = transform.GetChild(i);

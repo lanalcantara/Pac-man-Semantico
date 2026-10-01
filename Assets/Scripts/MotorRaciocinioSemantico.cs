@@ -61,6 +61,9 @@ namespace PacMan.Semantics
         [Tooltip("Habilita atualização dinâmica de movimentação e reações em tempo de execução.")]
         public bool moverFantasmasDinamicamente = true;
 
+        [Tooltip("Velocidade do fantasma durante a patrulha contínua pelo labirinto.")]
+        public float velocidadePatrulha = 1.8f;
+
         [Tooltip("Velocidade do fantasma ao perseguir o jogador no modo agressivo.")]
         public float velocidadeAgressao = 1.4f;
 
@@ -289,8 +292,28 @@ namespace PacMan.Semantics
             }
             else if (estado == GameEntityState.Patrol)
             {
-                // Patrulha / vigília suave
-                tr.Rotate(Vector3.up, 25f * Time.deltaTime);
+                // Patrulha ativa pelo labirinto: avança continuamente e curva ao encontrar paredes/esquinas
+                Vector3 frente = tr.forward;
+                frente.y = 0f;
+                if (frente.sqrMagnitude < 0.01f) frente = Vector3.forward;
+                frente.Normalize();
+
+                // Detecção de paredes ou limites à frente
+                bool temParedeFrente = Physics.Raycast(posAtual + Vector3.up * 0.5f, frente, out RaycastHit hit, 1.8f);
+                if (temParedeFrente && !hit.collider.isTrigger)
+                {
+                    // Curva para um novo corredor no labirinto
+                    float direcaoGiro = (Mathf.Abs(node.Id.GetHashCode()) % 2 == 0) ? 90f : -90f;
+                    tr.Rotate(Vector3.up, direcaoGiro);
+                }
+                else
+                {
+                    // Deslocamento contínuo de patrulha
+                    tr.position += frente * (velocidadePatrulha * Time.deltaTime);
+
+                    // Pequena oscilação natural de observação
+                    tr.Rotate(Vector3.up, Mathf.Sin(Time.time * 2.5f + (float)node.Id.GetHashCode()) * 18f * Time.deltaTime);
+                }
             }
         }
 

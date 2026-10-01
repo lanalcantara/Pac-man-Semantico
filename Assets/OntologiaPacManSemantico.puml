@@ -1,0 +1,258 @@
+@startuml OntologiaPacManSemantico_ALCQ
+' ============================================================
+' PAC-MAN SEMÂNTICO — Diagrama de Ontologia OWL/DL (ALCQ)
+' Notação: TBox (classes/axiomas) + ABox (instâncias exemplo)
+' ============================================================
+
+!theme plain
+skinparam backgroundColor #0D0D1A
+skinparam defaultFontColor #E8E8FF
+skinparam defaultFontName "DejaVu Sans"
+skinparam defaultFontSize 12
+
+skinparam class {
+    BackgroundColor #1A1A2E
+    BorderColor #7B68EE
+    FontColor #E8E8FF
+    ArrowColor #9B59B6
+    HeaderBackgroundColor #2D1B69
+    StereotypeFontColor #B8860B
+}
+
+skinparam note {
+    BackgroundColor #1C2840
+    BorderColor #4A90D9
+    FontColor #D0E8FF
+}
+
+title <color:#FFD700><b>PAC-MAN SEMÂNTICO</b></color>\n<color:#B8B8FF>Ontologia OWL/DL — Lógica de Descrição ALCQ(D)</color>\n<color:#888888><i>TBox (Hierarquia de Classes) + Object Properties + Regras de Inferência</i></color>
+
+' ============================================================
+' TBOX — HIERARQUIA DE CLASSES (Terminological Box)
+' ============================================================
+
+package "TBox — Hierarquia de Classes" #1A1A2E {
+
+    abstract class "Thing\n(owl:Thing)" as Thing <<OWL Root>> #2C2C4A {
+        + {abstract} identidade : URI
+    }
+
+    ' ── AGENTE ──────────────────────────────────────────────
+    abstract class "Agent\n(⊑ Thing)" as Agent <<owl:Class>> #1E3A2F {
+        + hasState : State
+        + locatedIn : Environment
+        ──────────────────────
+        <b>Axioma DL:</b>
+        Agent ⊑ ∃hasState.State
+        Agent ⊑ ∃locatedIn.Environment
+    }
+
+    class "Pacman\n(⊑ Agent)" as Pacman <<Jogador>> #FFD700 {
+        + score : int
+        + isActive : boolean
+        ──────────────────────
+        <b>Axioma DL:</b>
+        Pacman ⊑ Agent ⊓
+        ∃consumes.Item ⊓
+        ≥1 locatedIn.Environment
+    }
+
+    abstract class "Ghost\n(⊑ Agent)" as Ghost <<Inimigo>> #FF4444 {
+        + ghostType : GhostClass
+        + isVulnerable : boolean
+        ──────────────────────
+        <b>Axioma DL:</b>
+        Ghost ⊑ Agent ⊓
+        ¬Pacman
+    }
+
+    class "AggressiveGhost\n(Blinky)" as AggressiveGhost <<Ghost Agressivo>> #CC0000 {
+        + chaseTarget : Pacman
+        ──────────────────────
+        AggressiveGhost ⊑ Ghost ⊓
+        ∃hasState.AggressiveState
+    }
+
+    class "PatrolGhost\n(Pinky/Inky)" as PatrolGhost <<Ghost Patrulha>> #FF69B4 {
+        + patrolRoute : Path
+        ──────────────────────
+        PatrolGhost ⊑ Ghost ⊓
+        ∃hasState.PatrolState
+    }
+
+    class "VulnerableGhost\n(Fantasma Azul)" as VulnerableGhost <<Ghost Vulnerável>> #4169E1 {
+        + vulnerableTimer : float
+        ──────────────────────
+        VulnerableGhost ⊑ Ghost ⊓
+        ∃hasState.VulnerableState
+    }
+
+    ' ── ITEM ────────────────────────────────────────────────
+    abstract class "Item\n(⊑ Thing)" as Item <<owl:Class>> #1C3A1C {
+        + scoreValue : int
+        + semanticExpression : DL_Expression
+        ──────────────────────
+        <b>Axioma DL:</b>
+        Item ⊑ ∃locatedIn.Environment
+    }
+
+    class "StandardGem\n(Pac-Dot / Pílula)" as StandardGem <<Gema Padrão>> #00FF88 {
+        + dlExpression : "Cristal ⊓ ∃temPureza.Alta"
+        + scoreValue : 10
+        ──────────────────────
+        StandardGem ⊑ Item ⊓
+        ∃temPureza.Alta ⊓
+        ≥1 valorPositivo
+    }
+
+    class "SpecialGem\n(Power Pellet)" as SpecialGem <<Gema Especial>> #FF8C00 {
+        + powerEffect : GhostVulnerable
+        + scoreValue : 50
+        ──────────────────────
+        SpecialGem ⊑ Item ⊓
+        ∃temEfeito.VulnerabilizarGhost ⊓
+        ≥1 valorPositivo
+    }
+
+    ' ── ENVIRONMENT ─────────────────────────────────────────
+    abstract class "Environment\n(⊑ Thing)" as Environment <<owl:Class>> #2A1A3A {
+        + boundaryType : BoundaryClass
+    }
+
+    class "Obstacle\n(Obstaculo)" as Obstacle <<Obstáculo DL>> #8B0000 {
+        + dlExpression : "Obstaculo ⊑ Inconsistencia"
+        + scoreValue : -5
+        ──────────────────────
+        Obstacle ⊑ Environment ⊓
+        ∃temViolacao.Inconsistencia ⊓
+        (A ⊓ ¬A ≡ ⊥)
+    }
+}
+
+' ============================================================
+' HIERARQUIA DE HERANÇA (rdfs:subClassOf)
+' ============================================================
+
+Thing <|-- Agent : rdfs:subClassOf
+Thing <|-- Item  : rdfs:subClassOf
+Thing <|-- Environment : rdfs:subClassOf
+
+Agent <|-- Pacman  : rdfs:subClassOf
+Agent <|-- Ghost   : rdfs:subClassOf
+
+Ghost <|-- AggressiveGhost : rdfs:subClassOf
+Ghost <|-- PatrolGhost     : rdfs:subClassOf
+Ghost <|-- VulnerableGhost : rdfs:subClassOf
+
+Item <|-- StandardGem : rdfs:subClassOf
+Item <|-- SpecialGem  : rdfs:subClassOf
+
+Environment <|-- Obstacle : rdfs:subClassOf
+
+' ============================================================
+' OBJECT PROPERTIES (Propriedades de Objecto OWL)
+' ============================================================
+
+Pacman --> Item        : consumes\n<i>(owl:ObjectProperty)</i>
+Agent  --> Environment : locatedIn\n<i>(owl:ObjectProperty)</i>
+Agent  --> Agent       : isNearTo\n<i>(Symmetric)</i>
+Agent  .right.> Agent  : hasState\n<i>(owl:ObjectProperty)</i>
+
+' SpecialGem → VulnerableGhost (inferência)
+SpecialGem ..> VulnerableGhost : <<infer>>\nconsumed-by ➜\ntriggersVulnerability
+
+' ============================================================
+' REGRAS LÓGICAS / AXIOMAS (notas de inferência)
+' ============================================================
+
+note as R1 #1C2840
+  <b><color:#FFD700>Regra 1 — Vulnerabilidade do Fantasma</color></b>
+  ─────────────────────────────────────────────
+  <b>Premissa:</b>
+  Pacman ∃consumes.SpecialGem ∧
+  Ghost ∃isNearTo.Pacman
+  <b>Conclusão (inferida):</b>
+  Ghost ⟹ VulnerableGhost
+  Ghost.hasState ⟹ VulnerableState
+  ─────────────────────────────────────────────
+  <i>O raciocinador DL classifica automaticamente</i>
+  <i>qualquer Ghost próximo ao Pacman após a</i>
+  <i>consumição de uma SpecialGem como</i>
+  <i>VulnerableGhost (transição de estado).</i>
+end note
+
+note as R2 #1C2840
+  <b><color:#00FF88>Regra 2 — Gema Válida (StandardGem)</color></b>
+  ─────────────────────────────────────────────
+  StandardGem ⊑ Item ⊓
+     ∃temPureza.Alta ⊓
+     ≥1 valorPositivo ⊓
+     ¬Inconsistencia
+  ─────────────────────────────────────────────
+  <i>Satisfeita ➜ GemaValida (pontuação +10/+15)</i>
+  <i>Não satisfeita ➜ Obstáculo (pontuação -5/-10)</i>
+end note
+
+note as R3 #1C2840
+  <b><color:#FF8C00>Regra 3 — Obstáculo / Inconsistência</color></b>
+  ─────────────────────────────────────────────
+  Obstacle ⊑ Inconsistencia ⊓ (A ⊓ ¬A ≡ ⊥)
+  ─────────────────────────────────────────────
+  <i>Qualquer instância que satisfaça</i>
+  <i>uma contradição na TBox/ABox</i>
+  <i>é classificada como Obstáculo</i>
+  <i>intransponível pelo Pac-Man.</i>
+end note
+
+note as R4 #1C2840
+  <b><color:#9B59B6>Regra 4 — isNearTo (Simétrica)</color></b>
+  ─────────────────────────────────────────────
+  isNearTo ∈ owl:SymmetricProperty
+  ─────────────────────────────────────────────
+  <i>Se Agent_A isNearTo Agent_B</i>
+  <i>então Agent_B isNearTo Agent_A</i>
+  <i>(detectado automaticamente pelo reasoner)</i>
+end note
+
+R1 .. SpecialGem
+R2 .. StandardGem
+R3 .. Obstacle
+R4 .. Agent
+
+' ============================================================
+' ABOX — INSTÂNCIAS EXEMPLO (Assertional Box)
+' ============================================================
+
+package "ABox — Instâncias (Exemplos)" #0F0F1F {
+    object "pac_val_01 : GemaDiamante" as i1 <<StandardGem>> #006633 {
+        id = "pac_val_01"
+        dlExpression = "Cristal ⊓ ∃temPureza.Alta ⊓ ≥1 valorPositivo"
+        score = 10
+        position = (3.5, 0.85, 4.2)
+    }
+    object "pac_val_02 : MineralMagico" as i2 <<StandardGem>> #005588 {
+        id = "pac_val_02"
+        dlExpression = "Recurso ⊓ ∃temAxioma.Valido ⊓ ¬Perigoso"
+        score = 15
+        position = (-4.2, 0.85, 2.8)
+    }
+    object "pac_obs_01 : FantasmaCorrompido" as i3 <<Obstacle>> #550000 {
+        id = "pac_obs_01"
+        dlExpression = "Obstaculo ⊑ Inconsistencia ⊓ (A ⊓ ¬A ≡ ⊥)"
+        score = -5
+        position = (-2.5, 0.6, -3.0)
+    }
+    object "pac_obs_02 : ViolacaoCardinalidade" as i4 <<Obstacle>> #440000 {
+        id = "pac_obs_02"
+        dlExpression = "EntidadeCorrompida ⊑ ≤0 compatibilidade ⊓ >3 ameaca"
+        score = -10
+        position = (4.8, 0.6, -2.1)
+    }
+}
+
+StandardGem <.. i1 : instanceOf
+StandardGem <.. i2 : instanceOf
+Obstacle <.. i3 : instanceOf
+Obstacle <.. i4 : instanceOf
+
+@enduml

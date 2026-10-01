@@ -1,0 +1,68 @@
+{
+  "nomeOntologia": "OntologiaPacManSemantico_ALCQ",
+  "versaoAxiomas": "v2.0-PacMan-DL",
+  "tempoInferencaMs": 3.84,
+  "ontologiaConsistente": true,
+  "instancias": [
+    {
+      "id": "pac_val_01",
+      "classeOntologica": "GemaDiamante",
+      "expressaoDL": "Cristal ⊓ ∃temPureza.Alta ⊓ ≥1 valorPositivo",
+      "ehValida": true,
+      "posicao": { "x": 3.5, "y": 0.85, "z": 4.2 },
+      "rotacao": { "x": 0.35, "y": 0.35, "z": -0.15, "w": 0.85 },
+      "escala": { "x": 0.9, "y": 0.9, "z": 0.9 },
+      "valorPontuacao": 10,
+      "descricaoSemantica": "Gema válida. Regra Description Logic ALCQ(D) satisfeita.",
+      "corDestaque": { "r": 0.1, "g": 1.0, "b": 0.45, "a": 1.0 }
+    },
+    {
+      "id": "pac_val_02",
+      "classeOntologica": "MineralMagico",
+      "expressaoDL": "Recurso ⊓ ∃temAxioma.Valido ⊓ ¬Perigoso",
+      "ehValida": true,
+      "posicao": { "x": -4.2, "y": 0.85, "z": 2.8 },
+      "rotacao": { "x": 0.35, "y": 0.35, "z": -0.15, "w": 0.85 },
+      "escala": { "x": 0.9, "y": 0.9, "z": 0.9 },
+      "valorPontuacao": 15,
+      "descricaoSemantica": "Recurso mágico validado pelo raciocinador semântico C++.",
+      "corDestaque": { "r": 0.1, "g": 0.8, "b": 1.0, "a": 1.0 }
+    },
+    {
+      "id": "pac_val_03",
+      "classeOntologica": "EntidadeConforme",
+      "expressaoDL": "Instancia ⊑ EntidadeSegura ⊓ ∀interacao.Permitida",
+      "ehValida": true,
+      "posicao": { "x": 2.1, "y": 0.85, "z": -5.3 },
+      "rotacao": { "x": 0.35, "y": 0.35, "z": -0.15, "w": 0.85 },
+      "escala": { "x": 0.85, "y": 0.85, "z": 0.85 },
+      "valorPontuacao": 10,
+      "descricaoSemantica": "Axioma ontológico de segurança satisfeito com sucesso.",
+      "corDestaque": { "r": 0.2, "g": 1.0, "b": 0.6, "a": 1.0 }
+    },
+    {
+      "id": "pac_obs_01",
+      "classeOntologica": "FantasmaCorrompido",
+      "expressaoDL": "Obstaculo ⊑ Inconsistencia ⊓ (A ⊓ ¬A ≡ ⊥)",
+      "ehValida": false,
+      "posicao": { "x": -2.5, "y": 0.6, "z": -3.0 },
+      "rotacao": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+      "escala": { "x": 0.85, "y": 1.2, "z": 0.85 },
+      "valorPontuacao": -5,
+      "descricaoSemantica": "Violação de consistência na TBox/ABox detectada. Obstáculo intransponível!",
+      "corDestaque": { "r": 1.0, "g": 0.15, "b": 0.2, "a": 1.0 }
+    },
+    {
+      "id": "pac_obs_02",
+      "classeOntologica": "ViolacaoCardinalidade",
+      "expressaoDL": "EntidadeCorrompida ⊑ ≤0 compatibilidade ⊓ >3 ameaca",
+      "ehValida": false,
+      "posicao": { "x": 4.8, "y": 0.6, "z": -2.1 },
+      "rotacao": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+      "escala": { "x": 0.85, "y": 1.2, "z": 0.85 },
+      "valorPontuacao": -10,
+      "descricaoSemantica": "Violação de cardinalidade ontológica.",
+      "corDestaque": { "r": 0.9, "g": 0.1, "b": 0.3, "a": 1.0 }
+    }
+  ]
+}

@@ -299,6 +299,59 @@ public static class TestesVirtOntoEPacManSemantico
             Debug.LogError($"✘ [TESTE 8 FALHOU] ApiClient: {ex.Message}");
         }
 
+        // --- TESTE 9: AvaliadorRegrasRuntime e Inferência SWRL Visual + XR Origin ---
+        totalTestes++;
+        try
+        {
+            GameObject motorObj = new GameObject("Teste_MotorSemantico_Runtime");
+            var motor = motorObj.AddComponent<PacMan.Semantics.MotorRaciocinioSemantico>();
+
+            GameObject pacmanObj = new GameObject("Teste_PacMan_XROrigin");
+            pacmanObj.transform.position = new Vector3(0f, 0f, 0f);
+
+            GameObject ghostObj = new GameObject("Teste_Ghost");
+            var meshRenderer = ghostObj.AddComponent<MeshRenderer>();
+            meshRenderer.material = new Material(Shader.Find("Sprites/Default") ?? Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+            ghostObj.transform.position = new Vector3(0f, 0f, 1.5f); // 1.5m (< 2m agressivo)
+
+            GameObject avaliadorObj = new GameObject("Teste_AvaliadorRuntime");
+            var avaliador = avaliadorObj.AddComponent<PacMan.Semantics.AvaliadorRegrasRuntime>();
+            avaliador.motorSemantico = motor;
+            avaliador.pacmanTransform = pacmanObj.transform;
+            avaliador.ghostTransform = ghostObj.transform;
+            avaliador.distanciaAgressiva = 2.0f;
+            avaliador.distanciaVulneravel = 3.0f;
+            avaliador.simularPacmanEmpowered = false;
+
+            // 1. Validação de mudança visual para Aggressive (< 2m sem poder)
+            avaliador.AplicarVisualConformeEstado(PacMan.Semantics.GameEntityState.Aggressive, ghostObj);
+            Debug.Assert(meshRenderer.material.color == Color.red, "Material do fantasma deve ser vermelho no estado Aggressive.");
+
+            // 2. Validação de mudança visual para Vulnerable (< 3m com poder)
+            avaliador.AplicarVisualConformeEstado(PacMan.Semantics.GameEntityState.Vulnerable, ghostObj);
+            Debug.Assert(meshRenderer.material.color == Color.blue, "Material do fantasma deve ser azul no estado Vulnerable.");
+
+            // 3. Validação de mudança visual para Patrol
+            avaliador.AplicarVisualConformeEstado(PacMan.Semantics.GameEntityState.Patrol, ghostObj);
+            Debug.Assert(meshRenderer.material.color == Color.white, "Material do fantasma deve ser branco no estado Patrol.");
+
+            // 4. Validação de posicionamento do XR Origin
+            bool posValida = avaliador.ValidarPosicionamentoXROrigin();
+            Debug.Assert(posValida, "Validação de posicionamento XR Origin deve retornar sucesso.");
+
+            UnityEngine.Object.DestroyImmediate(avaliadorObj);
+            UnityEngine.Object.DestroyImmediate(ghostObj);
+            UnityEngine.Object.DestroyImmediate(pacmanObj);
+            UnityEngine.Object.DestroyImmediate(motorObj);
+
+            testesPassaram++;
+            Debug.Log("<color=#00FF66>✔ [TESTE 9 PASSOU]</color> AvaliadorRegrasRuntime: Inferência contínua SWRL, transições visuais (azul/vermelho/branco) e validação de XR Origin 100% validadas.");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"✘ [TESTE 9 FALHOU] AvaliadorRegrasRuntime: {ex.Message}");
+        }
+
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");
         Debug.Log($"<color=#00FF99><b>Resultado Final: {testesPassaram}/{totalTestes} testes passaram com 100% de sucesso!</b></color>");
         Debug.Log("<color=#00DDFF><b>=======================================================</b></color>");

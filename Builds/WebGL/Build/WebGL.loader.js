@@ -117,10 +117,12 @@ function inicializarMotorGrafico3D(canvas) {
     var teclas = {};
     window.addEventListener("keydown", function(e) {
         teclas[e.key] = true;
-        if (e.key === " " || e.code === "Space") {
+        if (e.key === " " || e.code === "Space" || (e.key && e.key.indexOf("Arrow") === 0)) {
             e.preventDefault();
-            powerPellet.ativo = !powerPellet.ativo;
-            powerPellet.tempoRestante = powerPellet.ativo ? 8.0 : 0;
+            if (e.key === " " || e.code === "Space") {
+                powerPellet.ativo = !powerPellet.ativo;
+                powerPellet.tempoRestante = powerPellet.ativo ? 8.0 : 0;
+            }
         }
     });
     window.addEventListener("keyup", function(e) {

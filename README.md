@@ -15,7 +15,7 @@
 
 ## 1. Descrição Geral
 
-O **Pac-Man Semântico** é um projeto de pesquisa aplicada desenvolvido no âmbito do programa de **Mestrado em Ciência da Computação** do **Centro de Informática da Universidade Federal de Pernambuco (CIn-UFPE)**. A proposta central do projeto é integrar modelos formais de conhecimento da **Web Semântica (ontologias OWL e regras inferenciais SWRL)** a uma **arquitetura distribuída e imersiva**:
+O **Pac-Man Semântico** é um projeto de pesquisa aplicada desenvolvido no âmbito da disciplina de **Realidade Virtual e Aumentada** do **Centro de Informática da Universidade Federal de Pernambuco (CIn-UFPE)**, sob a orientação do professor **Francisco Paulo Magalhães Simões**. A proposta central do projeto é integrar modelos formais de conhecimento da **Web Semântica (ontologias OWL e regras inferenciais SWRL)** a uma **arquitetura distribuída e imersiva**:
 
 - **Backend em Java (Spring Boot / VirtOnto):** Microsserviço REST responsável pelo gerenciamento centralizado do grafo ontológico (TBox e ABox), disponibilizando endpoints para sincronização de nós, arestas e estado lógico com suporte a CORS.
 - **Módulo de Coordenadas em C++:** Motor nativo de processamento espacial que exporta coordenadas e pontos de saída no labirinto para enriquecer o grafo semântico.
@@ -218,11 +218,12 @@ A suíte executará **13 baterias de testes automatizados**:
 
 ## 5. Autoria e Contexto Acadêmico
 
-Este projeto integra as investigações do programa de **Mestrado em Ciência da Computação** do **Centro de Informática da Universidade Federal de Pernambuco (CIn-UFPE)**.
+Este projeto foi desenvolvido no âmbito da disciplina de **Realidade Virtual e Aumentada** do **Centro de Informática da Universidade Federal de Pernambuco (CIn-UFPE)**, sob a orientação do professor **Francisco Paulo Magalhães Simões**.
 
-- **Pesquisadora / Autora:** Lana Alcântara ([GitHub](https://github.com/lanalcantara))
+- **Autora:** Lana Alcântara ([GitHub](https://github.com/lanalcantara))
+- **Orientador:** Prof. Dr. Francisco Paulo Magalhães Simões
 - **Instituição:** Centro de Informática — Universidade Federal de Pernambuco (CIn-UFPE)
-- **Área de Pesquisa:** Engenharia de Ontologias, Web Semântica, Lógicas de Descrição ($\mathcal{ALCQ}(D)$), Realidade Estendida (XR), Sistemas Inteligentes Interativos e Computação Gráfica.
+- **Área de Pesquisa:** Realidade Virtual e Aumentada (XR), Engenharia de Ontologias, Web Semântica, Lógicas de Descrição ($\mathcal{ALCQ}(D)$), Sistemas Inteligentes Interativos e Computação Gráfica.
 
 ---
 

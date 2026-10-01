@@ -118,6 +118,10 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     [Tooltip("Cliente de rede REST para sincronização com o microsserviço Java Spring Boot.")]
     public ApiClient apiClient;
 
+    [Header("Integração Módulo C++ (VirtOnto Bridge)")]
+    [Tooltip("Adaptador para importação e leitura de coordenadas geradas pelo motor C++.")]
+    public PacMan.Integration.LeitorCoordenadasCpp leitorCpp;
+
     [Header("Status do Grafo Ontológico (VirtOnto C#)")]
     [SerializeField] private string m_NomeOntologiaAtiva = "Pac-Man Semantic Ontology";
     [SerializeField] private string m_VersaoAxiomas = "ALCQ(D)";
@@ -342,6 +346,18 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         }
 
         m_TotalInstanciasInstanciadas = m_ObjetosInstanciados.Count;
+
+        // 2.1 Sincroniza nós e coordenadas de saída geradas pelo módulo C++
+        if (leitorCpp == null)
+        {
+            leitorCpp = GetComponent<PacMan.Integration.LeitorCoordenadasCpp>() ?? FindFirstObjectByType<PacMan.Integration.LeitorCoordenadasCpp>();
+        }
+
+        if (leitorCpp != null)
+        {
+            leitorCpp.ProcessarPontosSaida(GrafoOntologico);
+            m_TotalNosGrafo = GrafoOntologico.GetNodeCount();
+        }
 
         // 3. Avaliação inicial de regras SWRL sobre o grafo instanciado
         GrafoOntologico.AvaliarRegrasSWRL(msg => Debug.Log($"<color=#9B59B6><b>[VirtOnto SWRL]</b></color> {msg}"));
@@ -1051,5 +1067,28 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         m_TotalInstanciasInstanciadas = 0;
         InstanciaSemanticaBase.instanciasValidasRestantes = 0;
         motorRaciocinio?.ResetarEstados();
+    }
+
+    /// <summary>
+    /// Força a importação manual de coordenadas e pontos de saída a partir do LeitorCoordenadasCpp.
+    /// </summary>
+    [ContextMenu("Pac-Man Semântico/Importar Coordenadas C++")]
+    public void ImportarCoordenadasCpp()
+    {
+        if (leitorCpp == null)
+        {
+            leitorCpp = GetComponent<PacMan.Integration.LeitorCoordenadasCpp>() ?? FindFirstObjectByType<PacMan.Integration.LeitorCoordenadasCpp>();
+        }
+
+        if (leitorCpp != null && GrafoOntologico != null)
+        {
+            leitorCpp.ProcessarPontosSaida(GrafoOntologico);
+            m_TotalNosGrafo = GrafoOntologico.GetNodeCount();
+            Debug.Log($"<color=#00FFFF><b>[C++ Bridge]</b></color> Coordenadas importadas com sucesso! Grafo contém agora {m_TotalNosGrafo} nós.");
+        }
+        else
+        {
+            Debug.LogWarning("[C++ Bridge] LeitorCoordenadasCpp ou GrafoOntologico não encontrado na cena.");
+        }
     }
 }

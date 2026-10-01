@@ -147,12 +147,21 @@ namespace PacMan.Player
             if (characterController == null || !characterController.enabled) return;
 
             // 1. Leitura do Teclado (Editor / Desktop fallback)
-            float moveX = Input.GetAxis("Horizontal");
-            float moveZ = Input.GetAxis("Vertical");
-            float giro = 0f;
+            float moveX = 0f;
+            float moveZ = 0f;
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) moveZ += 1f;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) moveZ -= 1f;
 
-            if (Input.GetKey(KeyCode.Q)) giro -= 1f;
-            if (Input.GetKey(KeyCode.E)) giro += 1f;
+            float giro = 0f;
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.Q)) giro -= 1f;
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.E)) giro += 1f;
+
+            // Strafe lateral opcional com Shift
+            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+            {
+                if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) moveX -= 1f;
+                if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) moveX += 1f;
+            }
 
             // 2. Leitura nativa de Realidade Virtual (XR Input Devices)
             if (habilitarControlesXR)

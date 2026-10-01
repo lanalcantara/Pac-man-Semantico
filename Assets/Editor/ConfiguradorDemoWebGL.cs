@@ -19,6 +19,19 @@ namespace PacMan.Editor
         private const string CaminhoCenaDemo = "Assets/Scenes/DemoWeb/CenaDemoWeb.unity";
 
         /// <summary>
+        /// Garante automaticamente que CenaDemoWeb.unity é a cena de início ao dar Play no Unity Editor.
+        /// </summary>
+        [InitializeOnLoadMethod]
+        public static void GarantirCenaDemoWebAoIniciar()
+        {
+            var sceneAsset = AssetDatabase.LoadAssetAtPath<SceneAsset>(CaminhoCenaDemo);
+            if (sceneAsset != null)
+            {
+                EditorSceneManager.playModeStartScene = sceneAsset;
+            }
+        }
+
+        /// <summary>
         /// Abre e seleciona exclusivamente a cena WebGL leve (CenaDemoWeb.unity)
         /// garantindo que cenas de Realidade Virtual (como SampleScene) não estejam ativas.
         /// </summary>
@@ -30,6 +43,11 @@ namespace PacMan.Editor
             if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
             {
                 var scene = EditorSceneManager.OpenScene(CaminhoCenaDemo, OpenSceneMode.Single);
+                var sceneAsset = AssetDatabase.LoadAssetAtPath<SceneAsset>(CaminhoCenaDemo);
+                if (sceneAsset != null)
+                {
+                    EditorSceneManager.playModeStartScene = sceneAsset;
+                }
                 ConfigurarCenasNoBuild();
                 Debug.Log($"<color=#00FF99><b>✔ [Cena WebGL Ativa]</b></color> '{scene.name}' aberta com sucesso. Apenas ela está configurada para build.");
             }
@@ -81,7 +99,12 @@ namespace PacMan.Editor
             };
 
             EditorBuildSettings.scenes = cenasExclusivas;
-            Debug.Log($"<color=#00FF99><b>[WebGL Setup]</b></color> Cena '{CaminhoCenaDemo}' definida como ÚNICA cena do Build (Cenas de RV desativadas).");
+            var sceneAsset = AssetDatabase.LoadAssetAtPath<SceneAsset>(CaminhoCenaDemo);
+            if (sceneAsset != null)
+            {
+                EditorSceneManager.playModeStartScene = sceneAsset;
+            }
+            Debug.Log($"<color=#00FF99><b>[WebGL Setup]</b></color> Cena '{CaminhoCenaDemo}' definida como ÚNICA cena do Build e PlayModeStartScene.");
         }
 
         /// <summary>
@@ -157,8 +180,8 @@ namespace PacMan.Editor
             GameObject pacmanVisual = GameObject.Find("Visual_PacMan");
             if (pacmanVisual != null)
             {
-                pacmanVisual.transform.localPosition = new Vector3(0f, -0.52f, 1.15f);
-                pacmanVisual.transform.localScale = new Vector3(0.38f, 0.38f, 0.38f);
+                pacmanVisual.transform.localPosition = new Vector3(0f, -0.55f, 1.25f);
+                pacmanVisual.transform.localScale = new Vector3(0.35f, 0.35f, 0.35f);
                 Debug.Log("<color=#00FF99>✔ Modelo Pac-Man reposicionado:</color> afastado da lente para não tapar o campo de visão.");
             }
 

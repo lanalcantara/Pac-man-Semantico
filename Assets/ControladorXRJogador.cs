@@ -47,14 +47,17 @@ public class ControladorXRJogador : MonoBehaviour
     public float gravidade = 9.81f;
 
     [Header("Configuração de Giro (Turn)")]
-    [Tooltip("Se ativado, utiliza Snap Turn (giro instantâneo em passos angulares).")]
+    [Tooltip("Se ativado, utiliza Snap Turn (giro instantâneo em passos angulares para controladores XR).")]
     public bool usarSnapTurn = true;
 
     [Tooltip("Ângulo em graus para cada passo do Snap Turn.")]
     public float anguloSnapTurn = 45f;
 
-    [Tooltip("Velocidade em graus/segundo para giro suave contínuo.")]
+    [Tooltip("Velocidade em graus/segundo para giro suave contínuo via thumbstick.")]
     public float velocidadeGiroSuave = 75f;
+
+    [Tooltip("Velocidade em graus/segundo para virar e curvar livremente pelo labirinto via Teclas A/D e Setas Laterais.")]
+    public float velocidadeGiroTeclado = 110f;
 
     [Tooltip("Tempo de recarga entre giros Snap Turn.")]
     public float intervaloSnapTurn = 0.3f;
@@ -222,12 +225,18 @@ public class ControladorXRJogador : MonoBehaviour
             }
         }
 
-        // 2. Fallback Teclado WASD / Setas
-        float inputHorizontal = Input.GetAxisRaw("Horizontal");
-        float inputVertical = Input.GetAxisRaw("Vertical");
-        if (Mathf.Abs(inputHorizontal) > 0.05f || Mathf.Abs(inputVertical) > 0.05f)
+        // 2. Movimento Linear via Teclado (W/S e Setas Cima/Baixo)
+        float vertical = 0f;
+        if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) vertical += 1f;
+        if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) vertical -= 1f;
+
+        entradaMove.y += vertical;
+
+        // Strafe lateral opcional com Shift
+        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
         {
-            entradaMove += new Vector2(inputHorizontal, inputVertical);
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) entradaMove.x -= 1f;
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) entradaMove.x += 1f;
         }
 
         entradaMove = Vector2.ClampMagnitude(entradaMove, 1f);
@@ -288,34 +297,47 @@ public class ControladorXRJogador : MonoBehaviour
 
     private void ProcessarGiro()
     {
-        float inputGiro = 0f;
+        // 1. Giro Contínuo por Teclado: A/D, Setas Esquerda/Direita e Q/E para virar e curvar livremente pelos corredores
+        float inputGiroTeclado = 0f;
+        if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.Q))
+        {
+            inputGiroTeclado -= 1f;
+        }
+        if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.E))
+        {
+            inputGiroTeclado += 1f;
+        }
 
+        if (Mathf.Abs(inputGiroTeclado) > 0.01f)
+        {
+            transform.Rotate(Vector3.up * inputGiroTeclado * velocidadeGiroTeclado * Time.deltaTime, Space.World);
+        }
+
+        // 2. Giro via Controlador XR Direito (Thumbstick)
+        float inputGiroXR = 0f;
         if (m_DispositivoMaoDireita.isValid)
         {
             Vector2 eixoDir;
             if (m_DispositivoMaoDireita.TryGetFeatureValue(CommonUsages.primary2DAxis, out eixoDir))
             {
-                inputGiro = eixoDir.x;
+                inputGiroXR = eixoDir.x;
             }
         }
 
-        if (Input.GetKey(KeyCode.Q)) inputGiro = -1f;
-        if (Input.GetKey(KeyCode.E)) inputGiro = 1f;
-
-        if (usarSnapTurn)
+        if (Mathf.Abs(inputGiroXR) > 0.1f)
         {
-            if (Mathf.Abs(inputGiro) > 0.6f && m_TimerSnapTurn <= 0f)
+            if (usarSnapTurn)
             {
-                float angulo = Mathf.Sign(inputGiro) * anguloSnapTurn;
-                transform.RotateAround(cameraPrincipalXR != null ? cameraPrincipalXR.transform.position : transform.position, Vector3.up, angulo);
-                m_TimerSnapTurn = intervaloSnapTurn;
+                if (Mathf.Abs(inputGiroXR) > 0.6f && m_TimerSnapTurn <= 0f)
+                {
+                    float angulo = Mathf.Sign(inputGiroXR) * anguloSnapTurn;
+                    transform.RotateAround(cameraPrincipalXR != null ? cameraPrincipalXR.transform.position : transform.position, Vector3.up, angulo);
+                    m_TimerSnapTurn = intervaloSnapTurn;
+                }
             }
-        }
-        else
-        {
-            if (Mathf.Abs(inputGiro) > 0.1f)
+            else
             {
-                transform.Rotate(Vector3.up * inputGiro * velocidadeGiroSuave * Time.deltaTime, Space.World);
+                transform.Rotate(Vector3.up * inputGiroXR * velocidadeGiroSuave * Time.deltaTime, Space.World);
             }
         }
     }

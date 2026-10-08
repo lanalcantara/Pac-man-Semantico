@@ -99,34 +99,35 @@ function inicializarMotorGrafico3D(canvas) {
 
     var powerPellet = { ativo: false, tempoRestante: 0 };
     var fantasmas = [
-        { nome: "Blinky", x: 280, y: 220, vx: 1.8, vy: 0, raio: 16, estado: "Patrulha", cor: "#f8fafc" },
-        { nome: "Pinky",  x: 680, y: 220, vx: -1.6, vy: 0, raio: 16, estado: "Patrulha", cor: "#f8fafc" },
-        { nome: "Inky",   x: 380, y: 150, vx: 0, vy: 1.5, raio: 16, estado: "Patrulha", cor: "#f8fafc" },
-        { nome: "Clyde",  x: 580, y: 150, vx: 0, vy: -1.5, raio: 16, estado: "Patrulha", cor: "#f8fafc" }
+        { nome: "TriatomineVector", x: 280, y: 220, vx: 1.8, vy: 0, raio: 16, estado: "Patrulha", cor: "#f8fafc" },
+        { nome: "BiomphalariaVector",  x: 680, y: 220, vx: -1.6, vy: 0, raio: 16, estado: "Patrulha", cor: "#f8fafc" },
+        { nome: "AedesVector",   x: 380, y: 150, vx: 0, vy: 1.5, raio: 16, estado: "Patrulha", cor: "#f8fafc" },
+        { nome: "InfectionVector",  x: 580, y: 150, vx: 0, vy: -1.5, raio: 16, estado: "Patrulha", cor: "#f8fafc" }
     ];
 
-    // Gemas ontológicas com instâncias e classes OWL
+    // Espécimes ontológicos reais da ontologia de parasitologia Protégé (OWL / ALCQ(D))
     var tiposClasses = [
-        { classe: "StandardGem", dl: "Gem ⊓ Standard", pontos: 10, cor: "#ffd700" },
-        { classe: "GemaDiamante", dl: "Gem ⊓ PureCrystal", pontos: 15, cor: "#00f0ff" },
-        { classe: "MineralMagico", dl: "Mineral ⊓ MagicEnchanted", pontos: 20, cor: "#c084fc" },
-        { classe: "PacDot", dl: "Dot ⊓ ValidEntity", pontos: 10, cor: "#fef08a" }
+        { classe: "AscarisLumbricoides", dl: "Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine", pontos: 25, cor: "#00ffcc" },
+        { classe: "EnterobiusVermicularis", dl: "Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.PerianalRegion", pontos: 20, cor: "#38bdf8" },
+        { classe: "TaeniaSolium", dl: "Platyhelminthes ⊓ ∃has_host.Human ⊓ ∃has_transmission.UndercookedPork", pontos: 30, cor: "#ffd700" },
+        { classe: "Nematoda", dl: "Parasite ⊓ ∃has_morphology.Cylindrical", pontos: 15, cor: "#c084fc" },
+        { classe: "Platyhelminthes", dl: "Parasite ⊓ ∃has_morphology.FlatSegments", pontos: 15, cor: "#f472b6" }
     ];
 
     var gemas = [];
     var gCount = 1;
     for (var gx = 100; gx <= 860; gx += 40) {
         var t1 = tiposClasses[gCount % tiposClasses.length];
-        gemas.push({ id: "inst_gem_" + (gCount < 10 ? "0" + gCount : gCount), classe: t1.classe, expressaoDL: t1.dl, pontos: t1.pontos, cor: t1.cor, x: gx, y: 150, comida: false });
+        gemas.push({ id: "sample_specimen_" + (gCount < 10 ? "0" + gCount : gCount), classe: t1.classe, expressaoDL: t1.dl, pontos: t1.pontos, cor: t1.cor, x: gx, y: 150, comida: false });
         gCount++;
         var t2 = tiposClasses[gCount % tiposClasses.length];
-        gemas.push({ id: "inst_gem_" + (gCount < 10 ? "0" + gCount : gCount), classe: t2.classe, expressaoDL: t2.dl, pontos: t2.pontos, cor: t2.cor, x: gx, y: 220, comida: false });
+        gemas.push({ id: "sample_specimen_" + (gCount < 10 ? "0" + gCount : gCount), classe: t2.classe, expressaoDL: t2.dl, pontos: t2.pontos, cor: t2.cor, x: gx, y: 220, comida: false });
         gCount++;
         var t3 = tiposClasses[gCount % tiposClasses.length];
-        gemas.push({ id: "inst_gem_" + (gCount < 10 ? "0" + gCount : gCount), classe: t3.classe, expressaoDL: t3.dl, pontos: t3.pontos, cor: t3.cor, x: gx, y: 360, comida: false });
+        gemas.push({ id: "sample_specimen_" + (gCount < 10 ? "0" + gCount : gCount), classe: t3.classe, expressaoDL: t3.dl, pontos: t3.pontos, cor: t3.cor, x: gx, y: 360, comida: false });
         gCount++;
         var t4 = tiposClasses[gCount % tiposClasses.length];
-        gemas.push({ id: "inst_gem_" + (gCount < 10 ? "0" + gCount : gCount), classe: t4.classe, expressaoDL: t4.dl, pontos: t4.pontos, cor: t4.cor, x: gx, y: 480, comida: false });
+        gemas.push({ id: "sample_specimen_" + (gCount < 10 ? "0" + gCount : gCount), classe: t4.classe, expressaoDL: t4.dl, pontos: t4.pontos, cor: t4.cor, x: gx, y: 480, comida: false });
         gCount++;
     }
 
@@ -256,31 +257,31 @@ function inicializarMotorGrafico3D(canvas) {
             var distPx = Math.hypot(pacman.x - fantasma.x, pacman.y - fantasma.y);
             var distMetros = distPx / 60.0;
 
-            // Deteção de Proximidade / Colisão com Blinky (fantasmas[0])
-            if (fantasma.nome === "Blinky" && distMetros <= distanciaColisaoSegura && avisoColisao.tempo <= 0) {
+            // Deteção de Proximidade / Colisão com TriatomineVector (fantasmas[0])
+            if (fantasma.nome === "TriatomineVector" && distMetros <= distanciaColisaoSegura && avisoColisao.tempo <= 0) {
                 if (powerPellet.ativo) {
                     fantasma.x = 480;
                     fantasma.y = 200;
                     pontuacaoLogica += 200;
                     totalColetadas++;
                     ultimaCaptura = {
-                        id: "ghost_blinky",
-                        classe: "AggressiveGhost ⊓ Vulnerable",
-                        expressaoDL: "Ghost ⊑ Vulnerable",
+                        id: "vector_triatomine_01",
+                        classe: "InfectionVector ⊓ Vulnerable",
+                        expressaoDL: "InfectionVector ⊑ VulnerableState",
                         pontos: 200,
                         valida: true,
                         tempo: performance.now()
                     };
-                    avisoColisao.mensagem = "👻 BLINKY DEVORADO! Instância: ghost_blinky | Classe: VulnerableGhost (+200 pts)!";
+                    avisoColisao.mensagem = "🧪 VETOR NEUTRALIZADO! Instância: vector_triatomine_01 | Classe: InfectionVector (+200 pts)!";
                     avisoColisao.tempo = 3.5;
-                    console.log("[Pac-Man Semântico - WebGL] 👻 Fantasma Devorado! Instância: ghost_blinky | Classe: AggressiveGhost ⊓ Vulnerable | +200 pts");
+                    console.log("[Pac-Man Semântico - WebGL] 🧪 Vetor Neutralizado! Instância: vector_triatomine_01 | Classe: InfectionVector ⊓ Vulnerable | +200 pts");
                 } else {
                     vidasRestantes = Math.max(0, vidasRestantes - 1);
                     pacman.x = pontoSpawnInicial.x;
                     pacman.y = pontoSpawnInicial.y;
                     pacman.vx = 0;
                     pacman.vy = 0;
-                    avisoColisao.mensagem = "⚠️ PAC-MAN APANHADO PELO BLINKY! Perdeu 1 vida. Vidas restantes: " + vidasRestantes;
+                    avisoColisao.mensagem = "⚠️ CONTAMINAÇÃO POR VETOR INFECCIOSO! Perdeu 1 vida. Vidas restantes: " + vidasRestantes;
                     avisoColisao.tempo = 3.5;
                 }
             }
@@ -493,19 +494,19 @@ function inicializarMotorGrafico3D(canvas) {
 
         ctx.fillStyle = "#ffd700";
         ctx.font = "bold 13px -apple-system, sans-serif";
-        ctx.fillText("PAC-MAN SEMÂNTICO (CIn-UFPE) | WebGL URP Polido", 52, 60);
+        ctx.fillText("PAC-MAN SEMÂNTICO (CIn-UFPE) | Ontologia Biomédica Protégé", 52, 60);
 
         ctx.fillStyle = powerPellet.ativo ? "#38bdf8" : "#94a3b8";
         ctx.font = "11px monospace";
         var txtPellet = powerPellet.ativo ? 
-            "POWER PELLET ATIVO (" + powerPellet.tempoRestante.toFixed(1) + "s) [SWRL: VULNERÁVEL]" : 
-            "Power Pellet: Inativo (Barra de Espaço para alternar)";
+            "TRATAMENTO ANTIPARASITÁRIO ATIVO (" + powerPellet.tempoRestante.toFixed(1) + "s) [SWRL: VETORES VULNERÁVEIS]" : 
+            "Tratamento Antiparasitário: Inativo (Barra de Espaço para alternar)";
         ctx.fillText(txtPellet, 52, 78);
 
-        // Distância para o Blinky (fantasmas[0]) - sem código de escape HTML
-        var distBlinky = Math.hypot(pacman.x - fantasmas[0].x, pacman.y - fantasmas[0].y) / 60.0;
-        ctx.fillStyle = distBlinky <= distanciaColisaoSegura ? "#ef4444" : (distBlinky < 2.5 ? "#f59e0b" : "#22c55e");
-        ctx.fillText("Distância Pac-Man ↔ Blinky: " + distBlinky.toFixed(2) + "m (Colisão: <=0.8m)", 52, 96);
+        // Distância para o Vetor Infeccioso (fantasmas[0]) - sem código de escape HTML
+        var distVector = Math.hypot(pacman.x - fantasmas[0].x, pacman.y - fantasmas[0].y) / 60.0;
+        ctx.fillStyle = distVector <= distanciaColisaoSegura ? "#ef4444" : (distVector < 2.5 ? "#f59e0b" : "#22c55e");
+        ctx.fillText("Distância Investigador ↔ Vetor: " + distVector.toFixed(2) + "m (Perigo: <=0.8m)", 52, 96);
 
         // Vidas e Pontuação Lógica
         var iconesVidas = "";

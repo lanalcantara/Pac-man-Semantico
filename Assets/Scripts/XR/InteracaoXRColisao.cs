@@ -68,8 +68,13 @@ namespace PacMan.XR
         {
             if (alvo == null) return;
 
+            bool ehTagGema = false;
+            bool ehTagObstaculo = false;
+            try { ehTagGema = alvo.CompareTag("GemaValida"); } catch { }
+            try { ehTagObstaculo = alvo.CompareTag("ObstaculoInvalido"); } catch { }
+
             // Verifica se o objeto tocado é uma Gema baseada no grafo ontológico
-            if (alvo.CompareTag("GemaValida") || alvo.name.Contains("Gema") || alvo.name.Contains("Gem"))
+            if (ehTagGema || alvo.name.Contains("Gema") || alvo.name.Contains("Gem"))
             {
                 Debug.Log($"[InteracaoXR] Gema ontológica '{alvo.name}' consumida via XR.");
 
@@ -100,7 +105,7 @@ namespace PacMan.XR
                     Destroy(alvo);
                 }
             }
-            else if (alvo.CompareTag("ObstaculoInvalido") || alvo.name.Contains("Parede"))
+            else if (ehTagObstaculo || alvo.name.Contains("Parede"))
             {
                 Debug.LogWarning($"[InteracaoXR] Colisão com barreira espacial detetada: {alvo.name}");
             }

@@ -510,7 +510,14 @@ public static class TestesVirtOntoEPacManSemantico
             Debug.Assert(ctrlDemo.vidasRestantes == vidasAntes - 1, "Colisão com Blinky deve subtrair 1 vida.");
             Debug.Assert(pacmanObj.transform.position == ctrlDemo.pontoSpawnInicial, "Pac-Man deve ser reposicionado no Spawn inicial.");
 
-            // 4. Valida chamada do utilitário ConfiguradorDemoWebGL
+            // 4. Valida feedback de captura ontológica (Instância e Classe) em tempo real
+            ctrlDemo.RegistrarCapturaItem("inst_gem_01", "GemaDiamante", true, 15, "Gem ⊓ PureCrystal");
+            Debug.Assert(ctrlDemo.ultimaInstanciaCapturada == "inst_gem_01", "Instância capturada deve ser atualizada no HUD.");
+            Debug.Assert(ctrlDemo.ultimaClasseCapturada == "GemaDiamante", "Classe ontológica deve ser atualizada no HUD.");
+            Debug.Assert(ctrlDemo.pontuacaoAcumulada == 15, "Pontuação lógica deve ser acumulada no HUD.");
+            Debug.Assert(ctrlDemo.totalItensCapturados == 1, "Total de itens capturados deve ser incrementado.");
+
+            // 5. Valida chamada do utilitário ConfiguradorDemoWebGL
             PacMan.Editor.ConfiguradorDemoWebGL.ConfigurarPlataformaWebGL();
             Debug.Assert(PlayerSettings.defaultWebScreenWidth == 960, "Largura de tela WebGL deve ser 960.");
             Debug.Assert(PlayerSettings.defaultWebScreenHeight == 600, "Altura de tela WebGL deve ser 600.");
@@ -521,7 +528,7 @@ public static class TestesVirtOntoEPacManSemantico
             UnityEngine.Object.DestroyImmediate(motorObj);
 
             testesPassaram++;
-            Debug.Log("<color=#00FF66>✔ [TESTE 13 PASSOU]</color> CenaDemoWeb e WebGL Setup: Resolução 960x600, cena standalone e ControladorDemoWeb 100% validados.");
+            Debug.Log("<color=#00FF66>✔ [TESTE 13 PASSOU]</color> CenaDemoWeb e WebGL Setup: Resolução 960x600, feedback de captura de instâncias/classes e ControladorDemoWeb 100% validados.");
         }
         catch (Exception ex)
         {

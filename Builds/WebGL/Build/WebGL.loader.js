@@ -105,14 +105,41 @@ function inicializarMotorGrafico3D(canvas) {
         { nome: "Clyde",  x: 580, y: 150, vx: 0, vy: -1.5, raio: 16, estado: "Patrulha", cor: "#f8fafc" }
     ];
 
-    // Gemas ontológicas com glow
+    // Gemas ontológicas com instâncias e classes OWL
+    var tiposClasses = [
+        { classe: "StandardGem", dl: "Gem ⊓ Standard", pontos: 10, cor: "#ffd700" },
+        { classe: "GemaDiamante", dl: "Gem ⊓ PureCrystal", pontos: 15, cor: "#00f0ff" },
+        { classe: "MineralMagico", dl: "Mineral ⊓ MagicEnchanted", pontos: 20, cor: "#c084fc" },
+        { classe: "PacDot", dl: "Dot ⊓ ValidEntity", pontos: 10, cor: "#fef08a" }
+    ];
+
     var gemas = [];
+    var gCount = 1;
     for (var gx = 100; gx <= 860; gx += 40) {
-        gemas.push({ x: gx, y: 150, comida: false });
-        gemas.push({ x: gx, y: 220, comida: false });
-        gemas.push({ x: gx, y: 360, comida: false });
-        gemas.push({ x: gx, y: 480, comida: false });
+        var t1 = tiposClasses[gCount % tiposClasses.length];
+        gemas.push({ id: "inst_gem_" + (gCount < 10 ? "0" + gCount : gCount), classe: t1.classe, expressaoDL: t1.dl, pontos: t1.pontos, cor: t1.cor, x: gx, y: 150, comida: false });
+        gCount++;
+        var t2 = tiposClasses[gCount % tiposClasses.length];
+        gemas.push({ id: "inst_gem_" + (gCount < 10 ? "0" + gCount : gCount), classe: t2.classe, expressaoDL: t2.dl, pontos: t2.pontos, cor: t2.cor, x: gx, y: 220, comida: false });
+        gCount++;
+        var t3 = tiposClasses[gCount % tiposClasses.length];
+        gemas.push({ id: "inst_gem_" + (gCount < 10 ? "0" + gCount : gCount), classe: t3.classe, expressaoDL: t3.dl, pontos: t3.pontos, cor: t3.cor, x: gx, y: 360, comida: false });
+        gCount++;
+        var t4 = tiposClasses[gCount % tiposClasses.length];
+        gemas.push({ id: "inst_gem_" + (gCount < 10 ? "0" + gCount : gCount), classe: t4.classe, expressaoDL: t4.dl, pontos: t4.pontos, cor: t4.cor, x: gx, y: 480, comida: false });
+        gCount++;
     }
+
+    var ultimaCaptura = {
+        id: "Nenhuma",
+        classe: "Nenhuma",
+        expressaoDL: "",
+        pontos: 0,
+        valida: true,
+        tempo: 0
+    };
+    var pontuacaoLogica = 0;
+    var totalColetadas = 0;
 
     // Teclado com prevenção estrita de scroll
     var teclas = {};
@@ -199,7 +226,7 @@ function inicializarMotorGrafico3D(canvas) {
             }
         }
 
-        // Comer gemas
+        // Comer gemas com registro semântico em tempo real
         for (var i = 0; i < gemas.length; i++) {
             var g = gemas[i];
             if (!g.comida) {
@@ -207,6 +234,17 @@ function inicializarMotorGrafico3D(canvas) {
                 var dy = pacman.y - g.y;
                 if (dx * dx + dy * dy < 400) {
                     g.comida = true;
+                    totalColetadas++;
+                    pontuacaoLogica += g.pontos;
+                    ultimaCaptura = {
+                        id: g.id,
+                        classe: g.classe,
+                        expressaoDL: g.expressaoDL,
+                        pontos: g.pontos,
+                        valida: true,
+                        tempo: performance.now()
+                    };
+                    console.log("[Pac-Man Semântico - WebGL] 💎 Gema Coletada! Instância: " + g.id + " | Classe: " + g.classe + " | DL: [" + g.expressaoDL + "] | +" + g.pontos + " pts (Total: " + pontuacaoLogica + ")");
                 }
             }
         }
@@ -223,8 +261,19 @@ function inicializarMotorGrafico3D(canvas) {
                 if (powerPellet.ativo) {
                     fantasma.x = 480;
                     fantasma.y = 200;
-                    avisoColisao.mensagem = "👻 BLINKY CONSUMIDO! Pac-Man devorou o fantasma vulnerável (+200 pts)!";
-                    avisoColisao.tempo = 3.0;
+                    pontuacaoLogica += 200;
+                    totalColetadas++;
+                    ultimaCaptura = {
+                        id: "ghost_blinky",
+                        classe: "AggressiveGhost ⊓ Vulnerable",
+                        expressaoDL: "Ghost ⊑ Vulnerable",
+                        pontos: 200,
+                        valida: true,
+                        tempo: performance.now()
+                    };
+                    avisoColisao.mensagem = "👻 BLINKY DEVORADO! Instância: ghost_blinky | Classe: VulnerableGhost (+200 pts)!";
+                    avisoColisao.tempo = 3.5;
+                    console.log("[Pac-Man Semântico - WebGL] 👻 Fantasma Devorado! Instância: ghost_blinky | Classe: AggressiveGhost ⊓ Vulnerable | +200 pts");
                 } else {
                     vidasRestantes = Math.max(0, vidasRestantes - 1);
                     pacman.x = pontoSpawnInicial.x;
@@ -318,15 +367,15 @@ function inicializarMotorGrafico3D(canvas) {
         ctx.strokeRect(390, 468, 180, 22);
         ctx.shadowBlur = 0;
 
-        // Gemas semânticas com brilho
+        // Gemas semânticas com brilho e cor correspondente à classe
         for (var i = 0; i < gemas.length; i++) {
             var g = gemas[i];
             if (!g.comida) {
-                ctx.fillStyle = "#ffd700";
-                ctx.shadowColor = "#ffd700";
+                ctx.fillStyle = g.cor || "#ffd700";
+                ctx.shadowColor = g.cor || "#ffd700";
                 ctx.shadowBlur = 8;
                 ctx.beginPath();
-                ctx.arc(g.x, g.y, 4, 0, Math.PI * 2);
+                ctx.arc(g.x, g.y, 4.5, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
@@ -434,11 +483,11 @@ function inicializarMotorGrafico3D(canvas) {
     }
 
     function desenharHUD() {
-        var hudW = 420;
-        var hudH = 132;
-        ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
+        var hudW = 470;
+        var hudH = 175;
+        ctx.fillStyle = "rgba(15, 23, 42, 0.94)";
         ctx.fillRect(40, 40, hudW, hudH);
-        ctx.strokeStyle = "rgba(56, 189, 248, 0.5)";
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.55)";
         ctx.lineWidth = 1.5;
         ctx.strokeRect(40, 40, hudW, hudH);
 
@@ -453,32 +502,48 @@ function inicializarMotorGrafico3D(canvas) {
             "Power Pellet: Inativo (Barra de Espaço para alternar)";
         ctx.fillText(txtPellet, 52, 78);
 
-        // Distância para o Blinky (fantasmas[0])
+        // Distância para o Blinky (fantasmas[0]) - sem código de escape HTML
         var distBlinky = Math.hypot(pacman.x - fantasmas[0].x, pacman.y - fantasmas[0].y) / 60.0;
         ctx.fillStyle = distBlinky <= distanciaColisaoSegura ? "#ef4444" : (distBlinky < 2.5 ? "#f59e0b" : "#22c55e");
         ctx.fillText("Distância Pac-Man ↔ Blinky: " + distBlinky.toFixed(2) + "m (Colisão: <=0.8m)", 52, 96);
 
-        // Vidas com cor contrastante
+        // Vidas e Pontuação Lógica
         var iconesVidas = "";
         for (var v = 0; v < vidasRestantes; v++) iconesVidas += " ♥";
         ctx.fillStyle = vidasRestantes > 1 ? "#00ffcc" : (vidasRestantes === 1 ? "#f59e0b" : "#ef4444");
-        ctx.fillText("Vidas: " + vidasRestantes + iconesVidas, 52, 114);
+        ctx.fillText("Vidas: " + vidasRestantes + iconesVidas + "   |   Score DL: " + pontuacaoLogica + " pts (" + totalColetadas + " capturas)", 52, 114);
 
-        ctx.fillStyle = "#94a3b8";
+        // Feedback Ontológico em Tempo Real: Instância & Classe
+        var recemCapturado = (performance.now() - ultimaCaptura.tempo) < 3500;
+        if (ultimaCaptura.id !== "Nenhuma") {
+            ctx.fillStyle = recemCapturado ? "#00ffcc" : "#e2e8f0";
+            ctx.font = "bold 11px monospace";
+            ctx.fillText("Última Captura: " + ultimaCaptura.id + "   |   Classe: " + ultimaCaptura.classe + " (+" + ultimaCaptura.pontos + " pts)", 52, 134);
+
+            ctx.fillStyle = "#94a3b8";
+            ctx.font = "10px monospace";
+            ctx.fillText("Axioma DL: [" + ultimaCaptura.expressaoDL + "]", 52, 149);
+        } else {
+            ctx.fillStyle = "#94a3b8";
+            ctx.font = "italic 11px monospace";
+            ctx.fillText("Última Captura: Nenhuma | Classe: Aguardando colisão com item", 52, 134);
+        }
+
+        ctx.fillStyle = "#64748b";
         ctx.font = "10px monospace";
-        ctx.fillText("Navegação: Setas / A e D (Curvar e virar livremente) | Espaço: Power Pellet", 52, 128);
+        ctx.fillText("Navegação: Setas / WASD (Curvar livremente) | Espaço: Power Pellet", 52, 166);
 
         // Alerta Temporário de Colisão
         if (avisoColisao.tempo > 0 && avisoColisao.mensagem) {
             ctx.fillStyle = "rgba(220, 38, 38, 0.95)";
-            ctx.fillRect(40, 160, 490, 32);
+            ctx.fillRect(40, 222, 540, 32);
             ctx.strokeStyle = "#fef08a";
             ctx.lineWidth = 1.5;
-            ctx.strokeRect(40, 160, 490, 32);
+            ctx.strokeRect(40, 222, 540, 32);
 
             ctx.fillStyle = "#ffffff";
             ctx.font = "bold 12px -apple-system, sans-serif";
-            ctx.fillText(avisoColisao.mensagem, 52, 181);
+            ctx.fillText(avisoColisao.mensagem, 52, 243);
         }
     }
 

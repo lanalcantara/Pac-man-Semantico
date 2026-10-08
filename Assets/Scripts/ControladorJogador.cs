@@ -241,13 +241,18 @@ namespace PacMan.Player
 
             IInstanciaSemantica inst = other.GetComponent<IInstanciaSemantica>() ?? other.GetComponentInParent<IInstanciaSemantica>();
 
+            bool ehTagGema = false;
+            bool ehTagObstaculo = false;
+            try { ehTagGema = other.CompareTag("GemaValida"); } catch { }
+            try { ehTagObstaculo = other.CompareTag("ObstaculoInvalido"); } catch { }
+
             // 1. Detecção de itens e gemas válidas (Pac-Dots / Gemas Ontológicas)
-            if (other.CompareTag("GemaValida") || other.name.Contains("Gema") || other.name.Contains("PacDot") || (inst != null && inst.EhValida))
+            if (ehTagGema || other.name.Contains("Gema") || other.name.Contains("PacDot") || (inst != null && inst.EhValida))
             {
                 TratarConsumoGema(other, inst);
             }
             // 2. Detecção de obstáculos e fantasmas (Agentes ABox)
-            else if (other.CompareTag("ObstaculoInvalido") || other.name.Contains("Obstaculo") || other.name.Contains("Fantasma") || other.name.Contains("Blinky") || (inst != null && !inst.EhValida))
+            else if (ehTagObstaculo || other.name.Contains("Obstaculo") || other.name.Contains("Fantasma") || other.name.Contains("Blinky") || (inst != null && !inst.EhValida))
             {
                 TratarEncontroFantasma(other, inst);
             }

@@ -125,6 +125,16 @@ public class HUDHolograficoXR : MonoBehaviour
 
     private void AoInteragirInstancia(IInstanciaSemantica inst, bool sucesso)
     {
+        if (inst != null)
+        {
+            string status = sucesso ? "<color=#00FF66>VÁLIDA (+10)</color>" : "<color=#FF3333>INVÁLIDA (-5)</color>";
+            string infoCaptura = $"Captura: {inst.Id} | Classe: {inst.NomeClasse} [{status}]";
+            if (textoClasseFocada != null) textoClasseFocada.text = infoCaptura;
+            if (textoClasseFocadaTMP != null) textoClasseFocadaTMP.text = infoCaptura;
+            if (textoFormulaDL != null) textoFormulaDL.text = $"DL: {inst.ExpressaoDL}";
+            if (textoFormulaDLTMP != null) textoFormulaDLTMP.text = $"DL: {inst.ExpressaoDL}";
+            if (textoDescricao != null) textoDescricao.text = inst.DescricaoSemantica;
+        }
         AtualizarTextosHUD();
     }
 }

@@ -34,6 +34,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         ProceduralInterno,
         BackendCppNativo,
         ArquivoJson,
+        ArquivoOwl,
         GrafoOntologicoVirtOnto,
         InjecaoExternaDinamica,
         BackendJavaSpringBoot
@@ -49,6 +50,9 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
     [Tooltip("Arquivo JSON de ontologia exportada (utilizado quando origem for ArquivoJson).")]
     public TextAsset arquivoOntologiaJson;
+
+    [Tooltip("Arquivo OWL (RDF/XML) exportado diretamente do Protégé (utilizado quando origem for ArquivoOwl).")]
+    public TextAsset arquivoOntologiaOwl;
 
     [Header("Superfície e Assentamento no Chão (Plane)")]
     [Tooltip("Referência explícita ao GameObject do Plane/Piso. Se nulo, localiza automaticamente na cena.")]
@@ -272,6 +276,27 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 {
                     Debug.LogWarning("[Pac-Man Semântico] Nenhum arquivo JSON atribuído. Ativando gerador procedural de contingência.");
                     cenario = BackendOntologiaBridge.GerarMockOntologiaCpp(quantidadeValidos, quantidadeInvalidos, raioEspalhamento, alturaGemas);
+                }
+                break;
+
+            case OrigemDadosOntologia.ArquivoOwl:
+                if (arquivoOntologiaOwl != null)
+                {
+                    Debug.Log($"<color=#00DDFF><b>[Pac-Man Semântico - OWL]</b></color> Carregando ontologia Protégé do arquivo '{arquivoOntologiaOwl.name}'...");
+                    cenario = BackendOntologiaBridge.CarregarDeOwl(arquivoOntologiaOwl.text, raioEspalhamento, alturaGemas);
+                }
+                else
+                {
+                    TextAsset resOwl = Resources.Load<TextAsset>("parasites.owl") ?? Resources.Load<TextAsset>("parasites");
+                    if (resOwl != null)
+                    {
+                        Debug.Log($"<color=#00DDFF><b>[Pac-Man Semântico - OWL]</b></color> Carregando ontologia Protégé de Resources/parasites.owl...");
+                        cenario = BackendOntologiaBridge.CarregarDeOwl(resOwl.text, raioEspalhamento, alturaGemas);
+                    }
+                    else
+                    {
+                        cenario = BackendOntologiaBridge.GerarMockOntologiaCpp(quantidadeValidos, quantidadeInvalidos, raioEspalhamento, alturaGemas);
+                    }
                 }
                 break;
 
@@ -652,8 +677,18 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
     private void GarantirMapeamentosCanonicos()
     {
-        string[] classesGemas = { "GemaDiamante", "MineralMagico", "EntidadeConforme", "CristalPuro", "StandardGem", "SpecialGem", "PacDot" };
-        string[] classesFantasmas = { "FantasmaCorrompido", "ObstaculoSemantico", "RestricaoViolada", "AntiMateria", "AxiomaInconsistente", "AggressiveGhost", "PatrolGhost", "VulnerableGhost", "Ghost", "Obstacle", "Fantasma_Blinky" };
+        string[] classesGemas = {
+            "AscarisLumbricoides", "EnterobiusVermicularis", "TaeniaSolium",
+            "Nematoda", "Platyhelminthes", "Parasite", "Host", "Human", "Pig",
+            "SmallIntestine", "LargeIntestine", "PerianalRegion",
+            "Cylindrical", "FlatSegments", "FecalOral", "UndercookedPork", "Autoinfection",
+            "ConformingParasiteSpecimen", "AntiparasiticTreatment"
+        };
+        string[] classesFantasmas = {
+            "InfectionVector", "TriatomineVector", "BiomphalariaVector", "AedesVector",
+            "InconsistentParasiteSpecimen", "HostMismatchViolation", "ContaminatedHostVector",
+            "ViolatedTaxon", "InconsistentSpecimen"
+        };
 
         foreach (var cls in classesGemas)
         {
@@ -665,6 +700,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             RegistrarMapeamentoSeAusente(cls, prefabObstaculoInvalido);
         }
 
+        RegistrarMapeamentoSeAusente("BiomedicalResearcher", prefabAgentePacMan);
         RegistrarMapeamentoSeAusente("Pacman", prefabAgentePacMan);
         RegistrarMapeamentoSeAusente("Jogador", prefabAgentePacMan);
     }
@@ -1078,11 +1114,19 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     {
         Graph graph = new Graph
         {
-            NomeOntologia = "OntologiaPacManSemantico_VirtOnto_CIn",
-            VersaoAxiomas = "v2.0-VirtOnto-ALCQ"
+            NomeOntologia = "ParasitologyOntology_VirtOnto_CIn",
+            VersaoAxiomas = "v2.0-Parasites-ALCQ"
         };
 
-        graph.IndexarTBoxPadrao();
+        TextAsset owlAsset = arquivoOntologiaOwl ?? Resources.Load<TextAsset>("parasites.owl") ?? Resources.Load<TextAsset>("parasites");
+        if (owlAsset != null && !string.IsNullOrEmpty(owlAsset.text))
+        {
+            graph.LoadFromOwlXml(owlAsset.text);
+        }
+        else
+        {
+            graph.IndexarTBoxPadrao();
+        }
 
         CenarioSemanticoDTO mock = BackendOntologiaBridge.GerarMockOntologiaCpp(quantidadeValidos, quantidadeInvalidos, raioEspalhamento, alturaGemas);
         graph.BuildFromCenarioDTO(mock);

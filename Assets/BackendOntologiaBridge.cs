@@ -117,40 +117,44 @@ public static class BackendOntologiaBridge
     }
 
     /// <summary>
-    /// Simula as classes e restrições Description Logic (DL) que o backend C++ processa para o Pac-Man Semântico.
+    /// Gera o cenário ontológico fundamentado na Ontologia de Parasitologia e Biomedicina (Protégé / OWL ALCQ(D)).
     /// </summary>
     public static CenarioSemanticoDTO GerarMockOntologiaCpp(int qtdValidos, int qtdInvalidos, float raio, float altura)
     {
         CenarioSemanticoDTO cenario = new CenarioSemanticoDTO
         {
-            nomeOntologia = "PacMan_SemanticOntology_DL",
-            versaoAxiomas = "ALCQ(D)",
+            nomeOntologia = "OntologiaParasitologia_Protege_ALCQ",
+            versaoAxiomas = "ALCQ(D)-Parasitology",
             ontologiaConsistente = true,
-            tempoInferencaMs = 3.5f
+            tempoInferencaMs = 2.8f
         };
 
         string[] classesValidas = new string[]
         {
-            "GemaDiamante", "MineralMagico", "EntidadeConforme", "CristalPuro", "AxiomaConsistente"
+            "AscarisLumbricoides", "EnterobiusVermicularis", "TaeniaSolium", "Nematoda", "Platyhelminthes", "SmallIntestine", "FecalOral"
         };
         string[] expressoesDLValidas = new string[]
         {
-            "Cristal ⊓ ∃temEnergia.Pura ⊓ ≥1 valorPositivo",
-            "GemaValida ⊑ EntidadeSegura ⊓ ∀interacao.Permitida",
-            "Recurso ⊓ {valido} ⊓ ¬Perigoso",
-            "InstanciaSatisfeita ⊑ ∃raciocinio.Aprovado"
+            "AscarisLumbricoides ≡ Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine ⊓ ∃has_transmission.FecalOral",
+            "EnterobiusVermicularis ≡ Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.PerianalRegion ⊓ ∃has_transmission.Autoinfection",
+            "TaeniaSolium ≡ Platyhelminthes ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine ⊓ ∃has_transmission.UndercookedPork",
+            "Nematoda ≡ Parasite ⊓ ∃has_morphology.Cylindrical",
+            "Platyhelminthes ≡ Parasite ⊓ ∃has_morphology.FlatSegments",
+            "SmallIntestine ⊑ Intestine ⊓ Habitat",
+            "FecalOral ⊑ Transmission"
         };
 
         string[] classesInvalidas = new string[]
         {
-            "FantasmaCorrompido", "ObstaculoSemantico", "RestricaoViolada", "AntiMateria", "AxiomaInconsistente"
+            "InconsistentParasiteSpecimen", "HostMismatchViolation", "CorruptedClinicalSample", "HabitatInconsistency", "AxiomContradiction"
         };
         string[] expressoesDLInvalidas = new string[]
         {
-            "Obstaculo ⊑ Perigo ⊓ ¬Valido",
-            "EntidadeCorrompida ⊓ ≤0 compatibilidade",
-            "Inconsistencia ⊑ A ⊓ ¬A (Bottom ⊥)",
-            "ViolacaoCardinalidade ⊑ >5 nivelAmeaca"
+            "InconsistentSpecimen ⊑ Parasite ⊓ (A ⊓ ¬A ≡ ⊥)",
+            "HostMismatch ⊑ TaeniaSolium ⊓ ∀has_host.Canine",
+            "CorruptedMorphology ⊑ Nematoda ⊓ has_morphology.FlatSegments (Contradição)",
+            "InvalidHabitat ⊑ EnterobiusVermicularis ⊓ has_habitat.BloodStream",
+            "AxiomContradiction ⊑ ≤0 compatibilidade ⊓ >3 ameaca"
         };
 
         for (int i = 0; i < qtdValidos; i++)
@@ -161,13 +165,13 @@ public static class BackendOntologiaBridge
 
             cenario.instancias.Add(new DadoInstanciaSemantica
             {
-                id = $"pac_val_{i + 1:00}",
+                id = $"inst_parasite_{i + 1:00}",
                 classeOntologica = classe,
                 expressaoDL = dl,
                 ehValida = true,
                 posicao = new Vector3(circulo.x, altura, circulo.y),
                 valorPontuacao = 10,
-                descricaoSemantica = $"[DL VÁLIDA] {classe}: Satisfaz axioma '{dl}'. Coleta autorizada!",
+                descricaoSemantica = $"[CONCEITO BIOMÉDICO CONFORME] {classe}: Satisfaz axiomas de Description Logic '{dl}'. Diagnóstico válido!",
                 corDestaque = new Color(0.1f, 1f, 0.45f)
             });
         }
@@ -180,18 +184,27 @@ public static class BackendOntologiaBridge
 
             cenario.instancias.Add(new DadoInstanciaSemantica
             {
-                id = $"pac_obs_{i + 1:00}",
+                id = $"inst_violacao_{i + 1:00}",
                 classeOntologica = classe,
                 expressaoDL = dl,
                 ehValida = false,
                 posicao = new Vector3(circulo.x, altura, circulo.y),
                 valorPontuacao = -5,
-                descricaoSemantica = $"[DL VIOLAÇÃO] {classe}: Viola restrição ontológica '{dl}'. Obstáculo ativo!",
+                descricaoSemantica = $"[VIOLAÇÃO ONTOLÓGICA CLÍNICA] {classe}: Viola restrição ontológica '{dl}'. Amostra inconsistente!",
                 corDestaque = new Color(1f, 0.15f, 0.2f)
             });
         }
 
         return cenario;
+    }
+
+    /// <summary>
+    /// Carrega e converte dados de um arquivo .owl do Protégé diretamente em CenarioSemanticoDTO.
+    /// </summary>
+    public static CenarioSemanticoDTO CarregarDeOwl(string xmlContent)
+    {
+        VirtOnto.Model.Graph grafo = VirtOnto.Model.Graph.LoadFromOwlXml(xmlContent);
+        return grafo.ToCenarioDTO();
     }
 
     public static CenarioSemanticoDTO CarregarDeJson(string json)

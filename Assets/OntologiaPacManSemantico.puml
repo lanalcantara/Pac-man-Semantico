@@ -1,7 +1,7 @@
-@startuml OntologiaPacManSemantico_ALCQ
+@startuml OntologiaPacManSemantico_Parasitology_ALCQ
 ' ============================================================
-' PAC-MAN SEMÂNTICO — Diagrama de Ontologia OWL/DL (ALCQ)
-' Notação: TBox (classes/axiomas) + ABox (instâncias exemplo)
+' PAC-MAN SEMÂNTICO (CIn-UFPE) — Ontologia Biomédica de Parasitologia
+' Modelada no Protégé (OWL/DL ALCQ(D)) + Regras SWRL
 ' ============================================================
 
 !theme plain
@@ -25,107 +25,102 @@ skinparam note {
     FontColor #D0E8FF
 }
 
-title <color:#FFD700><b>PAC-MAN SEMÂNTICO</b></color>\n<color:#B8B8FF>Ontologia OWL/DL — Lógica de Descrição ALCQ(D)</color>\n<color:#888888><i>TBox (Hierarquia de Classes) + Object Properties + Regras de Inferência</i></color>
+title <color:#FFD700><b>PAC-MAN SEMÂNTICO (CIn-UFPE)</b></color>\n<color:#B8B8FF>Ontologia Biomédica de Parasitologia (Protégé OWL / ALCQ(D))</color>\n<color:#888888><i>TBox (Helmintos, Vetores, Hospedeiros, Morfologia) + SWRL + ABox</i></color>
 
 ' ============================================================
 ' TBOX — HIERARQUIA DE CLASSES (Terminological Box)
 ' ============================================================
 
-package "TBox — Hierarquia de Classes" #1A1A2E {
+package "TBox — Domínio Parasitológico (Protégé OWL)" #1A1A2E {
 
-    abstract class "Thing\n(owl:Thing)" as Thing <<OWL Root>> #2C2C4A {
-        + {abstract} identidade : URI
+    abstract class "Thing\n(owl:Thing)" as Thing <<OWL Root>> #2C2C4A
+
+    ' ── PARASITA & TAXONOMIA ────────────────────────────────
+    abstract class "Parasite\n(⊑ Thing)" as Parasite <<owl:Class>> #1E3A2F {
+        + has_host : Host
+        + has_habitat : Habitat
+        + has_morphology : Morphology
+        + has_transmission : Transmission
+        + has_symptom : Symptom
     }
 
-    ' ── AGENTE ──────────────────────────────────────────────
-    abstract class "Agent\n(⊑ Thing)" as Agent <<owl:Class>> #1E3A2F {
+    class "Nematoda\n(⊑ Parasite)" as Nematoda <<Helmintos Cilíndricos>> #00A86B {
+        ──────────────────────
+        <b>Axioma Equivalente DL:</b>
+        Nematoda ≡ Parasite ⊓
+        ∃has_morphology.Cylindrical
+    }
+
+    class "Platyhelminthes\n(⊑ Parasite)" as Platyhelminthes <<Platelmintos Planos>> #8E44AD {
+        ──────────────────────
+        <b>Axioma Equivalente DL:</b>
+        Platyhelminthes ≡ Parasite ⊓
+        ∃has_morphology.FlatSegments
+    }
+
+    class "AscarisLumbricoides\n(⊑ Nematoda)" as AscarisLumbricoides <<Espécie Parasita>> #00FFCC {
+        ──────────────────────
+        <b>Axioma DL:</b>
+        AscarisLumbricoides ≡ Nematoda ⊓
+        ∃has_host.Human ⊓
+        ∃has_habitat.SmallIntestine ⊓
+        ∃has_transmission.FecalOral
+    }
+
+    class "EnterobiusVermicularis\n(⊑ Nematoda)" as EnterobiusVermicularis <<Espécie Parasita>> #38BDF8 {
+        ──────────────────────
+        <b>Axioma DL:</b>
+        EnterobiusVermicularis ≡ Nematoda ⊓
+        ∃has_host.Human ⊓
+        ∃has_habitat.PerianalRegion ⊓
+        ∃has_transmission.Autoinfection
+    }
+
+    class "TaeniaSolium\n(⊑ Platyhelminthes)" as TaeniaSolium <<Espécie Parasita>> #FFD700 {
+        ──────────────────────
+        <b>Axioma DL:</b>
+        TaeniaSolium ≡ Platyhelminthes ⊓
+        ∃has_host.Human ⊓
+        ∃has_habitat.SmallIntestine ⊓
+        ∃has_transmission.UndercookedPork
+    }
+
+    ' ── HOSPEDEIRO, HABITAT, MORFOLOGIA ─────────────────────
+    abstract class "Host\n(⊑ Thing)" as Host <<owl:Class>> #2A1A3A
+    class "Human\n(⊑ Host)" as Human #4A2E6D
+    class "Pig\n(⊑ Host)" as Pig #4A2E6D
+
+    abstract class "Habitat\n(⊑ Thing)" as Habitat <<owl:Class>> #1C3A3A
+    class "SmallIntestine\n(⊑ Intestine)" as SmallIntestine #2A5A5A
+    class "LargeIntestine\n(⊑ Intestine)" as LargeIntestine #2A5A5A
+    class "PerianalRegion\n(⊑ Habitat)" as PerianalRegion #2A5A5A
+
+    abstract class "Morphology\n(⊑ Thing)" as Morphology <<owl:Class>> #3A2A1A
+    class "Cylindrical\n(⊑ Morphology)" as Cylindrical #5A3A1A
+    class "FlatSegments\n(⊑ Morphology)" as FlatSegments #5A3A1A
+
+    abstract class "Transmission\n(⊑ Thing)" as Transmission <<owl:Class>> #3A1A2A
+    class "FecalOral\n(⊑ Transmission)" as FecalOral #5A1A3A
+    class "UndercookedPork\n(⊑ Transmission)" as UndercookedPork #5A1A3A
+    class "Autoinfection\n(⊑ Transmission)" as Autoinfection #5A1A3A
+
+    ' ── AGENTES E DINÂMICA DA SIMULAÇÃO ─────────────────────
+    class "BiomedicalResearcher\n(Pac-Man)" as Researcher <<Agente Investigador>> #FFD700 {
+        + sampleCount : int
         + hasState : State
-        + locatedIn : Environment
-        ──────────────────────
-        <b>Axioma DL:</b>
-        Agent ⊑ ∃hasState.State
-        Agent ⊑ ∃locatedIn.Environment
     }
 
-    class "Pacman\n(⊑ Agent)" as Pacman <<Jogador>> #FFD700 {
-        + score : int
-        + isActive : boolean
-        ──────────────────────
-        <b>Axioma DL:</b>
-        Pacman ⊑ Agent ⊓
-        ∃consumes.Item ⊓
-        ≥1 locatedIn.Environment
-    }
-
-    abstract class "Ghost\n(⊑ Agent)" as Ghost <<Inimigo>> #FF4444 {
-        + ghostType : GhostClass
+    class "InfectionVector\n(Fantasma / Blinky)" as InfectionVector <<Vetor / Ameaça>> #FF4444 {
+        + vectorType : string
         + isVulnerable : boolean
-        ──────────────────────
-        <b>Axioma DL:</b>
-        Ghost ⊑ Agent ⊓
-        ¬Pacman
     }
 
-    class "AggressiveGhost\n(Blinky)" as AggressiveGhost <<Ghost Agressivo>> #CC0000 {
-        + chaseTarget : Pacman
-        ──────────────────────
-        AggressiveGhost ⊑ Ghost ⊓
-        ∃hasState.AggressiveState
+    class "AntiparasiticTreatment\n(Power Pellet)" as AntiparasiticTreatment <<Intervenção Terapêutica>> #FF8C00 {
+        + treatmentDuration : float
     }
 
-    class "PatrolGhost\n(Pinky/Inky)" as PatrolGhost <<Ghost Patrulha>> #FF69B4 {
-        + patrolRoute : Path
-        ──────────────────────
-        PatrolGhost ⊑ Ghost ⊓
-        ∃hasState.PatrolState
-    }
-
-    class "VulnerableGhost\n(Fantasma Azul)" as VulnerableGhost <<Ghost Vulnerável>> #4169E1 {
-        + vulnerableTimer : float
-        ──────────────────────
-        VulnerableGhost ⊑ Ghost ⊓
-        ∃hasState.VulnerableState
-    }
-
-    ' ── ITEM ────────────────────────────────────────────────
-    abstract class "Item\n(⊑ Thing)" as Item <<owl:Class>> #1C3A1C {
-        + scoreValue : int
-        + semanticExpression : DL_Expression
-        ──────────────────────
-        <b>Axioma DL:</b>
-        Item ⊑ ∃locatedIn.Environment
-    }
-
-    class "StandardGem\n(Pac-Dot / Pílula)" as StandardGem <<Gema Padrão>> #00FF88 {
-        + dlExpression : "Cristal ⊓ ∃temPureza.Alta"
-        + scoreValue : 10
-        ──────────────────────
-        StandardGem ⊑ Item ⊓
-        ∃temPureza.Alta ⊓
-        ≥1 valorPositivo
-    }
-
-    class "SpecialGem\n(Power Pellet)" as SpecialGem <<Gema Especial>> #FF8C00 {
-        + powerEffect : GhostVulnerable
-        + scoreValue : 50
-        ──────────────────────
-        SpecialGem ⊑ Item ⊓
-        ∃temEfeito.VulnerabilizarGhost ⊓
-        ≥1 valorPositivo
-    }
-
-    ' ── ENVIRONMENT ─────────────────────────────────────────
-    abstract class "Environment\n(⊑ Thing)" as Environment <<owl:Class>> #2A1A3A {
-        + boundaryType : BoundaryClass
-    }
-
-    class "Obstacle\n(Obstaculo)" as Obstacle <<Obstáculo DL>> #8B0000 {
-        + dlExpression : "Obstaculo ⊑ Inconsistencia"
-        + scoreValue : -5
-        ──────────────────────
-        Obstacle ⊑ Environment ⊓
-        ∃temViolacao.Inconsistencia ⊓
-        (A ⊓ ¬A ≡ ⊥)
+    class "InconsistentParasiteSpecimen\n(Obstáculo)" as InconsistentSpecimen <<Violação DL>> #8B0000 {
+        + dlViolation : "(Cylindrical ⊓ FlatSegments ≡ ⊥)"
     }
 }
 
@@ -133,126 +128,120 @@ package "TBox — Hierarquia de Classes" #1A1A2E {
 ' HIERARQUIA DE HERANÇA (rdfs:subClassOf)
 ' ============================================================
 
-Thing <|-- Agent : rdfs:subClassOf
-Thing <|-- Item  : rdfs:subClassOf
-Thing <|-- Environment : rdfs:subClassOf
+Thing <|-- Parasite : rdfs:subClassOf
+Thing <|-- Host     : rdfs:subClassOf
+Thing <|-- Habitat  : rdfs:subClassOf
+Thing <|-- Morphology : rdfs:subClassOf
+Thing <|-- Transmission : rdfs:subClassOf
 
-Agent <|-- Pacman  : rdfs:subClassOf
-Agent <|-- Ghost   : rdfs:subClassOf
+Parasite <|-- Nematoda : rdfs:subClassOf
+Parasite <|-- Platyhelminthes : rdfs:subClassOf
 
-Ghost <|-- AggressiveGhost : rdfs:subClassOf
-Ghost <|-- PatrolGhost     : rdfs:subClassOf
-Ghost <|-- VulnerableGhost : rdfs:subClassOf
+Nematoda <|-- AscarisLumbricoides : rdfs:subClassOf
+Nematoda <|-- EnterobiusVermicularis : rdfs:subClassOf
+Platyhelminthes <|-- TaeniaSolium : rdfs:subClassOf
 
-Item <|-- StandardGem : rdfs:subClassOf
-Item <|-- SpecialGem  : rdfs:subClassOf
+Host <|-- Human : rdfs:subClassOf
+Host <|-- Pig   : rdfs:subClassOf
 
-Environment <|-- Obstacle : rdfs:subClassOf
+Morphology <|-- Cylindrical : rdfs:subClassOf
+Morphology <|-- FlatSegments : rdfs:subClassOf
 
-' ============================================================
-' OBJECT PROPERTIES (Propriedades de Objecto OWL)
-' ============================================================
-
-Pacman --> Item        : consumes\n<i>(owl:ObjectProperty)</i>
-Agent  --> Environment : locatedIn\n<i>(owl:ObjectProperty)</i>
-Agent  --> Agent       : isNearTo\n<i>(Symmetric)</i>
-Agent  .right.> Agent  : hasState\n<i>(owl:ObjectProperty)</i>
-
-' SpecialGem → VulnerableGhost (inferência)
-SpecialGem ..> VulnerableGhost : <<infer>>\nconsumed-by ➜\ntriggersVulnerability
+Transmission <|-- FecalOral : rdfs:subClassOf
+Transmission <|-- UndercookedPork : rdfs:subClassOf
+Transmission <|-- Autoinfection : rdfs:subClassOf
 
 ' ============================================================
-' REGRAS LÓGICAS / AXIOMAS (notas de inferência)
+' OBJECT PROPERTIES (Propriedades de Objeto OWL)
+' ============================================================
+
+Parasite --> Host         : has_host\n<i>(owl:ObjectProperty)</i>
+Parasite --> Habitat      : has_habitat\n<i>(owl:ObjectProperty)</i>
+Parasite --> Morphology   : has_morphology\n<i>(owl:ObjectProperty)</i>
+Parasite --> Transmission : has_transmission\n<i>(owl:ObjectProperty)</i>
+
+Researcher --> Parasite   : collects\n<i>(owl:ObjectProperty)</i>
+Researcher --> InfectionVector : isNearTo\n<i>(Symmetric)</i>
+
+' ============================================================
+' REGRAS LÓGICAS / AXIOMAS (SWRL & DL)
 ' ============================================================
 
 note as R1 #1C2840
-  <b><color:#FFD700>Regra 1 — Vulnerabilidade do Fantasma</color></b>
+  <b><color:#FFD700>Regra SWRL 1 — Eficácia Terapêutica</color></b>
   ─────────────────────────────────────────────
   <b>Premissa:</b>
-  Pacman ∃consumes.SpecialGem ∧
-  Ghost ∃isNearTo.Pacman
-  <b>Conclusão (inferida):</b>
-  Ghost ⟹ VulnerableGhost
-  Ghost.hasState ⟹ VulnerableState
+  BiomedicalResearcher(r) ∧ AntiparasiticTreatment(t) ∧
+  consumes(r, t) ∧ isNearTo(r, v) ∧ InfectionVector(v)
+  <b>Conclusão:</b>
+  hasState(v, VulnerableState)
   ─────────────────────────────────────────────
-  <i>O raciocinador DL classifica automaticamente</i>
-  <i>qualquer Ghost próximo ao Pacman após a</i>
-  <i>consumição de uma SpecialGem como</i>
-  <i>VulnerableGhost (transição de estado).</i>
+  <i>A aplicação do tratamento antiparasitário</i>
+  <i>neutraliza e torna vulneráveis os vetores</i>
+  <i>infecciosos no ambiente espacial.</i>
 end note
 
 note as R2 #1C2840
-  <b><color:#00FF88>Regra 2 — Gema Válida (StandardGem)</color></b>
+  <b><color:#00FFCC>Regra DL 2 — Conformidade de Espécime</color></b>
   ─────────────────────────────────────────────
-  StandardGem ⊑ Item ⊓
-     ∃temPureza.Alta ⊓
-     ≥1 valorPositivo ⊓
-     ¬Inconsistencia
+  AscarisLumbricoides ⊑ Nematoda ⊓
+     ∃has_host.Human ⊓
+     ∃has_habitat.SmallIntestine ⊓
+     ∃has_transmission.FecalOral
   ─────────────────────────────────────────────
-  <i>Satisfeita ➜ GemaValida (pontuação +10/+15)</i>
-  <i>Não satisfeita ➜ Obstáculo (pontuação -5/-10)</i>
+  <i>Espécimes conformes geram pontuação diagnóstica</i>
+  <i>positiva e validação taxonômica no HUD.</i>
 end note
 
 note as R3 #1C2840
-  <b><color:#FF8C00>Regra 3 — Obstáculo / Inconsistência</color></b>
+  <b><color:#FF8C00>Regra DL 3 — Inconsistência Morfológica</color></b>
   ─────────────────────────────────────────────
-  Obstacle ⊑ Inconsistencia ⊓ (A ⊓ ¬A ≡ ⊥)
+  Cylindrical ⊓ FlatSegments ≡ ⊥
+  InconsistentSpecimen ⊑ ∃has_morphology.⊥
   ─────────────────────────────────────────────
-  <i>Qualquer instância que satisfaça</i>
-  <i>uma contradição na TBox/ABox</i>
-  <i>é classificada como Obstáculo</i>
-  <i>intransponível pelo Pac-Man.</i>
+  <i>Espécimes com atributos mutuamente</i>
+  <i>exclusivos são classificados como</i>
+  <i>obstáculos ontológicos instransponíveis.</i>
 end note
 
-note as R4 #1C2840
-  <b><color:#9B59B6>Regra 4 — isNearTo (Simétrica)</color></b>
-  ─────────────────────────────────────────────
-  isNearTo ∈ owl:SymmetricProperty
-  ─────────────────────────────────────────────
-  <i>Se Agent_A isNearTo Agent_B</i>
-  <i>então Agent_B isNearTo Agent_A</i>
-  <i>(detectado automaticamente pelo reasoner)</i>
-end note
-
-R1 .. SpecialGem
-R2 .. StandardGem
-R3 .. Obstacle
-R4 .. Agent
+R1 .. AntiparasiticTreatment
+R2 .. AscarisLumbricoides
+R3 .. InconsistentSpecimen
 
 ' ============================================================
-' ABOX — INSTÂNCIAS EXEMPLO (Assertional Box)
+' ABOX — INSTÂNCIAS (Assertional Box)
 ' ============================================================
 
-package "ABox — Instâncias (Exemplos)" #0F0F1F {
-    object "pac_val_01 : GemaDiamante" as i1 <<StandardGem>> #006633 {
-        id = "pac_val_01"
-        dlExpression = "Cristal ⊓ ∃temPureza.Alta ⊓ ≥1 valorPositivo"
-        score = 10
-        position = (3.5, 0.85, 4.2)
+package "ABox — Instâncias Clínicas e Laboratoriais" #0F0F1F {
+    object "sample_ascaris_01 : AscarisLumbricoides" as i1 <<Nematoda>> #006655 {
+        id = "sample_ascaris_01"
+        has_host = "human1"
+        has_habitat = "smallintestine1"
+        has_transmission = "fecaloral1"
+        has_morphology = "cylindrical1"
     }
-    object "pac_val_02 : MineralMagico" as i2 <<StandardGem>> #005588 {
-        id = "pac_val_02"
-        dlExpression = "Recurso ⊓ ∃temAxioma.Valido ⊓ ¬Perigoso"
-        score = 15
-        position = (-4.2, 0.85, 2.8)
+    object "sample_enterobius_01 : EnterobiusVermicularis" as i2 <<Nematoda>> #005577 {
+        id = "sample_enterobius_01"
+        has_host = "human1"
+        has_habitat = "perianalregion1"
+        has_transmission = "autoinfection1"
     }
-    object "pac_obs_01 : FantasmaCorrompido" as i3 <<Obstacle>> #550000 {
-        id = "pac_obs_01"
-        dlExpression = "Obstaculo ⊑ Inconsistencia ⊓ (A ⊓ ¬A ≡ ⊥)"
-        score = -5
-        position = (-2.5, 0.6, -3.0)
+    object "sample_taenia_01 : TaeniaSolium" as i3 <<Platyhelminthes>> #775500 {
+        id = "sample_taenia_01"
+        has_host = "human1"
+        has_habitat = "smallintestine1"
+        has_transmission = "undercookedpork1"
     }
-    object "pac_obs_02 : ViolacaoCardinalidade" as i4 <<Obstacle>> #440000 {
-        id = "pac_obs_02"
-        dlExpression = "EntidadeCorrompida ⊑ ≤0 compatibilidade ⊓ >3 ameaca"
-        score = -10
-        position = (4.8, 0.6, -2.1)
+    object "vector_triatomine_01 : InfectionVector" as i4 <<InfectionVector>> #550000 {
+        id = "vector_triatomine_01"
+        vectorType = "TriatomaInfestans"
+        hasState = "Patrol"
     }
 }
 
-StandardGem <.. i1 : instanceOf
-StandardGem <.. i2 : instanceOf
-Obstacle <.. i3 : instanceOf
-Obstacle <.. i4 : instanceOf
+AscarisLumbricoides <.. i1 : rdf:type
+EnterobiusVermicularis <.. i2 : rdf:type
+TaeniaSolium <.. i3 : rdf:type
+InfectionVector <.. i4 : rdf:type
 
 @enduml

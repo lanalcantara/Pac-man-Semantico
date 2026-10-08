@@ -12,10 +12,10 @@ using UnityEngine;
 [Serializable]
 public struct PropriedadeOntologica
 {
-    [Tooltip("Nome/URI da propriedade (ex: temEnergia, nivelPerigo, pertenceACategoria).")]
+    [Tooltip("Nome/URI da propriedade (ex: has_host, has_habitat, has_morphology).")]
     public string chave;
 
-    [Tooltip("Valor da propriedade (ex: Pura, Alto, MineralMagico).")]
+    [Tooltip("Valor da propriedade (ex: Human, SmallIntestine, Cylindrical).")]
     public string valor;
 
     public PropriedadeOntologica(string chave, string valor)
@@ -32,11 +32,11 @@ public struct PropriedadeOntologica
 [Serializable]
 public class DadoInstanciaSemantica
 {
-    [Tooltip("Identificador único da instância (ex: pac_gema_01, ind_obstaculo_02).")]
+    [Tooltip("Identificador único da instância (ex: sample_ascaris_01, vector_triatomine_01).")]
     public string id = Guid.NewGuid().ToString().Substring(0, 8);
 
-    [Tooltip("Nome da classe ontológica na TBox (ex: GemaDiamante, ObstaculoCorrompido).")]
-    public string classeOntologica = "InstanciaGenerica";
+    [Tooltip("Nome da classe ontológica na TBox (ex: AscarisLumbricoides, EnterobiusVermicularis, TaeniaSolium).")]
+    public string classeOntologica = "Parasite";
 
     [Tooltip("Expressão formal de Description Logic (DL) associada.")]
     public string expressaoDL = "⊤";

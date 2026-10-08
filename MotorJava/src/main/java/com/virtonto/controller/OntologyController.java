@@ -26,37 +26,8 @@ public class OntologyController {
     private final Graph graph;
 
     public OntologyController() {
-        this.graph = new Graph("PacManSemanticOntology", "v2.0-VirtOnto");
-
-        // Inicialização com dados de exemplo iniciais para o Pac-Man Semântico
-        Node pacman = new Node("pacman_01", "PacMan", "Individual");
-        pacman.setDisplayColor("#FFFF00");
-        pacman.setPosition(new Vector3D(0f, 0f, 0f));
-        pacman.setConceptClass("Pacman");
-        pacman.setProperty("hasState", "Normal");
-
-        Node ghost = new Node("ghost_blinky", "Blinky", "Individual");
-        ghost.setDisplayColor("#FF0000");
-        ghost.setPosition(new Vector3D(2.5f, 0f, 2.0f));
-        ghost.setConceptClass("Ghost");
-        ghost.setProperty("hasState", "Patrol");
-        ghost.setValid(false);
-
-        Node gem = new Node("gem_01", "PacDot_01", "Individual");
-        gem.setDisplayColor("#00FF88");
-        gem.setPosition(new Vector3D(0f, 0f, -3.0f));
-        gem.setConceptClass("StandardGem");
-        gem.setValid(true);
-
-        graph.addNode(pacman);
-        graph.addNode(ghost);
-        graph.addNode(gem);
-
-        // Arestas de relacionamento ontológico inicial
-        Edge relacao = new Edge("edge_01", "pacman_01", "ghost_blinky", "isNearTo");
-        Edge relacaoGema = new Edge("edge_02", "pacman_01", "gem_01", "isNearTo");
-        graph.addEdge(relacao);
-        graph.addEdge(relacaoGema);
+        this.graph = new Graph("ParasitologyOntology_VirtOnto", "v2.0-Parasites-ALCQ");
+        this.graph.initializeDefaultPacManOntology();
     }
 
     // =========================================================================

@@ -588,63 +588,209 @@ namespace VirtOnto.Model
         }
 
         /// <summary>
-        /// Indexa a hierarquia TBox e regras SWRL padrão do Pac-Man Semântico.
+        /// Indexa a hierarquia TBox e regras SWRL da Ontologia de Parasitologia e Biomedicina (Protégé / ALCQ(D)).
         /// </summary>
         public void IndexarTBoxPadrao()
         {
+            NomeOntologia = "OntologiaParasitologia_Protege_ALCQ";
+            VersaoAxiomas = "ALCQ(D)-Parasitology-v2.0";
+
+            // 1. Conceito Raiz OWL
             Node thing = new Node("owl:Thing", "Thing", NodeType.CLASS);
-            Node agent = new Node("Agent", "Agent", NodeType.CLASS);
-            Node pacman = new Node("Pacman", "Pacman", NodeType.CLASS);
-            Node ghost = new Node("Ghost", "Ghost", NodeType.CLASS);
-            Node aggressiveGhost = new Node("AggressiveGhost", "AggressiveGhost (Blinky)", NodeType.CLASS);
-            Node patrolGhost = new Node("PatrolGhost", "PatrolGhost (Pinky)", NodeType.CLASS);
-            Node vulnerableGhost = new Node("VulnerableGhost", "VulnerableGhost", NodeType.CLASS);
 
-            Node item = new Node("Item", "Item", NodeType.CLASS);
-            Node standardGem = new Node("StandardGem", "StandardGem (PacDot)", NodeType.CLASS);
-            Node specialGem = new Node("SpecialGem", "SpecialGem (PowerPellet)", NodeType.CLASS);
-            Node obstacle = new Node("Obstacle", "Obstacle", NodeType.CLASS);
+            // 2. Taxonomia de Parasitas e Organismos (Classes Principais)
+            Node parasite = new Node("Parasite", "Parasite", NodeType.CLASS) { DLExpression = "Parasite ⊑ owl:Thing" };
+            Node nematoda = new Node("Nematoda", "Nematoda (Helmintos Cilíndricos)", NodeType.CLASS) { DLExpression = "Nematoda ≡ Parasite ⊓ ∃has_morphology.Cylindrical" };
+            Node platyhelminthes = new Node("Platyhelminthes", "Platyhelminthes (Vermes Achatados)", NodeType.CLASS) { DLExpression = "Platyhelminthes ≡ Parasite ⊓ ∃has_morphology.FlatSegments" };
+            Node protozoa = new Node("Protozoa", "Protozoa (Protozoários)", NodeType.CLASS) { DLExpression = "Protozoa ⊑ Parasite" };
 
-            Node swrlR1 = new Node("SWRL_R1", "Regra 1: Vulnerabilidade do Fantasma", NodeType.RULE)
-            {
-                SemanticDescription = "Pacman(?p) ^ consumes(?p, ?s) ^ SpecialGem(?s) ^ Ghost(?g) ^ isNearTo(?g, ?p) -> VulnerableGhost(?g)"
+            // 3. Espécies Reais de Parasitas
+            Node ascaris = new Node("AscarisLumbricoides", "Ascaris lumbricoides", NodeType.CLASS) 
+            { 
+                DLExpression = "AscarisLumbricoides ≡ Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine ⊓ ∃has_transmission.FecalOral",
+                SemanticDescription = "Nematódeo parasita do intestino delgado humano, transmitido por via fecal-oral."
             };
-            Node swrlR2 = new Node("SWRL_R2", "Regra 2: Validação de Gema Positiva", NodeType.RULE)
-            {
-                SemanticDescription = "StandardGem(?g) ^ satisfiesAxiom(?g) -> ValidScore(?g, 10)"
+            Node enterobius = new Node("EnterobiusVermicularis", "Enterobius vermicularis", NodeType.CLASS) 
+            { 
+                DLExpression = "EnterobiusVermicularis ≡ Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.PerianalRegion ⊓ ∃has_transmission.Autoinfection",
+                SemanticDescription = "Oxiúro causador de prurido anal, com ciclo de autoinfecção."
             };
-            Node swrlR3 = new Node("SWRL_R3", "Regra 3: Violação Ontológica / Obstáculo", NodeType.RULE)
-            {
-                SemanticDescription = "Obstacle(?o) ^ violatesAxiom(?o) -> Inconsistent(?o)"
+            Node taenia = new Node("TaeniaSolium", "Taenia solium", NodeType.CLASS) 
+            { 
+                DLExpression = "TaeniaSolium ≡ Platyhelminthes ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine ⊓ ∃has_transmission.UndercookedPork",
+                SemanticDescription = "Cestódeo transmitido pela ingestão de carne suína crua/malcozida."
             };
-            Node alcqAxiom = new Node("ALCQ_Axioma", "ALCQ(D) Consistency Checker", NodeType.AXIOM);
 
+            // 4. Hospedeiros (Hosts)
+            Node host = new Node("Host", "Host", NodeType.CLASS);
+            Node human = new Node("Human", "Human (Homo sapiens)", NodeType.CLASS);
+            Node pig = new Node("Pig", "Pig (Sus domesticus)", NodeType.CLASS);
+
+            // 5. Habitats e Sítios Anatômicos
+            Node habitat = new Node("Habitat", "Habitat", NodeType.CLASS);
+            Node intestine = new Node("Intestine", "Intestine", NodeType.CLASS);
+            Node smallIntestine = new Node("SmallIntestine", "SmallIntestine (Intestino Delgado)", NodeType.CLASS);
+            Node perianalRegion = new Node("PerianalRegion", "PerianalRegion (Região Perianal)", NodeType.CLASS);
+            Node largeIntestine = new Node("LargeIntestine", "LargeIntestine (Intestino Grosso)", NodeType.CLASS);
+
+            // 6. Morfologias
+            Node morphology = new Node("Morphology", "Morphology", NodeType.CLASS);
+            Node cylindrical = new Node("Cylindrical", "Cylindrical (Cilíndrico)", NodeType.CLASS);
+            Node flatSegments = new Node("FlatSegments", "FlatSegments (Segmentado Achatado)", NodeType.CLASS);
+
+            // 7. Vias de Transmissão
+            Node transmission = new Node("Transmission", "Transmission", NodeType.CLASS);
+            Node fecalOral = new Node("FecalOral", "FecalOral (Fecal-Oral)", NodeType.CLASS);
+            Node undercookedPork = new Node("UndercookedPork", "UndercookedPork (Carne Suína Contaminada)", NodeType.CLASS);
+            Node autoinfection = new Node("Autoinfection", "Autoinfection (Autoinfecção)", NodeType.CLASS);
+
+            // 8. Sintomas e Patologia
+            Node symptom = new Node("Symptom", "Symptom", NodeType.CLASS);
+            Node abdominalPain = new Node("AbdominalPain", "AbdominalPain (Dor Abdominal)", NodeType.CLASS);
+            Node pruritusAni = new Node("PruritusAni", "PruritusAni (Prurido Anal)", NodeType.CLASS);
+            Node malnutrition = new Node("Malnutrition", "Malnutrition (Desnutrição)", NodeType.CLASS);
+
+            // 9. Agentes de Simulação e Vetores
+            Node agent = new Node("Agent", "Agent (Agente Investigador)", NodeType.CLASS);
+            Node researcher = new Node("BiomedicalResearcher", "BiomedicalResearcher (Pacman)", NodeType.CLASS);
+            Node vector = new Node("InfectionVector", "InfectionVector (Vetor Hostil / Blinky)", NodeType.CLASS);
+            Node vulnerableVector = new Node("VulnerableVector", "VulnerableVector (Vetor Neutralizado)", NodeType.CLASS);
+            Node antiparasitic = new Node("AntiparasiticTreatment", "AntiparasiticTreatment (PowerPellet)", NodeType.CLASS);
+            Node inconsistentSpecimen = new Node("InconsistentSpecimen", "InconsistentSpecimen (Obstáculo Ontológico)", NodeType.CLASS);
+
+            // 10. Regras SWRL
+            Node swrlR1 = new Node("SWRL_R1", "Regra 1: Neutralização de Vetor por Tratamento Antiparasitário", NodeType.RULE)
+            {
+                SemanticDescription = "BiomedicalResearcher(?p) ^ consumes(?p, ?t) ^ AntiparasiticTreatment(?t) ^ InfectionVector(?v) ^ isNearTo(?v, ?p) -> VulnerableVector(?v)"
+            };
+            Node swrlR2 = new Node("SWRL_R2", "Regra 2: Classificação Taxonômica HermiT / DL", NodeType.RULE)
+            {
+                SemanticDescription = "Parasite(?s) ^ has_morphology(?s, Cylindrical) ^ has_host(?s, Human) ^ has_habitat(?s, SmallIntestine) ^ has_transmission(?s, FecalOral) -> AscarisLumbricoides(?s)"
+            };
+            Node swrlR3 = new Node("SWRL_R3", "Regra 3: Detecção de Inconsistência Ontológica / Obstáculo", NodeType.RULE)
+            {
+                SemanticDescription = "InconsistentSpecimen(?o) ^ (A ⊓ ¬A ≡ ⊥) -> Inconsistent(?o)"
+            };
+            Node alcqAxiom = new Node("ALCQ_Axioma", "ALCQ(D) Consistency Reasoner", NodeType.AXIOM);
+
+            // Adiciona nós ao grafo
             AddNode(thing);
+            AddNode(parasite);
+            AddNode(nematoda);
+            AddNode(platyhelminthes);
+            AddNode(protozoa);
+            AddNode(ascaris);
+            AddNode(enterobius);
+            AddNode(taenia);
+            AddNode(host);
+            AddNode(human);
+            AddNode(pig);
+            AddNode(habitat);
+            AddNode(intestine);
+            AddNode(smallIntestine);
+            AddNode(perianalRegion);
+            AddNode(largeIntestine);
+            AddNode(morphology);
+            AddNode(cylindrical);
+            AddNode(flatSegments);
+            AddNode(transmission);
+            AddNode(fecalOral);
+            AddNode(undercookedPork);
+            AddNode(autoinfection);
+            AddNode(symptom);
+            AddNode(abdominalPain);
+            AddNode(pruritusAni);
+            AddNode(malnutrition);
             AddNode(agent);
-            AddNode(pacman);
-            AddNode(ghost);
-            AddNode(aggressiveGhost);
-            AddNode(patrolGhost);
-            AddNode(vulnerableGhost);
-            AddNode(item);
-            AddNode(standardGem);
-            AddNode(specialGem);
-            AddNode(obstacle);
+            AddNode(researcher);
+            AddNode(vector);
+            AddNode(vulnerableVector);
+            AddNode(antiparasitic);
+            AddNode(inconsistentSpecimen);
             AddNode(swrlR1);
             AddNode(swrlR2);
             AddNode(swrlR3);
             AddNode(alcqAxiom);
 
+            // Relacionamentos de Herança TBox (rdfs:subClassOf)
+            AddEdge(new Edge("h_par", "Parasite", "owl:Thing", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_nem", "Nematoda", "Parasite", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_pla", "Platyhelminthes", "Parasite", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_pro", "Protozoa", "Parasite", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_asc", "AscarisLumbricoides", "Nematoda", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_ent", "EnterobiusVermicularis", "Nematoda", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_tae", "TaeniaSolium", "Platyhelminthes", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_host", "Host", "owl:Thing", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_hum", "Human", "Host", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_pig", "Pig", "Host", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_hab", "Habitat", "owl:Thing", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_int", "Intestine", "Habitat", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_sint", "SmallIntestine", "Intestine", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_lint", "LargeIntestine", "Intestine", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_peri", "PerianalRegion", "Habitat", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_mor", "Morphology", "owl:Thing", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_cyl", "Cylindrical", "Morphology", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_flat", "FlatSegments", "Morphology", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_tra", "Transmission", "owl:Thing", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_fec", "FecalOral", "Transmission", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_pork", "UndercookedPork", "Transmission", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_auto", "Autoinfection", "Transmission", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_sym", "Symptom", "owl:Thing", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_abdp", "AbdominalPain", "Symptom", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_prur", "PruritusAni", "Symptom", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_maln", "Malnutrition", "Symptom", "rdfs:subClassOf"));
             AddEdge(new Edge("h_ag", "Agent", "owl:Thing", "rdfs:subClassOf"));
-            AddEdge(new Edge("h_it", "Item", "owl:Thing", "rdfs:subClassOf"));
-            AddEdge(new Edge("h_pac", "Pacman", "Agent", "rdfs:subClassOf"));
-            AddEdge(new Edge("h_gh", "Ghost", "Agent", "rdfs:subClassOf"));
-            AddEdge(new Edge("h_agh", "AggressiveGhost", "Ghost", "rdfs:subClassOf"));
-            AddEdge(new Edge("h_pgh", "PatrolGhost", "Ghost", "rdfs:subClassOf"));
-            AddEdge(new Edge("h_vgh", "VulnerableGhost", "Ghost", "rdfs:subClassOf"));
-            AddEdge(new Edge("h_gem", "StandardGem", "Item", "rdfs:subClassOf"));
-            AddEdge(new Edge("h_spg", "SpecialGem", "Item", "rdfs:subClassOf"));
-            AddEdge(new Edge("h_obs", "Obstacle", "owl:Thing", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_res", "BiomedicalResearcher", "Agent", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_vec", "InfectionVector", "Agent", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_vvec", "VulnerableVector", "InfectionVector", "rdfs:subClassOf"));
+            AddEdge(new Edge("h_obs", "InconsistentSpecimen", "owl:Thing", "rdfs:subClassOf"));
+        }
+
+        /// <summary>
+        /// Carrega e analisa uma ontologia diretamente a partir do XML/RDF de um arquivo .owl exportado do Protégé.
+        /// </summary>
+        public static Graph LoadFromOwlXml(string owlXmlContent)
+        {
+            Graph graph = new Graph();
+            graph.IndexarTBoxPadrao();
+
+            if (string.IsNullOrEmpty(owlXmlContent)) return graph;
+
+            // Extrai classes declaradas
+            MatchCollection classMatches = Regex.Matches(owlXmlContent, @"<owl:Class\s+rdf:about=""#?([^""]+)""");
+            foreach (Match m in classMatches)
+            {
+                string className = m.Groups[1].Value;
+                if (!graph.TryGetNode(className, out _))
+                {
+                    graph.AddNode(new Node(className, className, NodeType.CLASS));
+                }
+            }
+
+            // Extrai indivíduos nomeados
+            MatchCollection indMatches = Regex.Matches(owlXmlContent, @"<owl:NamedIndividual\s+rdf:about=""#?([^""]+)""[^>]*>(.*?)</owl:NamedIndividual>", RegexOptions.Singleline);
+            int indIdx = 1;
+            foreach (Match m in indMatches)
+            {
+                string indId = m.Groups[1].Value;
+                string indContent = m.Groups[2].Value;
+
+                // Tenta descobrir a classe do indivíduo
+                Match typeMatch = Regex.Matches(indContent, @"<rdf:type\s+rdf:resource=""#?([^""]+)""").Cast<Match>().LastOrDefault();
+                string conceptClass = typeMatch != null ? typeMatch.Groups[1].Value : "Parasite";
+
+                Node indNode = new Node(indId, indId, NodeType.INDIVIDUAL)
+                {
+                    ConceptClass = conceptClass,
+                    IsValid = true,
+                    ScoreValue = 10,
+                    SemanticDescription = $"Instância biomédica '{indId}' classificada como {conceptClass} a partir do arquivo OWL do Protégé."
+                };
+                graph.AddNode(indNode);
+                graph.AddEdge(new Edge($"e_owl_type_{indIdx++}", indId, conceptClass, "rdf:type"));
+            }
+
+            return graph;
         }
 
         /// <summary>

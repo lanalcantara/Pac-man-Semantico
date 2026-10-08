@@ -12,12 +12,12 @@ using UnityEngine;
 public interface IInstanciaSemantica
 {
     /// <summary>
-    /// Identificador único do indivíduo na ontologia (ex: pac_gema_01, ind_obstaculo_02).
+    /// Identificador único do indivíduo na ontologia (ex: sample_ascaris_01, vector_triatomine_01).
     /// </summary>
     string Id { get; set; }
 
     /// <summary>
-    /// Nome do Conceito ou Classe Ontológica da TBox (ex: GemaDiamante, FantasmaCorrompido).
+    /// Nome do Conceito ou Classe Ontológica da TBox (ex: AscarisLumbricoides, InfectionVector).
     /// </summary>
     string NomeClasse { get; set; }
 
@@ -27,7 +27,7 @@ public interface IInstanciaSemantica
     bool EhValida { get; set; }
 
     /// <summary>
-    /// Expressão formal em Description Logic (DL) (ex: Cristal ⊓ ∃temPureza.Alta).
+    /// Expressão formal em Description Logic (DL) (ex: Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine).
     /// </summary>
     string ExpressaoDL { get; set; }
 

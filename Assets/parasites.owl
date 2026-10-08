@@ -1,0 +1,240 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+         xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+         xmlns:owl="http://www.w3.org/2002/07/owl#"
+         xml:base="http://ex.org/parasites.owl"
+         xmlns="http://ex.org/parasites.owl#">
+
+<owl:Ontology rdf:about="http://ex.org/parasites.owl"/>
+
+<owl:ObjectProperty rdf:about="#has_host">
+  <rdfs:domain rdf:resource="#Parasite"/>
+  <rdfs:range rdf:resource="#Host"/>
+</owl:ObjectProperty>
+
+<owl:ObjectProperty rdf:about="#has_habitat">
+  <rdfs:domain rdf:resource="#Parasite"/>
+  <rdfs:range rdf:resource="#Habitat"/>
+</owl:ObjectProperty>
+
+<owl:ObjectProperty rdf:about="#has_morphology">
+  <rdfs:domain rdf:resource="#Parasite"/>
+  <rdfs:range rdf:resource="#Morphology"/>
+</owl:ObjectProperty>
+
+<owl:ObjectProperty rdf:about="#has_transmission">
+  <rdfs:domain rdf:resource="#Parasite"/>
+  <rdfs:range rdf:resource="#Transmission"/>
+</owl:ObjectProperty>
+
+<owl:ObjectProperty rdf:about="#has_symptom">
+  <rdfs:domain rdf:resource="#Parasite"/>
+  <rdfs:range rdf:resource="#Symptom"/>
+</owl:ObjectProperty>
+
+<owl:Class rdf:about="#Parasite">
+  <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Nematoda">
+  <rdfs:subClassOf rdf:resource="#Parasite"/>
+  <owl:equivalentClass>
+    <owl:Class>
+      <owl:intersectionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#Parasite"/>
+        <owl:Restriction>
+          <owl:onProperty rdf:resource="#has_morphology"/>
+          <owl:someValuesFrom rdf:resource="#Cylindrical"/>
+        </owl:Restriction>
+      </owl:intersectionOf>
+    </owl:Class>
+  </owl:equivalentClass>
+</owl:Class>
+
+<owl:Class rdf:about="#Platyhelminthes">
+  <rdfs:subClassOf rdf:resource="#Parasite"/>
+  <owl:equivalentClass>
+    <owl:Class>
+      <owl:intersectionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#Parasite"/>
+        <owl:Restriction>
+          <owl:onProperty rdf:resource="#has_morphology"/>
+          <owl:someValuesFrom rdf:resource="#FlatSegments"/>
+        </owl:Restriction>
+      </owl:intersectionOf>
+    </owl:Class>
+  </owl:equivalentClass>
+</owl:Class>
+
+<owl:Class rdf:about="#AscarisLumbricoides">
+  <rdfs:subClassOf rdf:resource="#Nematoda"/>
+  <owl:equivalentClass>
+    <owl:Class>
+      <owl:intersectionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#Nematoda"/>
+        <owl:Restriction>
+          <owl:onProperty rdf:resource="#has_host"/>
+          <owl:someValuesFrom rdf:resource="#Human"/>
+        </owl:Restriction>
+        <owl:Restriction>
+          <owl:onProperty rdf:resource="#has_habitat"/>
+          <owl:someValuesFrom rdf:resource="#SmallIntestine"/>
+        </owl:Restriction>
+        <owl:Restriction>
+          <owl:onProperty rdf:resource="#has_transmission"/>
+          <owl:someValuesFrom rdf:resource="#FecalOral"/>
+        </owl:Restriction>
+      </owl:intersectionOf>
+    </owl:Class>
+  </owl:equivalentClass>
+</owl:Class>
+
+<owl:Class rdf:about="#EnterobiusVermicularis">
+  <rdfs:subClassOf rdf:resource="#Nematoda"/>
+  <owl:equivalentClass>
+    <owl:Class>
+      <owl:intersectionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#Nematoda"/>
+        <owl:Restriction>
+          <owl:onProperty rdf:resource="#has_host"/>
+          <owl:someValuesFrom rdf:resource="#Human"/>
+        </owl:Restriction>
+        <owl:Restriction>
+          <owl:onProperty rdf:resource="#has_habitat"/>
+          <owl:someValuesFrom rdf:resource="#PerianalRegion"/>
+        </owl:Restriction>
+        <owl:Restriction>
+          <owl:onProperty rdf:resource="#has_transmission"/>
+          <owl:someValuesFrom rdf:resource="#Autoinfection"/>
+        </owl:Restriction>
+      </owl:intersectionOf>
+    </owl:Class>
+  </owl:equivalentClass>
+</owl:Class>
+
+<owl:Class rdf:about="#TaeniaSolium">
+  <rdfs:subClassOf rdf:resource="#Platyhelminthes"/>
+  <owl:equivalentClass>
+    <owl:Class>
+      <owl:intersectionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#Platyhelminthes"/>
+        <owl:Restriction>
+          <owl:onProperty rdf:resource="#has_host"/>
+          <owl:someValuesFrom rdf:resource="#Human"/>
+        </owl:Restriction>
+        <owl:Restriction>
+          <owl:onProperty rdf:resource="#has_habitat"/>
+          <owl:someValuesFrom rdf:resource="#SmallIntestine"/>
+        </owl:Restriction>
+        <owl:Restriction>
+          <owl:onProperty rdf:resource="#has_transmission"/>
+          <owl:someValuesFrom rdf:resource="#UndercookedPork"/>
+        </owl:Restriction>
+      </owl:intersectionOf>
+    </owl:Class>
+  </owl:equivalentClass>
+</owl:Class>
+
+<owl:Class rdf:about="#Host">
+  <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Human">
+  <rdfs:subClassOf rdf:resource="#Host"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Pig">
+  <rdfs:subClassOf rdf:resource="#Host"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Habitat">
+  <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Intestine">
+  <rdfs:subClassOf rdf:resource="#Habitat"/>
+</owl:Class>
+
+<owl:Class rdf:about="#SmallIntestine">
+  <rdfs:subClassOf rdf:resource="#Intestine"/>
+</owl:Class>
+
+<owl:Class rdf:about="#LargeIntestine">
+  <rdfs:subClassOf rdf:resource="#Intestine"/>
+</owl:Class>
+
+<owl:Class rdf:about="#PerianalRegion">
+  <rdfs:subClassOf rdf:resource="#Habitat"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Morphology">
+  <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Cylindrical">
+  <rdfs:subClassOf rdf:resource="#Morphology"/>
+</owl:Class>
+
+<owl:Class rdf:about="#FlatSegments">
+  <rdfs:subClassOf rdf:resource="#Morphology"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Transmission">
+  <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+</owl:Class>
+
+<owl:Class rdf:about="#FecalOral">
+  <rdfs:subClassOf rdf:resource="#Transmission"/>
+</owl:Class>
+
+<owl:Class rdf:about="#UndercookedPork">
+  <rdfs:subClassOf rdf:resource="#Transmission"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Autoinfection">
+  <rdfs:subClassOf rdf:resource="#Transmission"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Symptom">
+  <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+</owl:Class>
+
+<owl:Class rdf:about="#AbdominalPain">
+  <rdfs:subClassOf rdf:resource="#Symptom"/>
+</owl:Class>
+
+<owl:Class rdf:about="#PruritusAni">
+  <rdfs:subClassOf rdf:resource="#Symptom"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Malnutrition">
+  <rdfs:subClassOf rdf:resource="#Symptom"/>
+</owl:Class>
+
+<owl:NamedIndividual rdf:about="#sample_case">
+  <rdf:type rdf:resource="#Parasite"/>
+  <has_host rdf:resource="#human1"/>
+  <has_habitat rdf:resource="#smallintestine1"/>
+  <has_transmission rdf:resource="#fecaloral1"/>
+  <has_morphology rdf:resource="#cylindrical1"/>
+  <rdf:type rdf:resource="#AscarisLumbricoides"/>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#human1">
+  <rdf:type rdf:resource="#Human"/>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#smallintestine1">
+  <rdf:type rdf:resource="#SmallIntestine"/>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#fecaloral1">
+  <rdf:type rdf:resource="#FecalOral"/>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#cylindrical1">
+  <rdf:type rdf:resource="#Cylindrical"/>
+</owl:NamedIndividual>
+
+</rdf:RDF>

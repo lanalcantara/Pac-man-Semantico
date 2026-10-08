@@ -60,26 +60,26 @@ public static class TestesVirtOntoEPacManSemantico
         totalTestes++;
         try
         {
-            Node nodeClasse = new Node("cls_pacman", "Pacman", NodeType.CLASS);
-            Node nodeInd = new Node("ind_gem_01", "GemaDiamante", NodeType.INDIVIDUAL)
+            Node nodeClasse = new Node("cls_parasite", "Parasite", NodeType.CLASS);
+            Node nodeInd = new Node("sample_ascaris_01", "AscarisLumbricoides", NodeType.INDIVIDUAL)
             {
                 IsValid = true,
-                ScoreValue = 10,
-                DLExpression = "Cristal ⊓ ∃temPureza.Alta"
+                ScoreValue = 25,
+                DLExpression = "Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine"
             };
-            Node nodeObs = new Node("ind_obs_01", "FantasmaBlinky", NodeType.INDIVIDUAL)
+            Node nodeObs = new Node("sample_obs_01", "InconsistentParasiteSpecimen", NodeType.INDIVIDUAL)
             {
                 IsValid = false,
-                ScoreValue = -5
+                ScoreValue = -10
             };
 
             Debug.Assert(nodeClasse.GetDisplayColor() == "#FFA500", "Cor de classe incorreta");
             Debug.Assert(nodeInd.GetDisplayColor() == "#00FF66", "Cor de indivíduo válido incorreta");
             Debug.Assert(nodeObs.GetDisplayColor() == "#FF3344", "Cor de indivíduo inválido incorreta");
 
-            Edge edgeSubclass = new Edge("e1", "AggressiveGhost", "Ghost", "rdfs:subClassOf");
-            Edge edgeConsumes = new Edge("e2", "Pacman", "StandardGem", "consumes");
-            Edge edgeNear = new Edge("e3", "Ghost_01", "Pacman_01", "isNearTo", 2.5f, isSymmetric: true);
+            Edge edgeSubclass = new Edge("e1", "AscarisLumbricoides", "Nematoda", "rdfs:subClassOf");
+            Edge edgeConsumes = new Edge("e2", "BiomedicalResearcher", "AscarisLumbricoides", "collects");
+            Edge edgeNear = new Edge("e3", "vector_triatomine_01", "researcher_01", "isNearTo", 2.5f, isSymmetric: true);
 
             Debug.Assert(edgeSubclass.RelationType == "rdfs:subClassOf");
             Debug.Assert(edgeNear.IsSymmetric == true);
@@ -103,17 +103,17 @@ public static class TestesVirtOntoEPacManSemantico
             Debug.Assert(graph.GetEdgeCount() >= 10, "Contagem incorreta de arestas de herança TBox");
 
             // Adiciona indivíduos ABox e testa busca O(1)
-            Node ind1 = new Node("pac_val_99", "GemaEspecial", NodeType.INDIVIDUAL) { Position = new Vector3D(0f, 0f, 0f), IsValid = true };
-            Node ind2 = new Node("pac_obs_99", "Fantasma", NodeType.INDIVIDUAL) { Position = new Vector3D(2f, 0f, 0f), IsValid = false };
+            Node ind1 = new Node("sample_taenia_01", "TaeniaSolium", NodeType.INDIVIDUAL) { Position = new Vector3D(0f, 0f, 0f), IsValid = true };
+            Node ind2 = new Node("sample_inconsistent_01", "InconsistentParasiteSpecimen", NodeType.INDIVIDUAL) { Position = new Vector3D(2f, 0f, 0f), IsValid = false };
             graph.AddNode(ind1);
             graph.AddNode(ind2);
 
-            Debug.Assert(graph.GetNode("pac_val_99") != null, "Falha na busca O(1) de nó por ID");
-            Debug.Assert(graph.GetNode("pac_val_99").Label == "GemaEspecial");
+            Debug.Assert(graph.GetNode("sample_taenia_01") != null, "Falha na busca O(1) de nó por ID");
+            Debug.Assert(graph.GetNode("sample_taenia_01").Label == "TaeniaSolium");
 
             // Testa relações de proximidade espacial simétrica (isNearTo)
             graph.AtualizarRelacoesProximidade(raioProximidade: 3.0f);
-            var arestasSaida = graph.GetOutgoingEdges("pac_val_99");
+            var arestasSaida = graph.GetOutgoingEdges("sample_taenia_01");
             bool achouProximidade = false;
             foreach (var e in arestasSaida)
             {
@@ -511,10 +511,10 @@ public static class TestesVirtOntoEPacManSemantico
             Debug.Assert(pacmanObj.transform.position == ctrlDemo.pontoSpawnInicial, "Pac-Man deve ser reposicionado no Spawn inicial.");
 
             // 4. Valida feedback de captura ontológica (Instância e Classe) em tempo real
-            ctrlDemo.RegistrarCapturaItem("inst_gem_01", "GemaDiamante", true, 15, "Gem ⊓ PureCrystal");
-            Debug.Assert(ctrlDemo.ultimaInstanciaCapturada == "inst_gem_01", "Instância capturada deve ser atualizada no HUD.");
-            Debug.Assert(ctrlDemo.ultimaClasseCapturada == "GemaDiamante", "Classe ontológica deve ser atualizada no HUD.");
-            Debug.Assert(ctrlDemo.pontuacaoAcumulada == 15, "Pontuação lógica deve ser acumulada no HUD.");
+            ctrlDemo.RegistrarCapturaItem("sample_ascaris_01", "AscarisLumbricoides", true, 25, "Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine");
+            Debug.Assert(ctrlDemo.ultimaInstanciaCapturada == "sample_ascaris_01", "Instância capturada deve ser atualizada no HUD.");
+            Debug.Assert(ctrlDemo.ultimaClasseCapturada == "AscarisLumbricoides", "Classe ontológica deve ser atualizada no HUD.");
+            Debug.Assert(ctrlDemo.pontuacaoAcumulada == 25, "Pontuação lógica deve ser acumulada no HUD.");
             Debug.Assert(ctrlDemo.totalItensCapturados == 1, "Total de itens capturados deve ser incrementado.");
 
             // 5. Valida chamada do utilitário ConfiguradorDemoWebGL

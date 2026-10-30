@@ -32,14 +32,14 @@ namespace PacMan.Semantics
 
         [Header("Configurações de Regra SWRL")]
         [Tooltip("Distância limite para ativação de comportamento agressivo / perseguição (SWRL).")]
-        public float distanciaAgressiva = 2.0f;
+        public float distanciaAgressiva = 45.0f;
 
         [Tooltip("Distância limite para ativação de vulnerabilidade quando empoderado (SWRL).")]
-        public float distanciaVulneravel = 3.0f;
+        public float distanciaVulneravel = 7.0f;
 
         [Header("Estado do Jogador")]
         [Tooltip("Permite simular o estado empoderado (Power Pellet) no Inspector ou sincronizar com o motor.")]
-        public bool simularPacmanEmpowered = true;
+        public bool simularPacmanEmpowered = false;
 
         [Header("Validação de Posicionamento XR Origin")]
         [Tooltip("Executa validação contínua da altura do XR Origin para evitar corte ou flutuação do chão.")]
@@ -192,13 +192,20 @@ namespace PacMan.Semantics
 
             alturaChaoDetectada = alturaChao;
 
-            // Se o XR Origin estiver afundado abaixo do piso, corrige o eixo Y
-            if (pacmanTransform.position.y < alturaChao - 0.05f)
+            // Corrige se o XR Origin estiver afundado ou flutuando acima da superfície do chão
+            if (pacmanTransform.position.y < alturaChao - 0.05f || pacmanTransform.position.y > alturaChao + 0.15f)
             {
-                Debug.LogWarning($"[AvaliadorRegrasRuntime] XR Origin afundado ({pacmanTransform.position.y:F2} < piso {alturaChao:F2}). Corrigindo para a superfície.");
-                pacmanTransform.position = new Vector3(pacmanTransform.position.x, alturaChao, pacmanTransform.position.z);
+                var cc = pacmanTransform.GetComponent<CharacterController>();
+                if (cc != null && !cc.isGrounded)
+                {
+                    // Deixa a gravidade atuar naturalmente
+                }
+                else
+                {
+                    pacmanTransform.position = new Vector3(pacmanTransform.position.x, alturaChao, pacmanTransform.position.z);
+                }
                 xrOriginPosicionadoCorretamente = true;
-                return false;
+                return true;
             }
 
             xrOriginPosicionadoCorretamente = true;
@@ -215,8 +222,14 @@ namespace PacMan.Semantics
                 motorSemantico = FindFirstObjectByType<MotorRaciocinioSemantico>();
             }
 
-            if (pacmanTransform == null)
+            if (pacmanTransform == null || pacmanTransform.name.Contains("Camera"))
             {
+                GameObject visual = GameObject.Find("Visual_PacMan");
+                if (visual != null)
+                {
+                    pacmanTransform = visual.transform;
+                    return;
+                }
                 GameObject player = GameObject.FindWithTag("Player");
                 if (player != null)
                 {

@@ -143,7 +143,7 @@ namespace PacMan.Network
 
                 if (www.result != UnityWebRequest.Result.Success)
                 {
-                    Debug.LogError("[ApiClient] Erro ao comunicar com a API Java: " + www.error + " (URL: " + url + ")");
+                    Debug.LogWarning($"<color=#FFB800><b>[ApiClient]</b></color> Status do backend Java: Offline em {url} ({www.error}). A simulação executará com ontologia embarcada normalmente.");
                     onComplete?.Invoke(null);
                 }
                 else
@@ -173,6 +173,7 @@ namespace PacMan.Network
         /// <summary>
         /// Ponto de integração principal: Busca nós e arestas da API Spring Boot
         /// e solicita a reconstrução do labirinto ao GerenciadorCenarioSemantico.
+        /// Se o backend estiver indisponível, faz fallback automático para ontologia local.
         /// </summary>
         [ContextMenu("Sincronizar Cenário com Backend Java")]
         public void SincronizarCenarioComBackend()
@@ -194,7 +195,12 @@ namespace PacMan.Network
                 }
                 else
                 {
-                    Debug.LogWarning("[ApiClient] Grafo retornado pelo backend Java está vazio ou nulo.");
+                    Debug.LogWarning("<color=#FFB800><b>[ApiClient]</b></color> Backend Java offline ou inacessível. Ativando contingência com Ontologia de Parasitologia local.");
+                    if (gerenciadorCenario != null)
+                    {
+                        var grafoLocal = gerenciadorCenario.ConstruirGrafoVirtOntoPadrao();
+                        gerenciadorCenario.CarregarCenarioDeDados(grafoLocal.ToCenarioDTO());
+                    }
                 }
             }));
         }
@@ -245,7 +251,7 @@ namespace PacMan.Network
                 }
                 else
                 {
-                    Debug.LogError("[ApiClient] Falha ao obter nós da API Java: " + reqNodes.error);
+                    Debug.LogWarning("[ApiClient] Backend Java inacessível para obter nós: " + reqNodes.error);
                 }
             }
 
@@ -268,7 +274,7 @@ namespace PacMan.Network
                 }
                 else
                 {
-                    Debug.LogWarning("[ApiClient] Falha ao obter arestas da API Java: " + reqEdges.error);
+                    Debug.LogWarning("[ApiClient] Backend Java inacessível para obter arestas: " + reqEdges.error);
                 }
             }
 
@@ -299,7 +305,7 @@ namespace PacMan.Network
                 bool sucesso = www.result == UnityWebRequest.Result.Success;
                 if (!sucesso)
                 {
-                    Debug.LogError("[ApiClient] Erro ao postar nó na API Java: " + www.error);
+                    Debug.LogWarning("[ApiClient] Backend Java offline ao postar nó: " + www.error);
                 }
                 onComplete?.Invoke(sucesso);
             }
@@ -325,7 +331,7 @@ namespace PacMan.Network
                 bool sucesso = www.result == UnityWebRequest.Result.Success;
                 if (!sucesso)
                 {
-                    Debug.LogError("[ApiClient] Erro ao postar aresta na API Java: " + www.error);
+                    Debug.LogWarning("[ApiClient] Backend Java offline ao postar aresta: " + www.error);
                 }
                 onComplete?.Invoke(sucesso);
             }

@@ -203,13 +203,22 @@ namespace PacMan.Editor
                 Debug.Log("<color=#00FF99>✔ Câmera ajustada:</color> FOV=65, NearClip=0.05, Background=#0f172a.");
             }
 
-            // 2. Afastamento do Pac-Man da lente da câmera
+            // 2. Ancoragem do Pac-Man no solo (fim da flutuação e afastamento da lente)
             GameObject pacmanVisual = GameObject.Find("Visual_PacMan");
             if (pacmanVisual != null)
             {
-                pacmanVisual.transform.localPosition = new Vector3(0f, -0.55f, 1.25f);
+                GameObject xrOrigin = GameObject.Find("XR Origin");
+                if (xrOrigin != null)
+                {
+                    pacmanVisual.transform.SetParent(xrOrigin.transform, true);
+                    pacmanVisual.transform.localPosition = new Vector3(0f, 0.35f, 0.85f);
+                }
                 pacmanVisual.transform.localScale = new Vector3(0.35f, 0.35f, 0.35f);
-                Debug.Log("<color=#00FF99>✔ Modelo Pac-Man reposicionado:</color> afastado da lente para não tapar o campo de visão.");
+                if (pacmanVisual.GetComponent<AvatarPacManFisico>() == null)
+                {
+                    pacmanVisual.AddComponent<AvatarPacManFisico>();
+                }
+                Debug.Log("<color=#00FF99>✔ Modelo Pac-Man assentado no chão:</color> vinculado ao solo com colisor físico próprio.");
             }
 
             // 3. Directional Light

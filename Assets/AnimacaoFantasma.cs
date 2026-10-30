@@ -83,7 +83,17 @@ public class AnimacaoFantasma : MonoBehaviour
         {
             GameObject player = GameObject.FindWithTag("Player");
             if (player != null) alvoJogador = player.transform;
-            else if (Camera.main != null) alvoJogador = Camera.main.transform;
+            else
+            {
+                var ctrlXR = FindFirstObjectByType<ControladorXRJogador>();
+                if (ctrlXR != null) alvoJogador = ctrlXR.transform;
+                else
+                {
+                    var ctrl = FindFirstObjectByType<PacMan.Player.ControladorJogador>();
+                    if (ctrl != null) alvoJogador = ctrl.transform;
+                    else if (Camera.main != null) alvoJogador = Camera.main.transform;
+                }
+            }
         }
 
         if (pupilaEsquerda == null)
@@ -107,7 +117,8 @@ public class AnimacaoFantasma : MonoBehaviour
         float tempo = (Time.time * frequenciaFlutuacao) + m_DesvioFase;
         float seno = Mathf.Sin(tempo);
         float offsetVertical = oscilarApenasParaCima ? Mathf.Abs(seno) * amplitudeFlutuacao : seno * amplitudeFlutuacao;
-        transform.localPosition = new Vector3(m_PosicaoInicial.x, m_PosicaoInicial.y + offsetVertical, m_PosicaoInicial.z);
+        Vector3 posAtual = transform.localPosition;
+        transform.localPosition = new Vector3(posAtual.x, m_PosicaoInicial.y + offsetVertical, posAtual.z);
 
         if (inclinacaoLateral > 0.01f)
         {

@@ -59,7 +59,8 @@ public class RotacaoFlutuante : MonoBehaviour
         {
             float seno = Mathf.Sin((Time.time * frequencia) + m_OffsetTempo);
             float offsetVertical = oscilarApenasParaCima ? Mathf.Abs(seno) * amplitude : seno * amplitude;
-            transform.localPosition = new Vector3(m_PosicaoInicial.x, m_PosicaoInicial.y + offsetVertical, m_PosicaoInicial.z);
+            Vector3 posAtual = transform.localPosition;
+            transform.localPosition = new Vector3(posAtual.x, m_PosicaoInicial.y + offsetVertical, posAtual.z);
         }
     }
 }

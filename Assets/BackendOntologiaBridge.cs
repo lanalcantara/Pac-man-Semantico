@@ -117,82 +117,147 @@ public static class BackendOntologiaBridge
     }
 
     /// <summary>
-    /// Gera o cenário ontológico fundamentado na Ontologia de Parasitologia e Biomedicina (Protégé / OWL ALCQ(D)).
+    /// Gera o cenário ontológico rigorosamente fundamentado na Ontologia de Parasitologia (Protégé / OWL ALCQ(D)).
+    /// Modela fielmente espécies, hospedeiros, habitats, vias de transmissão e restrições biológicas.
     /// </summary>
     public static CenarioSemanticoDTO GerarMockOntologiaCpp(int qtdValidos, int qtdInvalidos, float raio, float altura)
     {
         CenarioSemanticoDTO cenario = new CenarioSemanticoDTO
         {
             nomeOntologia = "OntologiaParasitologia_Protege_ALCQ",
-            versaoAxiomas = "ALCQ(D)-Parasitology",
+            versaoAxiomas = "ALCQ(D)-Parasitology-v2.0",
             ontologiaConsistente = true,
-            tempoInferencaMs = 2.8f
+            tempoInferencaMs = 2.45f
         };
 
-        string[] classesValidas = new string[]
+        var catalogoValidos = new (string classe, string dl, int pontos, string desc, Color cor, (string k, string v)[] props)[]
         {
-            "AscarisLumbricoides", "EnterobiusVermicularis", "TaeniaSolium", "Nematoda", "Platyhelminthes", "SmallIntestine", "FecalOral"
-        };
-        string[] expressoesDLValidas = new string[]
-        {
-            "AscarisLumbricoides ≡ Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine ⊓ ∃has_transmission.FecalOral",
-            "EnterobiusVermicularis ≡ Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.PerianalRegion ⊓ ∃has_transmission.Autoinfection",
-            "TaeniaSolium ≡ Platyhelminthes ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine ⊓ ∃has_transmission.UndercookedPork",
-            "Nematoda ≡ Parasite ⊓ ∃has_morphology.Cylindrical",
-            "Platyhelminthes ≡ Parasite ⊓ ∃has_morphology.FlatSegments",
-            "SmallIntestine ⊑ Intestine ⊓ Habitat",
-            "FecalOral ⊑ Transmission"
+            (
+                "AscarisLumbricoides",
+                "Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine ⊓ ∃has_transmission.FecalOral",
+                25,
+                "Ascaris lumbricoides: Helminto nematódeo parasita do intestino delgado humano transmitido por via fecal-oral.",
+                new Color(0.0f, 1.0f, 0.8f),
+                new (string, string)[] { ("has_host", "Human"), ("has_habitat", "SmallIntestine"), ("has_transmission", "FecalOral"), ("has_morphology", "Cylindrical") }
+            ),
+            (
+                "EnterobiusVermicularis",
+                "Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.PerianalRegion ⊓ ∃has_transmission.Autoinfection",
+                20,
+                "Enterobius vermicularis (oxiúro): Helminto cilíndrico associado a prurido perianal e ciclo de autoinfecção.",
+                new Color(0.2f, 0.75f, 1.0f),
+                new (string, string)[] { ("has_host", "Human"), ("has_habitat", "PerianalRegion"), ("has_transmission", "Autoinfection"), ("has_morphology", "Cylindrical") }
+            ),
+            (
+                "TaeniaSolium",
+                "Platyhelminthes ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine ⊓ ∃has_transmission.UndercookedPork",
+                30,
+                "Taenia solium: Platelminto segmentado achatado do intestino delgado humano com transmissão suína.",
+                new Color(1.0f, 0.84f, 0.0f),
+                new (string, string)[] { ("has_host", "Human"), ("has_habitat", "SmallIntestine"), ("has_transmission", "UndercookedPork"), ("has_morphology", "FlatSegments") }
+            ),
+            (
+                "AntiparasiticTreatment",
+                "Treatment ⊓ ∃neutralizes.InfectionVector",
+                50,
+                "Tratamento antiparasitário específico. Aciona a Regra SWRL 1, tornando os vetores hostis vulneráveis para neutralização!",
+                new Color(0.95f, 0.35f, 1.0f),
+                new (string, string)[] { ("isPowerPellet", "true"), ("action", "VulnerabilizeVectors") }
+            ),
+            (
+                "Nematoda",
+                "Parasite ⊓ ∃has_morphology.Cylindrical",
+                15,
+                "Nematoda: Espécime de helminto cilíndrico com cutícula protetora e simetria bilateral.",
+                new Color(0.65f, 0.55f, 0.98f),
+                new (string, string)[] { ("has_morphology", "Cylindrical") }
+            ),
+            (
+                "Platyhelminthes",
+                "Parasite ⊓ ∃has_morphology.FlatSegments",
+                15,
+                "Platyhelminthes: Espécime de verme achatado dorsoventralmente com proglotes características.",
+                new Color(0.95f, 0.45f, 0.71f),
+                new (string, string)[] { ("has_morphology", "FlatSegments") }
+            )
         };
 
-        string[] classesInvalidas = new string[]
+        var catalogoInvalidos = new (string classe, string dl, int pontos, string desc, Color cor, (string k, string v)[] props)[]
         {
-            "InconsistentParasiteSpecimen", "HostMismatchViolation", "CorruptedClinicalSample", "HabitatInconsistency", "AxiomContradiction"
-        };
-        string[] expressoesDLInvalidas = new string[]
-        {
-            "InconsistentSpecimen ⊑ Parasite ⊓ (A ⊓ ¬A ≡ ⊥)",
-            "HostMismatch ⊑ TaeniaSolium ⊓ ∀has_host.Canine",
-            "CorruptedMorphology ⊑ Nematoda ⊓ has_morphology.FlatSegments (Contradição)",
-            "InvalidHabitat ⊑ EnterobiusVermicularis ⊓ has_habitat.BloodStream",
-            "AxiomContradiction ⊑ ≤0 compatibilidade ⊓ >3 ameaca"
+            (
+                "InconsistentParasiteSpecimen",
+                "Parasite ⊓ ∃has_morphology.(Cylindrical ⊓ FlatSegments) ≡ ⊥",
+                -15,
+                "Inconsistência ontológica taxonômica: Morfologia mutuamente exclusiva viola axiomas ALCQ(D).",
+                new Color(1.0f, 0.15f, 0.2f),
+                new (string, string)[] { ("violation", "MutuallyExclusiveMorphology") }
+            ),
+            (
+                "HostMismatchViolation",
+                "AscarisLumbricoides ⊓ ∃has_host.InvertebrateVector ⊑ Inconsistency",
+                -10,
+                "Incompatibilidade taxonômica de hospedeiro/vetor de transmissão detectada pelo raciocinador.",
+                new Color(0.9f, 0.1f, 0.3f),
+                new (string, string)[] { ("violation", "IncompatibleHost") }
+            ),
+            (
+                "HabitatInconsistency",
+                "EnterobiusVermicularis ⊓ ∃has_habitat.BloodStream ⊑ Inconsistency",
+                -10,
+                "Incompatibilidade anatômica de habitat do parasita (tecido sanguíneo em vez de perianal).",
+                new Color(1.0f, 0.3f, 0.1f),
+                new (string, string)[] { ("violation", "InvalidHabitat") }
+            )
         };
 
         for (int i = 0; i < qtdValidos; i++)
         {
             Vector2 circulo = UnityEngine.Random.insideUnitCircle * raio;
-            string classe = classesValidas[i % classesValidas.Length];
-            string dl = expressoesDLValidas[i % expressoesDLValidas.Length];
+            var item = catalogoValidos[i % catalogoValidos.Length];
 
-            cenario.instancias.Add(new DadoInstanciaSemantica
+            var dado = new DadoInstanciaSemantica
             {
                 id = $"inst_parasite_{i + 1:00}",
-                classeOntologica = classe,
-                expressaoDL = dl,
+                classeOntologica = item.classe,
+                expressaoDL = item.dl,
                 ehValida = true,
                 posicao = new Vector3(circulo.x, altura, circulo.y),
-                valorPontuacao = 10,
-                descricaoSemantica = $"[CONCEITO BIOMÉDICO CONFORME] {classe}: Satisfaz axiomas de Description Logic '{dl}'. Diagnóstico válido!",
-                corDestaque = new Color(0.1f, 1f, 0.45f)
-            });
+                valorPontuacao = item.pontos,
+                descricaoSemantica = item.desc,
+                corDestaque = item.cor
+            };
+
+            foreach (var p in item.props)
+            {
+                dado.propriedades.Add(new PropriedadeOntologica(p.k, p.v));
+            }
+
+            cenario.instancias.Add(dado);
         }
 
         for (int i = 0; i < qtdInvalidos; i++)
         {
             Vector2 circulo = UnityEngine.Random.insideUnitCircle * raio;
-            string classe = classesInvalidas[i % classesInvalidas.Length];
-            string dl = expressoesDLInvalidas[i % expressoesDLInvalidas.Length];
+            var item = catalogoInvalidos[i % catalogoInvalidos.Length];
 
-            cenario.instancias.Add(new DadoInstanciaSemantica
+            var dado = new DadoInstanciaSemantica
             {
                 id = $"inst_violacao_{i + 1:00}",
-                classeOntologica = classe,
-                expressaoDL = dl,
+                classeOntologica = item.classe,
+                expressaoDL = item.dl,
                 ehValida = false,
                 posicao = new Vector3(circulo.x, altura, circulo.y),
-                valorPontuacao = -5,
-                descricaoSemantica = $"[VIOLAÇÃO ONTOLÓGICA CLÍNICA] {classe}: Viola restrição ontológica '{dl}'. Amostra inconsistente!",
-                corDestaque = new Color(1f, 0.15f, 0.2f)
-            });
+                valorPontuacao = item.pontos,
+                descricaoSemantica = item.desc,
+                corDestaque = item.cor
+            };
+
+            foreach (var p in item.props)
+            {
+                dado.propriedades.Add(new PropriedadeOntologica(p.k, p.v));
+            }
+
+            cenario.instancias.Add(dado);
         }
 
         return cenario;

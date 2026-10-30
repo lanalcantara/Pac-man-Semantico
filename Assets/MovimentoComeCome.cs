@@ -27,8 +27,25 @@ public class MovimentoComeCome : MonoBehaviour
 
     private void Awake()
     {
-        m_CharacterController = GetComponent<CharacterController>();
+        GarantirCharacterController();
         m_ControladorXR = GetComponent<ControladorXRJogador>();
+    }
+
+    private void GarantirCharacterController()
+    {
+        if (m_CharacterController == null)
+        {
+            m_CharacterController = GetComponent<CharacterController>() ?? gameObject.AddComponent<CharacterController>();
+        }
+
+        if (m_CharacterController != null)
+        {
+            m_CharacterController.radius = 0.42f;
+            m_CharacterController.height = 1.8f;
+            m_CharacterController.skinWidth = 0.08f;
+            m_CharacterController.minMoveDistance = 0.0001f;
+            m_CharacterController.stepOffset = 0.15f;
+        }
     }
 
     private void Update()
@@ -52,17 +69,45 @@ public class MovimentoComeCome : MonoBehaviour
         {
             direcao.Normalize();
 
-            if (m_CharacterController != null && m_CharacterController.enabled && m_CharacterController.gameObject.activeInHierarchy)
+            if (m_CharacterController == null)
             {
-                m_CharacterController.Move(direcao * velocidade * Time.deltaTime);
-            }
-            else
-            {
-                transform.Translate(direcao * velocidade * Time.deltaTime, Space.World);
+                GarantirCharacterController();
             }
 
-            Quaternion rotacaoAlvo = Quaternion.LookRotation(direcao, Vector3.up);
-            transform.rotation = Quaternion.Slerp(transform.rotation, rotacaoAlvo, velocidadeRotacao * Time.deltaTime);
+            if (m_CharacterController != null)
+            {
+                if (!m_CharacterController.enabled && gameObject.activeInHierarchy)
+                {
+                    m_CharacterController.enabled = true;
+                }
+
+                // Barreira preditiva de colisão com paredes do labirinto
+                float distVerificacao = (velocidade * Time.deltaTime) + m_CharacterController.radius + 0.08f;
+                Vector3 centroCapsula = transform.position + new Vector3(0f, m_CharacterController.height / 2f, 0f);
+
+                if (Physics.SphereCast(centroCapsula, m_CharacterController.radius * 0.95f, direcao.normalized, out RaycastHit hit, distVerificacao, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    if (hit.collider != null && !hit.collider.isTrigger)
+                    {
+                        Vector3 normalParede = hit.normal;
+                        normalParede.y = 0f;
+                        normalParede.Normalize();
+
+                        direcao = Vector3.ProjectOnPlane(direcao, normalParede);
+                    }
+                }
+
+                float grav = 9.81f;
+                float velY = m_CharacterController.isGrounded ? -4.0f : -grav;
+                Vector3 movFinal = (direcao * velocidade) + (Vector3.up * velY);
+                m_CharacterController.Move(movFinal * Time.deltaTime);
+
+                if (direcao.sqrMagnitude > 0.001f)
+                {
+                    Quaternion rotacaoAlvo = Quaternion.LookRotation(direcao, Vector3.up);
+                    transform.rotation = Quaternion.Slerp(transform.rotation, rotacaoAlvo, velocidadeRotacao * Time.deltaTime);
+                }
+            }
         }
     }
 }

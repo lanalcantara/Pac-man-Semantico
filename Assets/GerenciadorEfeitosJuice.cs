@@ -97,7 +97,9 @@ public class GerenciadorEfeitosJuice : MonoBehaviour
 
         // 1. Sistema de Partículas Explosivas
         ParticleSystem ps = burstObj.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = ps.main;
+        main.playOnAwake = false;
         main.duration = 0.6f;
         main.loop = false;
         main.startLifetime = new ParticleSystem.MinMaxCurve(0.35f, 0.7f);
@@ -160,7 +162,9 @@ public class GerenciadorEfeitosJuice : MonoBehaviour
         stunObj.transform.position = posicao;
 
         ParticleSystem ps = stunObj.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = ps.main;
+        main.playOnAwake = false;
         main.duration = 0.5f;
         main.loop = false;
         main.startLifetime = new ParticleSystem.MinMaxCurve(0.2f, 0.45f);
@@ -168,6 +172,12 @@ public class GerenciadorEfeitosJuice : MonoBehaviour
         main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.3f);
         main.startColor = new Color(1f, 0.1f, 0.25f);
         main.stopAction = ParticleSystemStopAction.Destroy;
+
+        var rend = stunObj.GetComponent<ParticleSystemRenderer>();
+        if (rend != null && materialParticulaGlow != null)
+        {
+            rend.material = materialParticulaGlow;
+        }
 
         var emission = ps.emission;
         emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, 35) });

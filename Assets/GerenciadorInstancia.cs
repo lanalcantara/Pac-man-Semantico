@@ -45,8 +45,10 @@ public class GerenciadorInstancia : InstanciaSemanticaBase
         SincronizarCamposPublicosComBase();
     }
 
-    private void Update()
+    protected override void Update()
     {
+        base.Update();
+
         if (m_TimerCooldown > 0f)
         {
             m_TimerCooldown -= Time.deltaTime;

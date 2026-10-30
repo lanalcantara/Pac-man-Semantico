@@ -23,7 +23,7 @@ namespace PacMan.Telemetria
     /// ============================================================================
     /// Monitoriza métricas de desempenho (FPS), distâncias espaciais entre o Pac-Man
     /// (XR Origin) e os fantasmas, estados ontológicos do motor SWRL e latência de rede,
-    /// exportando automaticamente para um ficheiro CSV em Application.persistentDataPath.
+    /// exportando automaticamente para um ficheiro CSV em raiz do projeto no Disco D: (pasta Telemetria).
     /// ============================================================================
     /// </summary>
     [AddComponentMenu("Pac-Man Semântico/Telemetria/Telemetria Experimento")]
@@ -41,9 +41,30 @@ namespace PacMan.Telemetria
         private List<RegistoTelemetria> historico = new List<RegistoTelemetria>();
         private string caminhoFicheiro;
 
+                private string ObterDiretorioTelemetria()
+        {
+            try
+            {
+                // Garante que o registo fique estritamente dentro da raiz do projeto (preferencialmente no Disco D:)
+                string pastaProjeto = Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
+                string pastaTelemetria = Path.Combine(pastaProjeto, "Telemetria");
+                if (!Directory.Exists(pastaTelemetria))
+                {
+                    Directory.CreateDirectory(pastaTelemetria);
+                }
+                return pastaTelemetria;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[Telemetria] Falha ao criar diretório local no projeto: {ex.Message}");
+                return Application.dataPath;
+            }
+        }
+
         private void Start()
         {
-            caminhoFicheiro = Path.Combine(Application.persistentDataPath, $"telemetria_pacman_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+            string dir = ObterDiretorioTelemetria();
+            caminhoFicheiro = Path.Combine(dir, $"telemetria_pacman_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
             
             // Escreve o cabeçalho do CSV
             try
@@ -118,9 +139,10 @@ namespace PacMan.Telemetria
         {
             try
             {
-                if (string.IsNullOrEmpty(caminhoFicheiro))
+                                if (string.IsNullOrEmpty(caminhoFicheiro))
                 {
-                    caminhoFicheiro = Path.Combine(Application.persistentDataPath, $"telemetria_pacman_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                    string dir = ObterDiretorioTelemetria();
+                    caminhoFicheiro = Path.Combine(dir, $"telemetria_pacman_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                     if (!File.Exists(caminhoFicheiro))
                     {
                         File.WriteAllText(caminhoFicheiro, "Timestamp,TempoJogo,FPS,LatenciaRedeMs,EstadoFantasma,DistanciaPacmanFantasma\n");

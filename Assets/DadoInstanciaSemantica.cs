@@ -26,6 +26,25 @@ public struct PropriedadeOntologica
 }
 
 /// <summary>
+/// Estrutura para propriedades de Description Logic (alias e compatibilidade com PropriedadeOntologica).
+/// </summary>
+[Serializable]
+public struct PropriedadeDL
+{
+    public string chave;
+    public string valor;
+
+    public PropriedadeDL(string chave, string valor)
+    {
+        this.chave = chave;
+        this.valor = valor;
+    }
+
+    public static implicit operator PropriedadeOntologica(PropriedadeDL p) => new PropriedadeOntologica(p.chave, p.valor);
+    public static implicit operator PropriedadeDL(PropriedadeOntologica p) => new PropriedadeDL(p.chave, p.valor);
+}
+
+/// <summary>
 /// Estrutura de dados formal (DTO) que representa uma instância da ontologia.
 /// Totalmente alinhada com as classes C++ e diagramas PlantUML.
 /// </summary>

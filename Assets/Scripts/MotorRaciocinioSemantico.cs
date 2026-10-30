@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using VirtOnto.Model;
@@ -52,28 +52,39 @@ namespace PacMan.Semantics
 
         [Header("Limiares de Proximidade (Axiomas Espaciais SWRL)")]
         [Tooltip("Distância máxima para ativar regra SWRL de vulnerabilidade do fantasma.")]
-        public float distanciaVulnerabilidade = 3.0f;
+        public float distanciaVulnerabilidade = 7.0f;
 
-        [Tooltip("Distância de detecção para ativar comportamento agressivo.")]
-        public float distanciaAgressao = 2.0f;
+        [Tooltip("Distância de detecção para ativar comportamento agressivo (perseguição ativa no labirinto).")]
+        public float distanciaAgressao = 45.0f;
 
         [Header("Comportamentos Dinâmicos dos Fantasmas (Runtime)")]
         [Tooltip("Habilita atualização dinâmica de movimentação e reações em tempo de execução.")]
         public bool moverFantasmasDinamicamente = true;
 
         [Tooltip("Velocidade do fantasma durante a patrulha contínua pelo labirinto.")]
-        public float velocidadePatrulha = 1.8f;
+        public float velocidadePatrulha = 2.0f;
 
         [Tooltip("Velocidade do fantasma ao perseguir o jogador no modo agressivo.")]
-        public float velocidadeAgressao = 1.4f;
+        public float velocidadeAgressao = 2.6f;
 
         [Tooltip("Velocidade de fuga do fantasma no modo vulnerável.")]
-        public float velocidadeVulneravel = 0.9f;
+        public float velocidadeVulneravel = 1.4f;
 
         [Header("Cores dos Estados Ontológicos (Feedback Visual)")]
         public Color corPatrulha = new Color(1f, 0.2f, 0.2f);
         public Color corAgressivo = new Color(1f, 0.0f, 0.0f);
         public Color corVulneravel = new Color(0.15f, 0.45f, 1f);
+
+        [Header("Estratégia de Dispersão e Patrulha (Fim da Fila Indiana)")]
+        [Tooltip("Tempo em segundos que os fantasmas passam em perseguição tática.")]
+        public float tempoOndaPerseguicao = 18.0f;
+
+        [Tooltip("Tempo em segundos que os fantasmas passam dispersos em patrulha pelos 4 cantos do labirinto.")]
+        public float tempoOndaDispersao = 6.0f;
+
+        private float m_TimerCicloModo = 0f;
+        private bool m_ModoDispersaoAtivo = true; // Inicia disperso nos 4 quadrantes
+        private System.Collections.Generic.List<GameObject> m_ListaFantasmasAtivos = new System.Collections.Generic.List<GameObject>();
 
         // Instância central do grafo ontológico
         private Graph semanticGraph;
@@ -119,26 +130,71 @@ namespace PacMan.Semantics
 
         private void Update()
         {
+            AtualizarCicloOndasDispersao();
+        AplicarSeparacaoMatematicaIntransigivelFantasmas(alvoPacMan != null ? alvoPacMan.position : Vector3.zero);
             AtualizarTemporizadorPowerPellet();
             LocalizarAlvoPacMan();
             ProcessarRaciocinioFantasmas();
         }
 
+        private void AtualizarCicloOndasDispersao()
+        {
+            m_TimerCicloModo += Time.deltaTime;
+            float tempoTotalCiclo = tempoOndaPerseguicao + tempoOndaDispersao;
+            float tempoNoCiclo = m_TimerCicloModo % tempoTotalCiclo;
+            m_ModoDispersaoAtivo = tempoNoCiclo >= tempoOndaPerseguicao;
+        }
+
         /// <summary>
-        /// Localiza dinamicamente o alvo do Pac-Man (Jogador) na cena.
+        /// Localiza dinamicamente o alvo do Pac-Man (Jogador) na cena com múltiplos mecanismos de fallback.
         /// </summary>
         private void LocalizarAlvoPacMan()
         {
+            if (alvoPacMan != null && alvoPacMan.gameObject.name == "Visual_PacMan") return;
+
+            GameObject visual = GameObject.Find("Visual_PacMan");
+            if (visual != null)
+            {
+                alvoPacMan = visual.transform;
+                return;
+            }
+
             if (alvoPacMan != null) return;
 
             GameObject player = GameObject.FindWithTag("Player");
             if (player != null)
             {
                 alvoPacMan = player.transform;
+                return;
             }
-            else if (Camera.main != null)
+
+            var ctrlXR = FindFirstObjectByType<ControladorXRJogador>();
+            if (ctrlXR != null)
             {
-                alvoPacMan = Camera.main.transform;
+                alvoPacMan = ctrlXR.transform;
+                return;
+            }
+
+            var ctrl = FindFirstObjectByType<PacMan.Player.ControladorJogador>();
+            if (ctrl != null)
+            {
+                alvoPacMan = ctrl.transform;
+                return;
+            }
+
+            var comeCome = FindFirstObjectByType<MovimentoComeCome>();
+            if (comeCome != null)
+            {
+                alvoPacMan = comeCome.transform;
+                return;
+            }
+
+            if (Camera.main != null)
+            {
+                // Prefere o Transform raiz (XR Origin / Corpo) se existir
+                alvoPacMan = Camera.main.transform.parent != null && Camera.main.transform.parent.parent != null ? 
+                             Camera.main.transform.parent.parent : 
+                             (Camera.main.transform.parent != null ? Camera.main.transform.parent : Camera.main.transform);
             }
         }
 
@@ -185,7 +241,6 @@ namespace PacMan.Semantics
         /// </summary>
         private void InicializarTBoxABoxExemplo()
         {
-            // TBox e ABox inicial (Exemplo Pac-Man Semântico)
             Node pacman = new Node("pacman_01", "PacMan", NodeType.Individual);
             pacman.SetDisplayColor("#FFFF00");
 
@@ -195,165 +250,473 @@ namespace PacMan.Semantics
             semanticGraph.AddNode(pacman);
             semanticGraph.AddNode(ghost);
 
-            // Adiciona aresta representando relação inicial (ex: isNearTo / hasState)
             Edge relacao = new Edge("edge_01", "pacman_01", "ghost_blinky", "isNearTo");
             semanticGraph.AddEdge(relacao);
         }
 
         /// <summary>
         /// Emula o motor SWRL: Avalia axiomas e transições de estado dinâmicas
-        /// Regra SWRL Exemplo: IsNearTo(p, g) ^ HasState(p, Empowered) -> HasState(g, Vulnerable)
+        /// Regra SWRL: PacMan Empowered -> Fantasma Vulnerável; Caso contrário -> Perseguição Agressiva Ativa.
         /// </summary>
         public GameEntityState AvaliarRegraEstadoFantasma(string ghostId, bool pacmanIsPowered, float distancia)
         {
-            Node ghostNode = semanticGraph != null ? semanticGraph.GetNode(ghostId) : null;
-            if (ghostNode == null) return GameEntityState.Patrol;
-
-            // Condicional baseada em Description Logic / SWRL
-            if (distancia < distanciaVulnerabilidade && pacmanIsPowered)
+            if (pacmanIsPowered && distancia < distanciaVulnerabilidade)
             {
-                Debug.Log($"[SWRL Engine] Regra disparada: Fantasma {ghostNode.GetLabel()} assumiu estado VULNERÁVEL.");
                 return GameEntityState.Vulnerable;
             }
-            else if (distancia < distanciaAgressao)
-            {
-                return GameEntityState.Aggressive;
-            }
 
-            return GameEntityState.Patrol;
+            return GameEntityState.Aggressive;
         }
 
         /// <summary>
-        /// Processa continuamente o raciocínio ontológico para todas as instâncias de fantasmas ativas no grafo/cenário.
+        /// Processa continuamente o raciocínio ontológico e perseguição ativa para todas as instâncias de fantasmas na cena.
         /// </summary>
         private void ProcessarRaciocinioFantasmas()
         {
-            if (semanticGraph == null || alvoPacMan == null) return;
+            if (alvoPacMan == null)
+            {
+                LocalizarAlvoPacMan();
+                if (alvoPacMan == null) return;
+            }
 
             Vector3 posPacMan = alvoPacMan.position;
+            m_ListaFantasmasAtivos.Clear();
 
-            // Obtém todos os nós individuais do grafo
-            var individuos = semanticGraph.GetNodesByType(NodeType.INDIVIDUAL);
-            foreach (var node in individuos)
+            // Pré-coleta todos os fantasmas da cena primeiro para conhecimento global mútuo
+            ObstaculoInvalidoSemantico[] obstaculos = FindObjectsByType<ObstaculoInvalidoSemantico>(FindObjectsSortMode.None);
+            foreach (var obs in obstaculos)
             {
-                if (node == null || node.IsValid) continue; // Fantasmas/Obstáculos possuem IsValid == false
-
-                // Calcula a distância atual entre Pac-Man e o Fantasma
-                Vector3 posFantasma = node.GameObjectInstance != null ? node.GameObjectInstance.transform.position : (Vector3)node.Position;
-                float distancia = Vector3.Distance(posPacMan, posFantasma);
-
-                // Avalia o novo estado ontológico conforme as regras SWRL
-                GameEntityState estadoAtual = m_EstadosEntidades.TryGetValue(node.Id, out var est) ? est : GameEntityState.Patrol;
-                GameEntityState novoEstado = AvaliarRegraEstadoFantasma(node.Id, pacmanIsPowered, distancia);
-
-                if (novoEstado != estadoAtual)
+                if (obs != null && obs.gameObject.activeInHierarchy && !m_ListaFantasmasAtivos.Contains(obs.gameObject))
                 {
-                    m_EstadosEntidades[node.Id] = novoEstado;
-                    AplicarEstadoNoGameObject(node, novoEstado);
-                    OnEstadoEntidadeAlterado?.Invoke(node.Id, novoEstado);
-                }
-
-                // Atualiza dinamicamente o comportamento em tempo de execução
-                AtualizarComportamentoFisicoFantasma(node, novoEstado, posPacMan, posFantasma);
-            }
-        }
-
-        /// <summary>
-        /// Atualiza dinamicamente a movimentação e reações do fantasma conforme o estado ontológico atual.
-        /// </summary>
-        private void AtualizarComportamentoFisicoFantasma(Node node, GameEntityState estado, Vector3 posPacMan, Vector3 posFantasma)
-        {
-            if (!moverFantasmasDinamicamente || node.GameObjectInstance == null) return;
-
-            Transform tr = node.GameObjectInstance.transform;
-            Vector3 posAtual = tr.position;
-
-            if (estado == GameEntityState.Aggressive)
-            {
-                // Perseguição: move-se na direção horizontal do Pac-Man mantendo altura do chão
-                Vector3 dir = (posPacMan - posAtual);
-                dir.y = 0f;
-                if (dir.sqrMagnitude > 0.4f)
-                {
-                    tr.position += dir.normalized * (velocidadeAgressao * Time.deltaTime);
-                    tr.rotation = Quaternion.Slerp(tr.rotation, Quaternion.LookRotation(dir.normalized), Time.deltaTime * 6f);
+                    m_ListaFantasmasAtivos.Add(obs.gameObject);
                 }
             }
-            else if (estado == GameEntityState.Vulnerable)
+
+            AnimacaoFantasma[] anims = FindObjectsByType<AnimacaoFantasma>(FindObjectsSortMode.None);
+            foreach (var a in anims)
             {
-                // Fuga: afasta-se na direção oposta ao Pac-Man mantendo a altura do chão
-                Vector3 dir = (posAtual - posPacMan);
-                dir.y = 0f;
-                if (dir.sqrMagnitude > 0.05f)
+                if (a != null && a.gameObject.activeInHierarchy && !m_ListaFantasmasAtivos.Contains(a.gameObject))
                 {
-                    tr.position += dir.normalized * (velocidadeVulneravel * Time.deltaTime);
-                    tr.rotation = Quaternion.Slerp(tr.rotation, Quaternion.LookRotation(dir.normalized), Time.deltaTime * 6f);
+                    m_ListaFantasmasAtivos.Add(a.gameObject);
                 }
             }
-            else if (estado == GameEntityState.Patrol)
+
+            if (semanticGraph != null)
             {
-                // Patrulha ativa pelo labirinto: avança continuamente e curva ao encontrar paredes/esquinas
-                Vector3 frente = tr.forward;
-                frente.y = 0f;
-                if (frente.sqrMagnitude < 0.01f) frente = Vector3.forward;
-                frente.Normalize();
-
-                // Detecção de paredes ou limites à frente
-                bool temParedeFrente = Physics.Raycast(posAtual + Vector3.up * 0.5f, frente, out RaycastHit hit, 1.8f);
-                if (temParedeFrente && !hit.collider.isTrigger)
+                var individuos = semanticGraph.GetNodesByType(NodeType.INDIVIDUAL);
+                foreach (var node in individuos)
                 {
-                    // Curva para um novo corredor no labirinto
-                    float direcaoGiro = (Mathf.Abs(node.Id.GetHashCode()) % 2 == 0) ? 90f : -90f;
-                    tr.Rotate(Vector3.up, direcaoGiro);
-                }
-                else
-                {
-                    // Deslocamento contínuo de patrulha
-                    tr.position += frente * (velocidadePatrulha * Time.deltaTime);
-
-                    // Pequena oscilação natural de observação
-                    tr.Rotate(Vector3.up, Mathf.Sin(Time.time * 2.5f + (float)node.Id.GetHashCode()) * 18f * Time.deltaTime);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Atualiza visualmente e logicamente a instância física do fantasma ao mudar de estado ontológico.
-        /// </summary>
-        private void AplicarEstadoNoGameObject(Node node, GameEntityState novoEstado)
-        {
-            if (node.GameObjectInstance == null) return;
-
-            Renderer[] renderers = node.GameObjectInstance.GetComponentsInChildren<Renderer>();
-            Color corAlvo = novoEstado switch
-            {
-                GameEntityState.Vulnerable => corVulneravel,
-                GameEntityState.Aggressive => corAgressivo,
-                _ => corPatrulha
-            };
-
-            foreach (var rend in renderers)
-            {
-                if (rend != null && rend.material != null)
-                {
-                    if (rend.material.HasProperty("_BaseColor")) rend.material.SetColor("_BaseColor", corAlvo);
-                    if (rend.material.HasProperty("_Color")) rend.material.SetColor("_Color", corAlvo);
-                    if (rend.material.HasProperty("_EmissionColor"))
+                    if (node != null && !node.IsValid && node.GameObjectInstance != null)
                     {
-                        rend.material.EnableKeyword("_EMISSION");
-                        rend.material.SetColor("_EmissionColor", corAlvo * (novoEstado == GameEntityState.Aggressive ? 0.9f : 0.5f));
+                        if (!m_ListaFantasmasAtivos.Contains(node.GameObjectInstance))
+                        {
+                            m_ListaFantasmasAtivos.Add(node.GameObjectInstance);
+                        }
                     }
                 }
             }
 
-            // Atualiza componentes semânticos e de animação
-            AnimacaoFantasma anim = node.GameObjectInstance.GetComponent<AnimacaoFantasma>();
-            if (anim != null)
+            // Agora processa cada fantasma com lista completa de vizinhos disponível
+            for (int i = 0; i < m_ListaFantasmasAtivos.Count; i++)
             {
-                if (novoEstado == GameEntityState.Vulnerable)
+                GameObject gObj = m_ListaFantasmasAtivos[i];
+                if (gObj != null && gObj.activeInHierarchy)
                 {
-                    anim.DispararSusto(0.5f);
+                    string idFantasma = gObj.name;
+                    var inst = gObj.GetComponent<IInstanciaSemantica>();
+                    if (inst != null && !string.IsNullOrEmpty(inst.Id)) idFantasma = inst.Id;
+                    ProcessarFantasmaIndividual(gObj, idFantasma, posPacMan);
                 }
+            }
+        }
+
+        private void ProcessarFantasmaIndividual(GameObject ghostObj, string id, Vector3 posPacMan)
+        {
+            if (ghostObj == null) return;
+
+            Vector3 posFantasma = ghostObj.transform.position;
+            float distancia = Vector3.Distance(posPacMan, posFantasma);
+
+            GameEntityState estadoAtual = m_EstadosEntidades.TryGetValue(id, out var est) ? est : GameEntityState.Aggressive;
+            GameEntityState novoEstado = AvaliarRegraEstadoFantasma(id, pacmanIsPowered, distancia);
+
+            if (novoEstado != estadoAtual)
+            {
+                m_EstadosEntidades[id] = novoEstado;
+                AplicarEstadoNoGameObjectDirect(ghostObj, novoEstado);
+                OnEstadoEntidadeAlterado?.Invoke(id, novoEstado);
+            }
+
+            AtualizarComportamentoFisicoFantasmaDirect(ghostObj, id, novoEstado, posPacMan, posFantasma);
+        }
+
+        /// <summary>
+        /// Atualiza dinamicamente a movimentação e perseguição ativa do fantasma a cada frame.
+        /// Configura o NavMeshAgent chamando SetDestination(posicaoPacMan) ativamente ou executa translação de perseguição por corredor.
+        /// </summary>
+        /// <summary>
+        /// Calcula o destino tático inteligente para cada fantasma eliminando o alinhamento em fila indiana.
+        /// Aplica papéis clássicos do Pac-Man (Blinky, Pinky, Inky, Clyde) com ondas periódicas de dispersão
+        /// e repulsão mútua entre fantasmas para ocupar corredores paralelos.
+        /// </summary>
+        public Vector3 CalcularDestinoTaticoFantasma(GameObject ghostObj, string id, Vector3 posPacMan, Vector3 posAtual, List<GameObject> outrosFantasmas)
+        {
+            Vector3 fwdPacMan = alvoPacMan != null ? alvoPacMan.forward : Vector3.forward;
+            Vector3 rgtPacMan = alvoPacMan != null ? alvoPacMan.right : Vector3.right;
+            fwdPacMan.y = 0f; fwdPacMan.Normalize();
+            rgtPacMan.y = 0f; rgtPacMan.Normalize();
+
+            string idLower = (id ?? ghostObj.name).ToLower();
+            int papelIndex = 0; // 0=Blinky (Perseguidor), 1=Pinky (Emboscada), 2=Inky (Flanco), 3=Clyde (Vagante)
+            if (idLower.Contains("pinky") || idLower.Contains("invalido_02") || idLower.Contains("violacao_02") || idLower.Contains("hostmismatch") || idLower.Contains("2")) papelIndex = 1;
+            else if (idLower.Contains("inky") || idLower.Contains("invalido_03") || idLower.Contains("violacao_03") || idLower.Contains("habitatinconsistency") || idLower.Contains("3")) papelIndex = 2;
+            else if (idLower.Contains("clyde") || idLower.Contains("invalido_04") || idLower.Contains("violacao_04") || idLower.Contains("4")) papelIndex = 3;
+            else
+            {
+                papelIndex = Mathf.Abs(ghostObj.GetInstanceID()) % 4;
+            }
+
+            // Waypoints de patrulha livre distribuídos pelos 4 quadrantes do labirinto
+            Vector3[][] rotasPatrulhaQuadrantes = new Vector3[][]
+            {
+                new Vector3[] { new Vector3(6.5f, posAtual.y, 6.5f), new Vector3(7.5f, posAtual.y, 2.0f), new Vector3(2.5f, posAtual.y, 7.5f), new Vector3(0.0f, posAtual.y, 7.0f) },   // NE (Blinky)
+                new Vector3[] { new Vector3(-6.5f, posAtual.y, 6.5f), new Vector3(-7.5f, posAtual.y, 2.0f), new Vector3(-2.5f, posAtual.y, 7.5f), new Vector3(0.0f, posAtual.y, 7.0f) }, // NW (Pinky)
+                new Vector3[] { new Vector3(-6.5f, posAtual.y, -6.5f), new Vector3(-7.5f, posAtual.y, -2.0f), new Vector3(-2.5f, posAtual.y, -7.5f), new Vector3(0.0f, posAtual.y, -7.0f) }, // SW (Inky)
+                new Vector3[] { new Vector3(6.5f, posAtual.y, -6.5f), new Vector3(7.5f, posAtual.y, -2.0f), new Vector3(2.5f, posAtual.y, -7.5f), new Vector3(0.0f, posAtual.y, -7.0f) }   // SE (Clyde)
+            };
+            int subWaypoint = (int)((Time.time * 0.25f + papelIndex) % 4);
+            Vector3[] cantosPatrulha = new Vector3[]
+            {
+                rotasPatrulhaQuadrantes[0][subWaypoint],
+                rotasPatrulhaQuadrantes[1][subWaypoint],
+                rotasPatrulhaQuadrantes[2][subWaypoint],
+                rotasPatrulhaQuadrantes[3][subWaypoint]
+            };
+
+            Vector3 destinoTatico;
+
+            // 1. Modo de Dispersão / Patrulha periódica (os fantasmas espalham-se pelos 4 quadrantes)
+            if (m_ModoDispersaoAtivo)
+            {
+                destinoTatico = cantosPatrulha[papelIndex % cantosPatrulha.Length];
+            }
+            else
+            {
+                // 2. Modo Perseguição Tática Diferenciada
+                switch (papelIndex)
+                {
+                    case 0: // Blinky - Perseguição direta
+                        destinoTatico = posPacMan;
+                        break;
+
+                    case 1: // Pinky - Emboscada/Interceptador (antecipa 4.5m à frente do Pac-Man)
+                        destinoTatico = posPacMan + (fwdPacMan * 4.5f);
+                        break;
+
+                    case 2: // Inky - Flanqueador lateral (corta esquinas pelo flanco)
+                        destinoTatico = posPacMan + (rgtPacMan * 3.8f);
+                        break;
+
+                    case 3: // Clyde - Vagante autônomo (patrulha o quadrante Sudeste de forma independente)
+                    default:
+                        destinoTatico = cantosPatrulha[3];
+                        break;
+                }
+            }
+
+            // 3. Repulsão mútua entre fantasmas (desvia trajetórias para impedir fila indiana)
+            if (outrosFantasmas != null)
+            {
+                Vector3 forcaRepulsao = Vector3.zero;
+                for (int i = 0; i < outrosFantasmas.Count; i++)
+                {
+                    GameObject outro = outrosFantasmas[i];
+                    if (outro == null || outro == ghostObj) continue;
+
+                    Vector3 delta = posAtual - outro.transform.position;
+                    delta.y = 0f;
+                    float distOutro = delta.magnitude;
+                    if (distOutro > 0.05f && distOutro < 2.5f)
+                    {
+                        float intensidade = (2.5f - distOutro) / 2.5f;
+                        forcaRepulsao += delta.normalized * (intensidade * 3.2f);
+                    }
+                }
+
+                if (forcaRepulsao.sqrMagnitude > 0.01f)
+                {
+                    destinoTatico += forcaRepulsao;
+                }
+            }
+
+            return destinoTatico;
+        }
+
+        private void AtualizarComportamentoFisicoFantasmaDirect(GameObject ghostObj, string id, GameEntityState estado, Vector3 posPacMan, Vector3 posFantasma)
+        {
+            if (!moverFantasmasDinamicamente || ghostObj == null) return;
+
+            Transform tr = ghostObj.transform;
+            Vector3 posAtual = tr.position;
+
+            // Variação de velocidade por fantasma para quebrar qualquer sincronia
+            int idxFantasma = Mathf.Abs(ghostObj.GetInstanceID()) % 4;
+            float variacaoVel = 0.9f + (idxFantasma * 0.2f); // 0.9x, 1.1x, 1.3x, 1.5x
+
+            float velocidadeAtual = estado switch
+            {
+                GameEntityState.Vulnerable => velocidadeVulneravel,
+                _ => velocidadeAgressao * variacaoVel
+            };
+
+            // O alvo de perseguição deve permanecer estritamente no nível do chão (posAtual.y),
+            // impedindo que o fantasma suba até os olhos da câmera ("batendo na tela")
+            posPacMan = new Vector3(posPacMan.x, posAtual.y, posPacMan.z);
+
+            // Dano Imediato por Toque nos Fantasmas:
+            // Dispara no exato instante de contacto das superfícies das esferas (raio frontal/lateral <= 1.05m)
+            // Dano no Pac-Man com recuo obrigatório imediato de 6 metros (elimina fantasmas colados na tela)
+            if (estado != GameEntityState.Vulnerable && alvoPacMan != null)
+            {
+                float distHorizontal = Vector2.Distance(new Vector2(posAtual.x, posAtual.z), new Vector2(posPacMan.x, posPacMan.z));
+                if (distHorizontal <= 1.15f && Mathf.Abs(posAtual.y - posPacMan.y) < 1.8f)
+                {
+                    var ctrlXR = alvoPacMan.GetComponent<ControladorXRJogador>() ?? alvoPacMan.GetComponentInParent<ControladorXRJogador>();
+                    if (ctrlXR != null) ctrlXR.ExecutarDanoPacMan(ghostObj);
+                    else
+                    {
+                        var ctrlPadrao = alvoPacMan.GetComponent<PacMan.Player.ControladorJogador>() ?? alvoPacMan.GetComponentInParent<PacMan.Player.ControladorJogador>();
+                        if (ctrlPadrao != null) ctrlPadrao.ExecutarDanoPacMan(ghostObj);
+                    }
+
+                    // Recuo tático de 6.0 metros para trás
+                    Vector3 dirRecuo = (posAtual - posPacMan).normalized;
+                    dirRecuo.y = 0f;
+                    if (dirRecuo.sqrMagnitude < 0.01f) dirRecuo = -ghostObj.transform.forward;
+                    ghostObj.transform.position += dirRecuo * 6.0f;
+                    return;
+                }
+            }
+
+            // 1. Navegação com NavMeshAgent inteligente e espalhado
+            UnityEngine.AI.NavMeshAgent navAgent = ghostObj.GetComponent<UnityEngine.AI.NavMeshAgent>();
+            if (navAgent != null)
+            {
+                if (!navAgent.enabled) navAgent.enabled = true;
+
+                if (!navAgent.isOnNavMesh)
+                {
+                    if (UnityEngine.AI.NavMesh.SamplePosition(posAtual, out UnityEngine.AI.NavMeshHit hit, 2.5f, UnityEngine.AI.NavMesh.AllAreas))
+                    {
+                        navAgent.Warp(hit.position);
+                    }
+                }
+
+                if (navAgent.isOnNavMesh)
+                {
+                    navAgent.isStopped = false;
+                    navAgent.speed = velocidadeAtual;
+
+                    if (estado == GameEntityState.Vulnerable)
+                    {
+                        Vector3 fleeDir = (posAtual - posPacMan).normalized;
+                        navAgent.SetDestination(posAtual + fleeDir * 6.0f);
+                    }
+                    else
+                    {
+                        Vector3 destino = CalcularDestinoTaticoFantasma(ghostObj, id, posPacMan, posAtual, m_ListaFantasmasAtivos);
+                        if (UnityEngine.AI.NavMesh.SamplePosition(destino, out var hitDest, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
+                        {
+                            navAgent.SetDestination(hitDest.position);
+                        }
+                        else
+                        {
+                            navAgent.SetDestination(destino);
+                        }
+                    }
+                    return;
+                }
+            }
+
+            // 2. Translação Direcional Ativa por Corredores (fallback)
+            Vector3 melhorDirecao = Vector3.zero;
+
+            if (estado == GameEntityState.Vulnerable)
+            {
+                Vector3 dirFuga = (posAtual - posPacMan);
+                dirFuga.y = 0f;
+                if (dirFuga.sqrMagnitude > 0.04f)
+                {
+                    melhorDirecao = CalcularDirecaoNavegacaoCorredor(posAtual, dirFuga.normalized, posPacMan, perseguir: false, ghostObj);
+                }
+            }
+            else
+            {
+                Vector3 destino = CalcularDestinoTaticoFantasma(ghostObj, id, posPacMan, posAtual, m_ListaFantasmasAtivos);
+                Vector3 dirDesejada = (destino - posAtual);
+                dirDesejada.y = 0f;
+                if (dirDesejada.sqrMagnitude > 0.04f)
+                {
+                    melhorDirecao = CalcularDirecaoNavegacaoCorredor(posAtual, dirDesejada.normalized, destino, perseguir: true, ghostObj);
+                }
+            }
+
+            float distParaPacMan = Vector2.Distance(new Vector2(posAtual.x, posAtual.z), new Vector2(posPacMan.x, posPacMan.z));
+            if (distParaPacMan < 1.2f && estado != GameEntityState.Vulnerable)
+            {
+                // Mantém distância de parada tática sem colar na tela
+                Vector3 recuoPerto = (posAtual - posPacMan).normalized;
+                recuoPerto.y = 0f;
+                tr.position = new Vector3(posPacMan.x + recuoPerto.x * 1.35f, posAtual.y, posPacMan.z + recuoPerto.z * 1.35f);
+                return;
+            }
+
+            if (melhorDirecao.sqrMagnitude > 0.01f)
+            {
+                melhorDirecao.Normalize();
+                Vector3 deslocamento = melhorDirecao * (velocidadeAtual * Time.deltaTime);
+                Vector3 novaPos = posAtual + deslocamento;
+
+                float chaoY = posAtual.y;
+                if (gerenciadorCenario != null) chaoY = gerenciadorCenario.ObterAlturaSuperficieChao(novaPos) + 0.45f;
+                tr.position = new Vector3(novaPos.x, chaoY, novaPos.z);
+                tr.rotation = Quaternion.Slerp(tr.rotation, Quaternion.LookRotation(melhorDirecao), Time.deltaTime * 8f);
+            }
+        }
+
+        private bool ChecarCaminhoLivre(Vector3 origem, Vector3 direcao, float distancia, GameObject ignorarObj = null)
+        {
+            Vector3 pontoOrigem = origem + Vector3.up * 0.45f;
+
+            // 1. Bloqueio por paredes físicas sólidas
+            if (Physics.Raycast(pontoOrigem, direcao.normalized, out RaycastHit hit, distancia, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (hit.collider != null && !hit.collider.isTrigger)
+                {
+                    if (ignorarObj == null || (hit.collider.gameObject != ignorarObj && !hit.collider.transform.IsChildOf(ignorarObj.transform)))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            if (Physics.SphereCast(pontoOrigem, 0.22f, direcao.normalized, out RaycastHit hitSphere, distancia, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (hitSphere.collider != null && !hitSphere.collider.isTrigger)
+                {
+                    if (ignorarObj == null || (hitSphere.collider.gameObject != ignorarObj && !hitSphere.collider.transform.IsChildOf(ignorarObj.transform)))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            // 2. Consciência de outros fantasmas à frente no mesmo corredor (FIM DA FILA INDIANA)
+            if (m_ListaFantasmasAtivos != null)
+            {
+                for (int i = 0; i < m_ListaFantasmasAtivos.Count; i++)
+                {
+                    GameObject outro = m_ListaFantasmasAtivos[i];
+                    if (outro == null || outro == ignorarObj) continue;
+
+                    Vector3 toOutro = outro.transform.position - origem;
+                    toOutro.y = 0f;
+                    float distOutro = toOutro.magnitude;
+
+                    // Se há outro fantasma à frente (distância < 2.5m e ângulo frontal < 50°), o corredor é considerado bloqueado
+                    if (distOutro > 0.1f && distOutro < 3.2f)
+                    {
+                        if (Vector3.Angle(direcao, toOutro) < 50f)
+                        {
+                            return false; // Força este fantasma a escolher outro corredor!
+                        }
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        private Vector3 CalcularDirecaoNavegacaoCorredor(Vector3 posAtual, Vector3 dirPreferencial, Vector3 posPacMan, bool perseguir, GameObject ignorarObj = null)
+        {
+            if (ChecarCaminhoLivre(posAtual, dirPreferencial, 1.2f, ignorarObj))
+            {
+                return dirPreferencial;
+            }
+
+            // Avalia esquinas (90°) e retorno (180°) com prioridade para rotas alternativas desimpedidas
+            float[] angulos = new float[] { 90f, -90f, 180f, 45f, -45f, 135f, -135f };
+            Vector3 melhorDir = Vector3.zero;
+            float melhorMetrica = perseguir ? float.MaxValue : float.MinValue;
+
+            foreach (float ang in angulos)
+            {
+                Vector3 cand = Quaternion.Euler(0f, ang, 0f) * dirPreferencial;
+                cand.y = 0f;
+                cand.Normalize();
+
+                if (ChecarCaminhoLivre(posAtual, cand, 1.0f, ignorarObj))
+                {
+                    Vector3 posFutura = posAtual + (cand * 1.5f);
+                    float distAoPacMan = Vector3.Distance(new Vector3(posFutura.x, 0f, posFutura.z), new Vector3(posPacMan.x, 0f, posPacMan.z));
+
+                    // Se a rota direta estava bloqueada por outro fantasma, aceita qualquer corredor aberto sem empacar
+                    if (perseguir)
+                    {
+                        if (distAoPacMan < melhorMetrica || melhorDir == Vector3.zero)
+                        {
+                            melhorMetrica = distAoPacMan;
+                            melhorDir = cand;
+                        }
+                    }
+                    else
+                    {
+                        if (distAoPacMan > melhorMetrica || melhorDir == Vector3.zero)
+                        {
+                            melhorMetrica = distAoPacMan;
+                            melhorDir = cand;
+                        }
+                    }
+                }
+            }
+
+            return melhorDir;
+        }
+
+        private void AplicarEstadoNoGameObjectDirect(GameObject ghostObj, GameEntityState novoEstado)
+        {
+            if (ghostObj == null) return;
+
+            Renderer[] renderers = ghostObj.GetComponentsInChildren<Renderer>();
+            if (renderers != null)
+            {
+                Color corAlvo = novoEstado switch
+                {
+                    GameEntityState.Vulnerable => corVulneravel,
+                    GameEntityState.Aggressive => corAgressivo,
+                    _ => corPatrulha
+                };
+
+                for (int i = 0; i < renderers.Length; i++)
+                {
+                    Renderer rend = renderers[i];
+                    if (rend != null && rend.material != null)
+                    {
+                        if (rend.material.HasProperty("_BaseColor")) rend.material.SetColor("_BaseColor", corAlvo);
+                        if (rend.material.HasProperty("_Color")) rend.material.SetColor("_Color", corAlvo);
+                        if (rend.material.HasProperty("_EmissionColor"))
+                        {
+                            rend.material.EnableKeyword("_EMISSION");
+                            rend.material.SetColor("_EmissionColor", corAlvo * (novoEstado == GameEntityState.Aggressive ? 0.9f : 0.5f));
+                        }
+                    }
+                }
+            }
+
+            AnimacaoFantasma anim = ghostObj.GetComponent<AnimacaoFantasma>();
+            if (anim != null && novoEstado == GameEntityState.Vulnerable)
+            {
+                anim.DispararSusto(0.5f);
             }
         }
 
@@ -406,6 +769,103 @@ namespace PacMan.Semantics
             {
                 semanticGraph = graph;
                 m_EstadosEntidades.Clear();
+            }
+        }
+
+        /// <summary>
+        /// FORÇA DE SEPARAÇÃO MATEMÁTICA INTRANSIGÍVEL (Vector3.Lerp / Repulsão Lateral):
+        /// Se dois fantasmas estiverem a menos de 3 metros um do outro, o fantasma de trás
+        /// é forçado a recalcular a rota para o entroncamento/corredor paralelo mais próximo,
+        /// impedindo totalmente que andem em fila indiana.
+        /// </summary>
+        private void AplicarSeparacaoMatematicaIntransigivelFantasmas(Vector3 posPacMan)
+        {
+            if (m_ListaFantasmasAtivos == null || m_ListaFantasmasAtivos.Count < 2) return;
+
+            for (int i = 0; i < m_ListaFantasmasAtivos.Count; i++)
+            {
+                GameObject ghostA = m_ListaFantasmasAtivos[i];
+                if (ghostA == null || !ghostA.activeInHierarchy) continue;
+
+                for (int j = i + 1; j < m_ListaFantasmasAtivos.Count; j++)
+                {
+                    GameObject ghostB = m_ListaFantasmasAtivos[j];
+                    if (ghostB == null || !ghostB.activeInHierarchy) continue;
+
+                    Vector3 posA = ghostA.transform.position;
+                    Vector3 posB = ghostB.transform.position;
+                    Vector3 delta = posA - posB;
+                    delta.y = 0f;
+                    float dist = delta.magnitude;
+
+                    // Se dois fantasmas estiverem a menos de 3 metros um do outro
+                    if (dist < 3.0f && dist > 0.001f)
+                    {
+                        // 1. Identifica matematicamente qual fantasma está atrás (mais longe do Pac-Man)
+                        float distPacA = Vector2.Distance(new Vector2(posA.x, posA.z), new Vector2(posPacMan.x, posPacMan.z));
+                        float distPacB = Vector2.Distance(new Vector2(posB.x, posB.z), new Vector2(posPacMan.x, posPacMan.z));
+
+                        GameObject fantasmaFrente = distPacA <= distPacB ? ghostA : ghostB;
+                        GameObject fantasmaTras = distPacA <= distPacB ? ghostB : ghostA;
+
+                        Transform trFrente = fantasmaFrente.transform;
+                        Transform trTras = fantasmaTras.transform;
+
+                        // 2. Calcula vetor lateral perpendicular intransigível
+                        Vector3 fwdLider = trFrente.forward;
+                        fwdLider.y = 0f;
+                        if (fwdLider.sqrMagnitude < 0.01f) fwdLider = Vector3.forward;
+                        fwdLider.Normalize();
+
+                        Vector3 lateralCorredor = Vector3.Cross(Vector3.up, fwdLider).normalized;
+
+                        Vector3 relPos = trTras.position - trFrente.position;
+                        relPos.y = 0f;
+                        float dotLado = Vector3.Dot(lateralCorredor, relPos);
+                        Vector3 dirLateralRepulsao = (dotLado >= 0f ? lateralCorredor : -lateralCorredor);
+
+                        // 3. Força matemática de separação lateral + recuo longitudinal
+                        float fatorForca = (3.0f - dist) / 3.0f; // 0..1
+                        float magnitudeRepulsao = Mathf.Clamp(fatorForca * 4.2f, 1.5f, 5.0f);
+
+                        Vector3 vetorRepulsaoTotal = (dirLateralRepulsao * magnitudeRepulsao) - (fwdLider * (magnitudeRepulsao * 0.85f));
+                        Vector3 posDesejadaTras = trTras.position + (vetorRepulsaoTotal * Time.deltaTime);
+
+                        // Aplica translação matemática intransigível via Vector3.Lerp
+                        trTras.position = Vector3.Lerp(trTras.position, posDesejadaTras, Time.deltaTime * 12.0f);
+
+                        // Se houver NavMeshAgent, aplica deslocamento de evasão
+                        UnityEngine.AI.NavMeshAgent navTras = fantasmaTras.GetComponent<UnityEngine.AI.NavMeshAgent>();
+                        if (navTras != null && navTras.isOnNavMesh)
+                        {
+                            navTras.Move(vetorRepulsaoTotal * Time.deltaTime);
+                        }
+
+                        // 4. RECALCULO FORÇADO DE ROTA:
+                        // O fantasma de trás é forçado a recalcular a rota para o entroncamento/corredor paralelo
+                        Vector3 desvioEntroncamento = dirLateralRepulsao;
+                        if (!ChecarCaminhoLivre(trTras.position, desvioEntroncamento, 1.2f, fantasmaTras))
+                        {
+                            // Se a lateral estiver bloqueada pela parede do corredor, força inversão de marcha (180°)
+                            desvioEntroncamento = -fwdLider;
+                        }
+
+                        if (desvioEntroncamento.sqrMagnitude > 0.01f)
+                        {
+                            trTras.rotation = Quaternion.Slerp(trTras.rotation, Quaternion.LookRotation(desvioEntroncamento), Time.deltaTime * 14.0f);
+                        }
+
+                        // Direciona NavMeshAgent para o corredor alternativo
+                        if (navTras != null && navTras.isOnNavMesh)
+                        {
+                            Vector3 waypointParalelo = trTras.position + (desvioEntroncamento * 6.0f);
+                            if (UnityEngine.AI.NavMesh.SamplePosition(waypointParalelo, out var hitAlt, 3.5f, UnityEngine.AI.NavMesh.AllAreas))
+                            {
+                                navTras.SetDestination(hitAlt.position);
+                            }
+                        }
+                    }
+                }
             }
         }
     }

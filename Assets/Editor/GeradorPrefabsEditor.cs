@@ -170,6 +170,21 @@ public static class GeradorPrefabsEditor
         }
         controladorXR.controladorDireito = maoDireita;
 
+        // 7.1 HUD Holográfico Espacial de Pulso (Relógio Biomédico Antienjoo)
+        HUDHolograficoXR hudXR = Object.FindFirstObjectByType<HUDHolograficoXR>();
+        if (hudXR == null)
+        {
+            GameObject hudObj = new GameObject("HUD_Holografico_Pulso");
+            hudObj.transform.SetParent(maoEsquerda, false);
+            hudXR = hudObj.AddComponent<HUDHolograficoXR>();
+            hudXR.cameraXR = cam.transform;
+            hudXR.maoEsquerda = maoEsquerda;
+            hudXR.maoDireita = maoDireita;
+            hudXR.modoAncoragem = HUDHolograficoXR.ModoAncoragemHUD.PulsoEsquerdo;
+            hudXR.ConfigurarAncoragemInicial();
+            Undo.RegisterCreatedObjectUndo(hudObj, "Criar HUD Holografico Pulso");
+        }
+
         // 8. Gerenciador de Efeitos Juice (Partículas e Vibrações)
         GameObject juiceObj = GameObject.Find("GerenciadorEfeitosJuice");
         if (juiceObj == null)

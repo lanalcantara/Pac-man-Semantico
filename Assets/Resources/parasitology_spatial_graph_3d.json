@@ -1,0 +1,801 @@
+{
+  "nodes": [
+    {
+      "id": "Parasite",
+      "label": "Parasite",
+      "type": 0,
+      "color": "#FFA500",
+      "x": 1.064,
+      "y": 52.566,
+      "z": -6.553
+    },
+    {
+      "id": "Nematoda",
+      "label": "Nematoda",
+      "type": 0,
+      "color": "#FFA500",
+      "x": -10.842,
+      "y": 34.857,
+      "z": 0.668
+    },
+    {
+      "id": "Platyhelminthes",
+      "label": "Platyhelminthes",
+      "type": 0,
+      "color": "#FFA500",
+      "x": 16.203,
+      "y": 41.117,
+      "z": -7.301
+    },
+    {
+      "id": "AscarisLumbricoides",
+      "label": "Ascaris lumbricoides",
+      "type": 0,
+      "color": "#FFA500",
+      "x": -11.505,
+      "y": 8.145,
+      "z": 4.404
+    },
+    {
+      "id": "EnterobiusVermicularis",
+      "label": "Enterobius vermicularis",
+      "type": 0,
+      "color": "#FFA500",
+      "x": -5.71,
+      "y": 14.202,
+      "z": 13.724
+    },
+    {
+      "id": "TaeniaSolium",
+      "label": "Taenia solium",
+      "type": 0,
+      "color": "#FFA500",
+      "x": 11.565,
+      "y": 10.594,
+      "z": -0.27
+    },
+    {
+      "id": "Host",
+      "label": "Host",
+      "type": 0,
+      "color": "#FFA500",
+      "x": 38.522,
+      "y": 23.265,
+      "z": -27.552
+    },
+    {
+      "id": "Human",
+      "label": "Human",
+      "type": 0,
+      "color": "#FFA500",
+      "x": 9.782,
+      "y": 9.21,
+      "z": -13.785
+    },
+    {
+      "id": "Pig",
+      "label": "Pig",
+      "type": 0,
+      "color": "#FFA500",
+      "x": 45.319,
+      "y": 7.249,
+      "z": -20.727
+    },
+    {
+      "id": "Habitat",
+      "label": "Habitat",
+      "type": 0,
+      "color": "#FFA500",
+      "x": -52.685,
+      "y": 32.333,
+      "z": -26.825
+    },
+    {
+      "id": "Intestine",
+      "label": "Intestine",
+      "type": 0,
+      "color": "#FFA500",
+      "x": -39.925,
+      "y": 25.801,
+      "z": -39.063
+    },
+    {
+      "id": "SmallIntestine",
+      "label": "Small Intestine",
+      "type": 0,
+      "color": "#FFA500",
+      "x": -17.525,
+      "y": 6.176,
+      "z": -21.731
+    },
+    {
+      "id": "LargeIntestine",
+      "label": "Large Intestine",
+      "type": 0,
+      "color": "#FFA500",
+      "x": -26.655,
+      "y": 27.42,
+      "z": -47.896
+    },
+    {
+      "id": "PerianalRegion",
+      "label": "Perianal Region",
+      "type": 0,
+      "color": "#FFA500",
+      "x": -44.871,
+      "y": 12.06,
+      "z": -11.615
+    },
+    {
+      "id": "Morphology",
+      "label": "Morphology",
+      "type": 0,
+      "color": "#FFA500",
+      "x": -44.115,
+      "y": 28.044,
+      "z": 27.171
+    },
+    {
+      "id": "Cylindrical",
+      "label": "Cylindrical",
+      "type": 0,
+      "color": "#FFA500",
+      "x": -26.67,
+      "y": 11.087,
+      "z": 21.731
+    },
+    {
+      "id": "FlatSegments",
+      "label": "Flat Segments",
+      "type": 0,
+      "color": "#FFA500",
+      "x": -37.214,
+      "y": 11.738,
+      "z": 10.397
+    },
+    {
+      "id": "Transmission",
+      "label": "Transmission",
+      "type": 0,
+      "color": "#FFA500",
+      "x": -3.043,
+      "y": 22.835,
+      "z": 52.775
+    },
+    {
+      "id": "FecalOral",
+      "label": "Fecal-Oral",
+      "type": 0,
+      "color": "#FFA500",
+      "x": -20.082,
+      "y": 6.826,
+      "z": 45.321
+    },
+    {
+      "id": "UndercookedPork",
+      "label": "Undercooked Pork",
+      "type": 0,
+      "color": "#FFA500",
+      "x": 13.448,
+      "y": 8.407,
+      "z": 45.229
+    },
+    {
+      "id": "Autoinfection",
+      "label": "Autoinfection",
+      "type": 0,
+      "color": "#FFA500",
+      "x": -4.517,
+      "y": 13.006,
+      "z": 36.839
+    },
+    {
+      "id": "Symptom",
+      "label": "Symptom",
+      "type": 0,
+      "color": "#FFA500",
+      "x": 41.794,
+      "y": 23.0,
+      "z": 26.665
+    },
+    {
+      "id": "AbdominalPain",
+      "label": "Abdominal Pain",
+      "type": 0,
+      "color": "#FFA500",
+      "x": 20.123,
+      "y": 9.92,
+      "z": 21.04
+    },
+    {
+      "id": "PruritusAni",
+      "label": "Pruritus Ani",
+      "type": 0,
+      "color": "#FFA500",
+      "x": 35.419,
+      "y": 8.009,
+      "z": 34.557
+    },
+    {
+      "id": "Malnutrition",
+      "label": "Malnutrition",
+      "type": 0,
+      "color": "#FFA500",
+      "x": 40.268,
+      "y": 10.033,
+      "z": 7.069
+    },
+    {
+      "id": "has_host",
+      "label": "has_host",
+      "type": 2,
+      "color": "#0000FF",
+      "x": 33.735,
+      "y": -8.48,
+      "z": -45.417
+    },
+    {
+      "id": "has_habitat",
+      "label": "has_habitat",
+      "type": 2,
+      "color": "#0000FF",
+      "x": -23.535,
+      "y": -14.915,
+      "z": -44.269
+    },
+    {
+      "id": "has_morphology",
+      "label": "has_morphology",
+      "type": 2,
+      "color": "#0000FF",
+      "x": -53.212,
+      "y": -9.369,
+      "z": 30.819
+    },
+    {
+      "id": "has_transmission",
+      "label": "has_transmission",
+      "type": 2,
+      "color": "#0000FF",
+      "x": 1.967,
+      "y": -8.051,
+      "z": 41.506
+    },
+    {
+      "id": "has_symptom",
+      "label": "has_symptom",
+      "type": 2,
+      "color": "#0000FF",
+      "x": 50.246,
+      "y": -9.523,
+      "z": 18.973
+    },
+    {
+      "id": "sample_case_ascaris",
+      "label": "Ascaris Sample Case",
+      "type": 1,
+      "color": "#00FF00",
+      "x": -13.347,
+      "y": -24.027,
+      "z": 4.098
+    },
+    {
+      "id": "sample_case_enterobius",
+      "label": "Enterobius Sample Case",
+      "type": 1,
+      "color": "#00FF00",
+      "x": -6.144,
+      "y": -18.856,
+      "z": 14.51
+    },
+    {
+      "id": "sample_case_taenia",
+      "label": "Taenia Sample Case",
+      "type": 1,
+      "color": "#00FF00",
+      "x": 5.408,
+      "y": -21.909,
+      "z": 1.2
+    },
+    {
+      "id": "human1",
+      "label": "Patient Human 01",
+      "type": 1,
+      "color": "#00FF00",
+      "x": 3.124,
+      "y": -19.982,
+      "z": -11.704
+    },
+    {
+      "id": "pig1",
+      "label": "Swine Host 01",
+      "type": 1,
+      "color": "#00FF00",
+      "x": 59.628,
+      "y": -14.526,
+      "z": -23.919
+    },
+    {
+      "id": "smallintestine1",
+      "label": "Small Intestine Site",
+      "type": 1,
+      "color": "#00FF00",
+      "x": -14.862,
+      "y": -24.861,
+      "z": -18.601
+    },
+    {
+      "id": "perianal1",
+      "label": "Perianal Region Site",
+      "type": 1,
+      "color": "#00FF00",
+      "x": -44.056,
+      "y": -15.845,
+      "z": -10.117
+    },
+    {
+      "id": "fecaloral1",
+      "label": "Fecal-Oral Ingestion",
+      "type": 1,
+      "color": "#00FF00",
+      "x": -25.036,
+      "y": -20.429,
+      "z": 41.283
+    },
+    {
+      "id": "undercookedpork1",
+      "label": "Undercooked Pork Intake",
+      "type": 1,
+      "color": "#00FF00",
+      "x": 14.753,
+      "y": -21.258,
+      "z": 42.733
+    },
+    {
+      "id": "autoinfection1",
+      "label": "Anal-Oral Autoinfection",
+      "type": 1,
+      "color": "#00FF00",
+      "x": -5.214,
+      "y": -25.39,
+      "z": 33.85
+    },
+    {
+      "id": "cylindrical1",
+      "label": "Cylindrical Body",
+      "type": 1,
+      "color": "#00FF00",
+      "x": -24.789,
+      "y": -22.52,
+      "z": 18.421
+    },
+    {
+      "id": "flatsegments1",
+      "label": "Proglottid Segments",
+      "type": 1,
+      "color": "#00FF00",
+      "x": -36.731,
+      "y": -18.889,
+      "z": 5.772
+    },
+    {
+      "id": "abdpain1",
+      "label": "Abdominal Pain Case",
+      "type": 1,
+      "color": "#00FF00",
+      "x": 15.616,
+      "y": -23.791,
+      "z": 18.021
+    },
+    {
+      "id": "pruritus1",
+      "label": "Nocturnal Pruritus Ani",
+      "type": 1,
+      "color": "#00FF00",
+      "x": 33.752,
+      "y": -19.674,
+      "z": 33.664
+    },
+    {
+      "id": "malnutrition1",
+      "label": "Nutrient Deficiency Case",
+      "type": 1,
+      "color": "#00FF00",
+      "x": 35.551,
+      "y": -20.606,
+      "z": -0.096
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_sub_01",
+      "source": "Nematoda",
+      "target": "Parasite",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_02",
+      "source": "Platyhelminthes",
+      "target": "Parasite",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_03",
+      "source": "AscarisLumbricoides",
+      "target": "Nematoda",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_04",
+      "source": "EnterobiusVermicularis",
+      "target": "Nematoda",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_05",
+      "source": "TaeniaSolium",
+      "target": "Platyhelminthes",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_06",
+      "source": "Human",
+      "target": "Host",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_07",
+      "source": "Pig",
+      "target": "Host",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_08",
+      "source": "Intestine",
+      "target": "Habitat",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_09",
+      "source": "SmallIntestine",
+      "target": "Intestine",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_10",
+      "source": "LargeIntestine",
+      "target": "Intestine",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_11",
+      "source": "PerianalRegion",
+      "target": "Habitat",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_12",
+      "source": "Cylindrical",
+      "target": "Morphology",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_13",
+      "source": "FlatSegments",
+      "target": "Morphology",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_14",
+      "source": "FecalOral",
+      "target": "Transmission",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_15",
+      "source": "UndercookedPork",
+      "target": "Transmission",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_16",
+      "source": "Autoinfection",
+      "target": "Transmission",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_17",
+      "source": "AbdominalPain",
+      "target": "Symptom",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_18",
+      "source": "PruritusAni",
+      "target": "Symptom",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_sub_19",
+      "source": "Malnutrition",
+      "target": "Symptom",
+      "label": "subClassOf"
+    },
+    {
+      "id": "e_axi_01",
+      "source": "AscarisLumbricoides",
+      "target": "Human",
+      "label": "has_host"
+    },
+    {
+      "id": "e_axi_02",
+      "source": "AscarisLumbricoides",
+      "target": "SmallIntestine",
+      "label": "has_habitat"
+    },
+    {
+      "id": "e_axi_03",
+      "source": "AscarisLumbricoides",
+      "target": "FecalOral",
+      "label": "has_transmission"
+    },
+    {
+      "id": "e_axi_04",
+      "source": "AscarisLumbricoides",
+      "target": "Cylindrical",
+      "label": "has_morphology"
+    },
+    {
+      "id": "e_axi_05",
+      "source": "AscarisLumbricoides",
+      "target": "AbdominalPain",
+      "label": "has_symptom"
+    },
+    {
+      "id": "e_axi_06",
+      "source": "EnterobiusVermicularis",
+      "target": "Human",
+      "label": "has_host"
+    },
+    {
+      "id": "e_axi_07",
+      "source": "EnterobiusVermicularis",
+      "target": "PerianalRegion",
+      "label": "has_habitat"
+    },
+    {
+      "id": "e_axi_08",
+      "source": "EnterobiusVermicularis",
+      "target": "Autoinfection",
+      "label": "has_transmission"
+    },
+    {
+      "id": "e_axi_09",
+      "source": "EnterobiusVermicularis",
+      "target": "Cylindrical",
+      "label": "has_morphology"
+    },
+    {
+      "id": "e_axi_10",
+      "source": "EnterobiusVermicularis",
+      "target": "PruritusAni",
+      "label": "has_symptom"
+    },
+    {
+      "id": "e_axi_11",
+      "source": "TaeniaSolium",
+      "target": "Human",
+      "label": "has_host"
+    },
+    {
+      "id": "e_axi_12",
+      "source": "TaeniaSolium",
+      "target": "Pig",
+      "label": "has_host"
+    },
+    {
+      "id": "e_axi_13",
+      "source": "TaeniaSolium",
+      "target": "SmallIntestine",
+      "label": "has_habitat"
+    },
+    {
+      "id": "e_axi_14",
+      "source": "TaeniaSolium",
+      "target": "UndercookedPork",
+      "label": "has_transmission"
+    },
+    {
+      "id": "e_axi_15",
+      "source": "TaeniaSolium",
+      "target": "FlatSegments",
+      "label": "has_morphology"
+    },
+    {
+      "id": "e_axi_16",
+      "source": "TaeniaSolium",
+      "target": "Malnutrition",
+      "label": "has_symptom"
+    },
+    {
+      "id": "e_ind_01",
+      "source": "sample_case_ascaris",
+      "target": "AscarisLumbricoides",
+      "label": "rdf:type"
+    },
+    {
+      "id": "e_ind_02",
+      "source": "sample_case_ascaris",
+      "target": "human1",
+      "label": "has_host"
+    },
+    {
+      "id": "e_ind_03",
+      "source": "sample_case_ascaris",
+      "target": "smallintestine1",
+      "label": "has_habitat"
+    },
+    {
+      "id": "e_ind_04",
+      "source": "sample_case_ascaris",
+      "target": "fecaloral1",
+      "label": "has_transmission"
+    },
+    {
+      "id": "e_ind_05",
+      "source": "sample_case_ascaris",
+      "target": "cylindrical1",
+      "label": "has_morphology"
+    },
+    {
+      "id": "e_ind_06",
+      "source": "sample_case_ascaris",
+      "target": "abdpain1",
+      "label": "has_symptom"
+    },
+    {
+      "id": "e_ind_07",
+      "source": "sample_case_enterobius",
+      "target": "EnterobiusVermicularis",
+      "label": "rdf:type"
+    },
+    {
+      "id": "e_ind_08",
+      "source": "sample_case_enterobius",
+      "target": "human1",
+      "label": "has_host"
+    },
+    {
+      "id": "e_ind_09",
+      "source": "sample_case_enterobius",
+      "target": "perianal1",
+      "label": "has_habitat"
+    },
+    {
+      "id": "e_ind_10",
+      "source": "sample_case_enterobius",
+      "target": "autoinfection1",
+      "label": "has_transmission"
+    },
+    {
+      "id": "e_ind_11",
+      "source": "sample_case_enterobius",
+      "target": "cylindrical1",
+      "label": "has_morphology"
+    },
+    {
+      "id": "e_ind_12",
+      "source": "sample_case_enterobius",
+      "target": "pruritus1",
+      "label": "has_symptom"
+    },
+    {
+      "id": "e_ind_13",
+      "source": "sample_case_taenia",
+      "target": "TaeniaSolium",
+      "label": "rdf:type"
+    },
+    {
+      "id": "e_ind_14",
+      "source": "sample_case_taenia",
+      "target": "human1",
+      "label": "has_host"
+    },
+    {
+      "id": "e_ind_15",
+      "source": "sample_case_taenia",
+      "target": "smallintestine1",
+      "label": "has_habitat"
+    },
+    {
+      "id": "e_ind_16",
+      "source": "sample_case_taenia",
+      "target": "undercookedpork1",
+      "label": "has_transmission"
+    },
+    {
+      "id": "e_ind_17",
+      "source": "sample_case_taenia",
+      "target": "flatsegments1",
+      "label": "has_morphology"
+    },
+    {
+      "id": "e_ind_18",
+      "source": "sample_case_taenia",
+      "target": "malnutrition1",
+      "label": "has_symptom"
+    },
+    {
+      "id": "e_ind_19",
+      "source": "human1",
+      "target": "Human",
+      "label": "rdf:type"
+    },
+    {
+      "id": "e_ind_20",
+      "source": "pig1",
+      "target": "Pig",
+      "label": "rdf:type"
+    },
+    {
+      "id": "e_ind_21",
+      "source": "smallintestine1",
+      "target": "SmallIntestine",
+      "label": "rdf:type"
+    },
+    {
+      "id": "e_ind_22",
+      "source": "perianal1",
+      "target": "PerianalRegion",
+      "label": "rdf:type"
+    },
+    {
+      "id": "e_ind_23",
+      "source": "fecaloral1",
+      "target": "FecalOral",
+      "label": "rdf:type"
+    },
+    {
+      "id": "e_ind_24",
+      "source": "undercookedpork1",
+      "target": "UndercookedPork",
+      "label": "rdf:type"
+    },
+    {
+      "id": "e_ind_25",
+      "source": "autoinfection1",
+      "target": "Autoinfection",
+      "label": "rdf:type"
+    },
+    {
+      "id": "e_ind_26",
+      "source": "cylindrical1",
+      "target": "Cylindrical",
+      "label": "rdf:type"
+    },
+    {
+      "id": "e_ind_27",
+      "source": "flatsegments1",
+      "target": "FlatSegments",
+      "label": "rdf:type"
+    },
+    {
+      "id": "e_ind_28",
+      "source": "abdpain1",
+      "target": "AbdominalPain",
+      "label": "rdf:type"
+    },
+    {
+      "id": "e_ind_29",
+      "source": "pruritus1",
+      "target": "PruritusAni",
+      "label": "rdf:type"
+    },
+    {
+      "id": "e_ind_30",
+      "source": "malnutrition1",
+      "target": "Malnutrition",
+      "label": "rdf:type"
+    }
+  ]
+}

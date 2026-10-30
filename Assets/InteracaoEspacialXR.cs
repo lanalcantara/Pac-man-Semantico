@@ -1,21 +1,26 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR;
 
 /// <summary>
 /// ============================================================================
-/// PAC-MAN SEMÂNTICO (Semantic Pac-Man) - Modelagem Orientada a Objetos (UML/C++)
+/// PAC-MAN SEMÂNTICO (Semantic Pac-Man) - Interação Espacial por Apontamento XR
 /// ============================================================================
-/// Módulo de Interação Espacial 3D para Controladores e Hand Tracking no Pac-Man Semântico.
-/// Opera diretamente sobre a interface IInstanciaSemantica.
+/// Módulo de Apontamento e Raycast Laser 3D para Controladores de Realidade Virtual.
+/// Permite que o utilizador aponte o laser do comando de RV diretamente para gemas,
+/// parasitas e fantasmas hostis, realizando a inspeção prévia de classes e instâncias
+/// ontológicas (Ascaris lumbricoides, Taenia solium, etc.) antes da captura física.
 /// 
 /// Funcionalidades:
-/// 1. Coleta Direta por Proximidade e Toque Tátil (Trigger Colliders nas mãos/boca do Pac-Man).
-/// 2. Raycasting Espacial com Laser Visível (LineRenderer) para inspeção e coleta à distância.
-/// 3. Feedback Háptico e Luminoso em tempo real ao interagir com gemas e obstáculos.
+/// 1. Feixe Laser Volumétrico com Retículo Holográfico Inteligente.
+/// 2. Detecção e Realce Visual com Cores Semânticas (Verde = Válida, Vermelho = Hostil/Inválida).
+/// 3. Haptic Feedback tátil refinado ao focar espécimes biológicos no labirinto.
+/// 4. Captura à distância por gatilho do controlador (Index Trigger / Primary Button).
 /// ============================================================================
 /// </summary>
 [RequireComponent(typeof(SphereCollider))]
+[AddComponentMenu("Pac-Man Semântico/XR/Interação Espacial XR")]
 public class InteracaoEspacialXR : MonoBehaviour
 {
     public enum MaoXR
@@ -25,28 +30,32 @@ public class InteracaoEspacialXR : MonoBehaviour
         CabecaHeadset
     }
 
-    [Header("Configuração do Dispositivo")]
-    [Tooltip("Define se este controlador representa a mão esquerda, direita ou a visão do Pac-Man.")]
+    [Header("Configuração do Controlador")]
+    [Tooltip("Identificador do controlador físico no XR Origin.")]
     public MaoXR tipoMao = MaoXR.MaoDireita;
 
-    [Header("Raycast Espacial (Laser Pointer)")]
-    [Tooltip("Habilita o feixe de laser para interações semânticas à distância.")]
+    [Header("Feixe Laser (Raycast Pointer)")]
+    [Tooltip("Habilita o feixe laser para inspeção ontológica à distância.")]
     public bool habilitarRaycast = true;
 
     [Tooltip("Alcance máximo do raio laser em metros.")]
-    public float distanciaMaximaRaycast = 12f;
+    public float distanciaMaximaRaycast = 15f;
 
     [Tooltip("Camadas de colisão consideradas pelo raio laser.")]
     public LayerMask camadasAlvo = ~0;
 
-    [Tooltip("Cor do laser em estado de repouso.")]
-    public Color corLaserRepouso = new Color(0f, 0.8f, 1f, 0.6f);
+    [Header("Cores Semânticas do Laser")]
+    [Tooltip("Cor do feixe quando não está apontando para nenhum elemento semântico.")]
+    public Color corLaserRepouso = new Color(0f, 0.85f, 1f, 0.55f);
 
-    [Tooltip("Cor do laser quando está mirando em uma gema ou obstáculo semântico.")]
-    public Color corLaserFoco = new Color(0.2f, 1f, 0.4f, 0.9f);
+    [Tooltip("Cor do feixe ao focar uma Gema Válida (Parasita Conforme).")]
+    public Color corLaserGemaValida = new Color(0.1f, 1f, 0.45f, 0.95f);
 
-    [Header("Retículo Visual")]
-    [Tooltip("Exibir retículo luminoso no ponto de mira.")]
+    [Tooltip("Cor do feixe ao focar um Obstáculo Inválido ou Fantasma Hostil.")]
+    public Color corLaserObstaculo = new Color(1f, 0.15f, 0.25f, 0.95f);
+
+    [Header("Retículo Visual Holográfico")]
+    [Tooltip("Exibir anel/retículo no ponto de impacto da mira.")]
     public bool mostrarReticulo = true;
 
     private LineRenderer m_LineRenderer;
@@ -59,8 +68,11 @@ public class InteracaoEspacialXR : MonoBehaviour
     private void Awake()
     {
         m_ColisorProximidade = GetComponent<SphereCollider>();
-        m_ColisorProximidade.isTrigger = true;
-        m_ColisorProximidade.radius = 0.12f;
+        if (m_ColisorProximidade != null)
+        {
+            m_ColisorProximidade.isTrigger = true;
+            m_ColisorProximidade.radius = 0.12f;
+        }
 
         InicializarLaser();
         InicializarReticulo();
@@ -92,7 +104,7 @@ public class InteracaoEspacialXR : MonoBehaviour
             m_LineRenderer = gameObject.AddComponent<LineRenderer>();
         }
 
-        m_LineRenderer.startWidth = 0.008f;
+        m_LineRenderer.startWidth = 0.007f;
         m_LineRenderer.endWidth = 0.002f;
         m_LineRenderer.positionCount = 2;
         m_LineRenderer.useWorldSpace = true;
@@ -110,8 +122,8 @@ public class InteracaoEspacialXR : MonoBehaviour
         if (!mostrarReticulo) return;
 
         m_ReticuloObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        m_ReticuloObj.name = $"Reticulo_PacMan_{tipoMao}";
-        m_ReticuloObj.transform.localScale = Vector3.one * 0.04f;
+        m_ReticuloObj.name = $"Reticulo_Holografico_{tipoMao}";
+        m_ReticuloObj.transform.localScale = Vector3.one * 0.035f;
 
         Collider c = m_ReticuloObj.GetComponent<Collider>();
         if (c != null) Destroy(c);
@@ -127,6 +139,9 @@ public class InteracaoEspacialXR : MonoBehaviour
         m_ReticuloObj.SetActive(false);
     }
 
+    /// <summary>
+    /// Processa continuamente o raio laser e detecta entidades da ontologia de parasitologia sob o feixe.
+    /// </summary>
     private void ProcessarRaycastEspacial()
     {
         Vector3 origem = transform.position;
@@ -134,14 +149,14 @@ public class InteracaoEspacialXR : MonoBehaviour
         Vector3 pontoFinal = origem + (direcao * distanciaMaximaRaycast);
 
         RaycastHit hit;
-        bool colidiu = Physics.Raycast(origem, direcao, out hit, distanciaMaximaRaycast, camadasAlvo);
+        bool colidiu = Physics.Raycast(origem, direcao, out hit, distanciaMaximaRaycast, camadasAlvo, QueryTriggerInteraction.Collide);
 
         IInstanciaSemantica instanciaDetectada = null;
 
         if (colidiu)
         {
             pontoFinal = hit.point;
-            instanciaDetectada = hit.collider.GetComponentInParent<IInstanciaSemantica>();
+            instanciaDetectada = hit.collider.GetComponentInParent<IInstanciaSemantica>() ?? hit.collider.GetComponent<IInstanciaSemantica>();
         }
 
         if (m_LineRenderer != null)
@@ -160,6 +175,7 @@ public class InteracaoEspacialXR : MonoBehaviour
             }
         }
 
+        // Transição de foco semântico (Inspeção prévia)
         if (instanciaDetectada != m_InstanciaSobFoco)
         {
             if (m_InstanciaSobFoco != null)
@@ -172,8 +188,14 @@ public class InteracaoEspacialXR : MonoBehaviour
             if (m_InstanciaSobFoco != null)
             {
                 m_InstanciaSobFoco.DefinirFocoVisual(true);
-                AjustarCorLaser(corLaserFoco);
-                DispararVibracaoHaptica(0.15f, 0.05f);
+
+                Color corFoco = m_InstanciaSobFoco.EhValida ? corLaserGemaValida : corLaserObstaculo;
+                AjustarCorLaser(corFoco);
+
+                // Emite micro-vibração tátil suave no comando ao focar uma nova entidade
+                DispararVibracaoHaptica(0.18f, 0.04f);
+
+                Debug.Log($"<color=#00E5FF><b>[Inspeção Laser XR]</b></color> Focando '{m_InstanciaSobFoco.NomeClasse}' ({m_InstanciaSobFoco.Id}) | DL: [{m_InstanciaSobFoco.ExpressaoDL}]");
             }
             else
             {
@@ -182,27 +204,41 @@ public class InteracaoEspacialXR : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Processa o gatilho de interação/captura à distância através do controle XR ou simulador.
+    /// </summary>
     private void VerificarEntradaInteracao()
     {
         if (m_InstanciaSobFoco == null) return;
 
         bool acionado = false;
 
-        if (Input.GetButtonDown("Fire1") || Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0))
+        // 1. Teclado / Mouse Fallback (Editor)
+        if (Input.GetButtonDown("Fire1") || Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.E))
         {
             acionado = true;
         }
 
+        // 2. Leitura Direta de Dispositivos XR (OpenXR / Touch / Knuckles)
+        if (!m_DispositivoXR.isValid)
+        {
+            AtualizarDispositivoXR();
+        }
+
         if (m_DispositivoXR.isValid)
         {
-            bool triggerPressionado = false;
-            if (m_DispositivoXR.TryGetFeatureValue(CommonUsages.triggerButton, out triggerPressionado) && triggerPressionado)
+            // Gatilho Principal (Index Trigger)
+            if (m_DispositivoXR.TryGetFeatureValue(CommonUsages.triggerButton, out bool triggerPressionado) && triggerPressionado)
+            {
+                acionado = true;
+            }
+            else if (m_DispositivoXR.TryGetFeatureValue(CommonUsages.trigger, out float triggerValue) && triggerValue > 0.65f)
             {
                 acionado = true;
             }
 
-            bool primaryButton = false;
-            if (m_DispositivoXR.TryGetFeatureValue(CommonUsages.primaryButton, out primaryButton) && primaryButton)
+            // Botão Primário (Botão A / X)
+            if (m_DispositivoXR.TryGetFeatureValue(CommonUsages.primaryButton, out bool primaryButton) && primaryButton)
             {
                 acionado = true;
             }
@@ -210,9 +246,14 @@ public class InteracaoEspacialXR : MonoBehaviour
 
         if (acionado)
         {
-            m_InstanciaSobFoco.Interagir(gameObject, ehRaycast: true);
+            Debug.Log($"<color=#00FF99><b>[Captura Laser XR]</b></color> Capturando espécime '{m_InstanciaSobFoco.NomeClasse}' ({m_InstanciaSobFoco.Id}) via Raycast.");
+            DispararVibracaoHaptica(0.5f, 0.12f);
+
+            var inst = m_InstanciaSobFoco;
             m_InstanciaSobFoco = null;
             AjustarCorLaser(corLaserRepouso);
+
+            inst.Interagir(gameObject, ehRaycast: true);
         }
     }
 

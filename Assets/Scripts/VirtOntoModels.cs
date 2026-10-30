@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
@@ -748,6 +749,7 @@ namespace VirtOnto.Model
 
         /// <summary>
         /// Carrega e analisa uma ontologia diretamente a partir do XML/RDF de um arquivo .owl exportado do Protégé.
+        /// Extrai classes TBox, indivíduos ABox, tipagem rdf:type e Object Properties (has_host, has_habitat, has_transmission, etc.).
         /// </summary>
         public static Graph LoadFromOwlXml(string owlXmlContent)
         {
@@ -770,24 +772,80 @@ namespace VirtOnto.Model
             // Extrai indivíduos nomeados
             MatchCollection indMatches = Regex.Matches(owlXmlContent, @"<owl:NamedIndividual\s+rdf:about=""#?([^""]+)""[^>]*>(.*?)</owl:NamedIndividual>", RegexOptions.Singleline);
             int indIdx = 1;
+            int edgeIdx = 1;
+
             foreach (Match m in indMatches)
             {
                 string indId = m.Groups[1].Value;
                 string indContent = m.Groups[2].Value;
 
-                // Tenta descobrir a classe do indivíduo
+                // Tenta descobrir a classe taxonômica do indivíduo
                 Match typeMatch = Regex.Matches(indContent, @"<rdf:type\s+rdf:resource=""#?([^""]+)""").Cast<Match>().LastOrDefault();
                 string conceptClass = typeMatch != null ? typeMatch.Groups[1].Value : "Parasite";
+
+                int score = 10;
+                string dl = $"{conceptClass} ⊑ Parasite";
+                string desc = $"Instância biomédica autêntica '{indId}' classificada como {conceptClass} a partir da ontologia Protégé.";
+                Color cor = new Color(0.1f, 1f, 0.45f);
+                bool valida = true;
+
+                switch (conceptClass)
+                {
+                    case "AscarisLumbricoides":
+                        score = 25;
+                        dl = "Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine ⊓ ∃has_transmission.FecalOral";
+                        desc = "Ascaris lumbricoides: Helminto nematódeo parasita do intestino delgado humano transmitido por via fecal-oral.";
+                        cor = new Color(0.0f, 1.0f, 0.8f);
+                        break;
+
+                    case "EnterobiusVermicularis":
+                        score = 20;
+                        dl = "Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.PerianalRegion ⊓ ∃has_transmission.Autoinfection";
+                        desc = "Enterobius vermicularis (oxiúro): Helminto cilíndrico associado a prurido perianal e ciclo de autoinfecção.";
+                        cor = new Color(0.2f, 0.75f, 1.0f);
+                        break;
+
+                    case "TaeniaSolium":
+                        score = 30;
+                        dl = "Platyhelminthes ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine ⊓ ∃has_transmission.UndercookedPork";
+                        desc = "Taenia solium: Platelminto segmentado achatado do intestino delgado com transmissão suína.";
+                        cor = new Color(1.0f, 0.84f, 0.0f);
+                        break;
+
+                    case "InfectionVector":
+                    case "InconsistentSpecimen":
+                    case "InconsistentParasiteSpecimen":
+                        valida = false;
+                        score = -15;
+                        dl = "Parasite ⊓ ∃has_morphology.(Cylindrical ⊓ FlatSegments) ≡ ⊥";
+                        desc = "Violação ontológica taxonômica detectada no espécime pelo raciocinador ALCQ(D).";
+                        cor = new Color(1.0f, 0.15f, 0.2f);
+                        break;
+                }
 
                 Node indNode = new Node(indId, indId, NodeType.INDIVIDUAL)
                 {
                     ConceptClass = conceptClass,
-                    IsValid = true,
-                    ScoreValue = 10,
-                    SemanticDescription = $"Instância biomédica '{indId}' classificada como {conceptClass} a partir do arquivo OWL do Protégé."
+                    IsValid = valida,
+                    DLExpression = dl,
+                    ScoreValue = score,
+                    SemanticDescription = desc,
+                    HighlightColor = cor
                 };
                 graph.AddNode(indNode);
                 graph.AddEdge(new Edge($"e_owl_type_{indIdx++}", indId, conceptClass, "rdf:type"));
+
+                // Extrai Object Properties reais: has_host, has_habitat, has_transmission, has_morphology, has_symptom
+                string[] propriedadesOwl = new string[] { "has_host", "has_habitat", "has_transmission", "has_morphology", "has_symptom" };
+                foreach (var prop in propriedadesOwl)
+                {
+                    MatchCollection propMatches = Regex.Matches(indContent, $@"<{prop}\s+rdf:resource=""#?([^""]+)""");
+                    foreach (Match pm in propMatches)
+                    {
+                        string targetVal = pm.Groups[1].Value;
+                        graph.AddEdge(new Edge($"e_owl_prop_{edgeIdx++}", indId, targetVal, prop));
+                    }
+                }
             }
 
             return graph;

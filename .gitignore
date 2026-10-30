@@ -70,3 +70,8 @@ Thumbs.db
 *.ear
 .mvn/
 
+
+# Environment Variables
+.env
+.env.local
+.env.*

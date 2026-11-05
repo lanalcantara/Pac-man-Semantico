@@ -2330,7 +2330,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 {
                     foreach (var e in arestasSaida)
                     {
-                        if (e != null && (e.Predicate.Contains("subClassOf") || e.Predicate.Contains("is_a")))
+                        if (e != null && !string.IsNullOrEmpty(e.RelationType) &&
+                            (e.RelationType.Contains("subClassOf") || e.RelationType.Contains("is_a")))
                         {
                             ehSubclasse = true;
                             break;
@@ -2355,9 +2356,9 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         {
             foreach (var ind in nosInd)
             {
-                if (ind != null && !string.IsNullOrEmpty(ind.OntologyClass) && !subclasses.Contains(ind.OntologyClass))
+                if (ind != null && !string.IsNullOrEmpty(ind.ConceptClass) && !subclasses.Contains(ind.ConceptClass))
                 {
-                    subclasses.Add(ind.OntologyClass);
+                    subclasses.Add(ind.ConceptClass);
                 }
             }
         }

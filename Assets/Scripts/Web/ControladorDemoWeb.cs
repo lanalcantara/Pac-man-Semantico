@@ -114,12 +114,12 @@ namespace PacMan.Web
         
         private void GarantirCanvasArcade()
         {
-            HUDCanvasArcade.GarantirEventSystem();
-            HUDCanvasArcade hud = FindFirstObjectByType<HUDCanvasArcade>();
+            SemanticHUDManager.GarantirEventSystem();
+            SemanticHUDManager hud = FindFirstObjectByType<SemanticHUDManager>();
             if (hud == null)
             {
-                GameObject canvasObj = new GameObject("HUD_Canvas_Arcade");
-                hud = canvasObj.AddComponent<HUDCanvasArcade>();
+                GameObject canvasObj = new GameObject("Semantic_HUD_Canvas");
+                hud = canvasObj.AddComponent<SemanticHUDManager>();
             }
             if (hud != null)
             {
@@ -310,10 +310,10 @@ namespace PacMan.Web
         {
             estadoAtual = EstadoJogoDemo.Jogando;
             PausarEntidadesParaMenu(false);
-            if (HUDCanvasArcade.Instancia != null)
+            if (SemanticHUDManager.Instancia != null)
             {
-                HUDCanvasArcade.Instancia.DefinirModalPlayVisivel(false);
-                HUDCanvasArcade.Instancia.DefinirPainelVisivel(!hudMinimizado);
+                SemanticHUDManager.Instancia.DefinirModalPlayVisivel(false);
+                SemanticHUDManager.Instancia.DefinirPainelVisivel(!hudMinimizado);
             }
             Debug.Log("<color=#00FF99><b>[Jogo Iniciado]</b></color> Corrida semântica iniciada!");
         }
@@ -474,8 +474,8 @@ namespace PacMan.Web
         {
             if (!exibirGuiWebGL) return;
 
-            // Se o HUDCanvasArcade (TextMeshPro + ScrollRect) estiver ativo na cena, delega a renderização ao Canvas UI
-            if (HUDCanvasArcade.Instancia != null && estadoAtual != EstadoJogoDemo.GameOver)
+            // Se o SemanticHUDManager (TextMeshPro + ScrollRect) estiver ativo na cena, delega a renderização ao Canvas UI
+            if (SemanticHUDManager.Instancia != null && estadoAtual != EstadoJogoDemo.GameOver)
             {
                 return;
             }

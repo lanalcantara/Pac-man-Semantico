@@ -9,20 +9,20 @@ using PacMan.Network;
 /// ============================================================================
 /// INTERFACE ESPACIAL BIDIRECIONAL PARA ENGENHARIA DE ONTOLOGIAS OWL (Unity 6)
 /// ============================================================================
-/// HUD Científico de Engenharia de Ontologias (utilizando TextMeshPro):
-/// 1. Substitui "Score" por "Axiomas Inseridos: [X]" / "Tamanho da ABox: [X]".
+/// Gerenciador Científico de HUD (SemanticHUDManager) utilizando TextMeshPro:
+/// 1. Substitui "Score" por "Tamanho da ABox: [X]".
 /// 2. Substitui "Vidas" por "Status do Reasoner":
 ///    - Padrão: "CONSISTENTE" (Verde #00FF88).
 ///    - Erro (exception do HermiT): "INCONSISTENTE" (Vermelho #FF2233, piscando).
 /// 3. Substitui "Última Captura" por "Foco Atual: [Nome da Classe]".
-/// 4. Componente ScrollRect (Log/Terminal de Ações) para exibir feed em tempo real
+/// 4. Componente ScrollRect (Terminal de Logs / Feed de Triplas RDF) para exibir feed em tempo real
 ///    (ex: "[+] researcher_01 instanciou AscarisLumbricoides").
 /// ============================================================================
 /// </summary>
-public class HUDCanvasArcade : MonoBehaviour
+public class SemanticHUDManager : MonoBehaviour
 {
-    private static HUDCanvasArcade s_Instancia;
-    public static HUDCanvasArcade Instancia => s_Instancia;
+    private static SemanticHUDManager s_Instancia;
+    public static SemanticHUDManager Instancia => s_Instancia;
 
     [Header("Componentes Principais (Canvas)")]
     public Canvas canvasPrincipal;
@@ -323,7 +323,7 @@ public class HUDCanvasArcade : MonoBehaviour
 
     public void AtualizarDisplay()
     {
-        string txtAxiomas = $"Axiomas Inseridos: <color=#00E5FF><b>{axiomasInseridos}</b></color> <color=#64748B>|</color> Tamanho da ABox: <color=#00E5FF><b>{axiomasInseridos}</b></color>";
+        string txtAxiomas = $"Tamanho da ABox: <color=#00E5FF><b>{axiomasInseridos}</b></color>";
         string txtReasoner = reasonerConsistente
             ? "Status do Reasoner: <color=#00FF88><b>CONSISTENTE</b></color>"
             : "Status do Reasoner: <color=#FF2233><b>⚠ INCONSISTENTE</b></color>";
@@ -611,7 +611,7 @@ public class HUDCanvasArcade : MonoBehaviour
             TextMeshProUGUI txtHeader = headerObj.AddComponent<TextMeshProUGUI>();
             txtHeader.fontSize = 13;
             txtHeader.fontStyle = FontStyles.Bold;
-            txtHeader.text = "TERMINAL DE AXIOMAS OWL / PROTÉGÉ WEBSOCKET (8085)";
+            txtHeader.text = "TERMINAL DE LOGS (FEED DE TRIPLAS RDF / WEBSOCKET 8085)";
             txtHeader.color = new Color(0.0f, 0.85f, 1.0f);
             txtHeader.alignment = TextAlignmentOptions.MidlineLeft;
 
@@ -660,6 +660,14 @@ public class HUDCanvasArcade : MonoBehaviour
         {
             painelTerminalLog = termTr.gameObject;
             scrollRectTerminal = painelTerminalLog.GetComponent<ScrollRect>();
+            if (scrollRectTerminal != null)
+            {
+                conteudoScrollTerminal = scrollRectTerminal.content;
+                if (conteudoScrollTerminal != null && textoLogTerminalTMP == null)
+                {
+                    textoLogTerminalTMP = conteudoScrollTerminal.GetComponent<TMP_Text>();
+                }
+            }
         }
 
         if (modalPlayCanvas != null) modalPlayCanvas.SetActive(true);
@@ -667,3 +675,8 @@ public class HUDCanvasArcade : MonoBehaviour
         if (painelTerminalLog != null) painelTerminalLog.SetActive(false);
     }
 }
+
+/// <summary>
+/// Alias de compatibilidade reversa para scripts ou cenas legadas que referenciem o nome antigo.
+/// </summary>
+public class HUDCanvasArcade : SemanticHUDManager { }

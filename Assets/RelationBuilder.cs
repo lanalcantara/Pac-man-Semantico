@@ -89,9 +89,9 @@ public class RelationBuilder : MonoBehaviour
         {
             m_IndicePropriedade = (m_IndicePropriedade + 1) % catalogoPropriedades.Length;
             propriedadeAtiva = catalogoPropriedades[m_IndicePropriedade];
-            if (HUDCanvasArcade.Instancia != null)
+            if (SemanticHUDManager.Instancia != null)
             {
-                HUDCanvasArcade.Instancia.AdicionarLinhaLog($"[OWL] Object Property selecionada: {propriedadeAtiva}");
+                SemanticHUDManager.Instancia.AdicionarLinhaLog($"[OWL] Object Property selecionada: {propriedadeAtiva}");
             }
         }
 
@@ -231,10 +231,10 @@ public class RelationBuilder : MonoBehaviour
         {
             ws.EnviarRelacaoObjectProperty(nodoOrigemId, nodoOrigemClasse, propriedadeAtiva, targetId, targetClass, consistente);
         }
-        else if (HUDCanvasArcade.Instancia != null)
+        else if (SemanticHUDManager.Instancia != null)
         {
-            HUDCanvasArcade.Instancia.DefinirAxiomasInseridos(HUDCanvasArcade.Instancia.axiomasInseridos + 1);
-            HUDCanvasArcade.Instancia.AdicionarLinhaLog($"[+] Tripla OWL: {nodoOrigemClasse} -> {propriedadeAtiva} -> {targetClass}");
+            SemanticHUDManager.Instancia.DefinirAxiomasInseridos(SemanticHUDManager.Instancia.axiomasInseridos + 1);
+            SemanticHUDManager.Instancia.AdicionarLinhaLog($"[+] Tripla OWL: {nodoOrigemClasse} -> {propriedadeAtiva} -> {targetClass}");
         }
 
         // 4. Registra também a aresta no Grafo Ontológico em memória

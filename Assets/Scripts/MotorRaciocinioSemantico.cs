@@ -167,10 +167,10 @@ namespace PacMan.Semantics
             {
                 ws.DesfazerUltimaAcaoInconsistente();
             }
-            else if (HUDCanvasArcade.Instancia != null)
+            else if (SemanticHUDManager.Instancia != null)
             {
-                HUDCanvasArcade.Instancia.DefinirStatusReasoner(true, "CONSISTENTE");
-                HUDCanvasArcade.Instancia.AdicionarLinhaLog("[-] Ação inconsistente desfeita. Reasoner Agents em modo Patrol (CONSISTENTE).");
+                SemanticHUDManager.Instancia.DefinirStatusReasoner(true, "CONSISTENTE");
+                SemanticHUDManager.Instancia.AdicionarLinhaLog("[-] Ação inconsistente desfeita. Reasoner Agents em modo Patrol (CONSISTENTE).");
             }
             ProcessarRaciocinioFantasmas();
         }
@@ -263,9 +263,9 @@ namespace PacMan.Semantics
                 {
                     // Detectou erro lógico / violação na ontologia -> Reasoner passa para INCONSISTENTE (Chase)
                     reasonerConsistente = false;
-                    if (HUDCanvasArcade.Instancia != null)
+                    if (SemanticHUDManager.Instancia != null)
                     {
-                        HUDCanvasArcade.Instancia.DefinirStatusReasoner(false, $"HermiT: Violação em {inst.NomeClasse}");
+                        SemanticHUDManager.Instancia.DefinirStatusReasoner(false, $"HermiT: Violação em {inst.NomeClasse}");
                     }
                 }
                 else

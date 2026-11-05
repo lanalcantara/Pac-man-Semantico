@@ -577,13 +577,13 @@ public abstract class InstanciaSemanticaBase : MonoBehaviour, IInstanciaSemantic
         {
             ws.EnviarInstanciacaoIndividuo(id, nomeClasse, ehValida, expressaoDL);
         }
-        else if (HUDCanvasArcade.Instancia != null)
+        else if (SemanticHUDManager.Instancia != null)
         {
-            HUDCanvasArcade.Instancia.DefinirAxiomasInseridos(HUDCanvasArcade.Instancia.axiomasInseridos + 1);
-            HUDCanvasArcade.Instancia.AdicionarLinhaLog($"[+] researcher_01 instanciou {nomeClasse} ({id})");
+            SemanticHUDManager.Instancia.DefinirAxiomasInseridos(SemanticHUDManager.Instancia.axiomasInseridos + 1);
+            SemanticHUDManager.Instancia.AdicionarLinhaLog($"[+] researcher_01 instanciou {nomeClasse} ({id})");
             if (!ehValida)
             {
-                HUDCanvasArcade.Instancia.DefinirStatusReasoner(false, $"HermiT: Exceção em {nomeClasse}");
+                SemanticHUDManager.Instancia.DefinirStatusReasoner(false, $"HermiT: Exceção em {nomeClasse}");
             }
         }
 

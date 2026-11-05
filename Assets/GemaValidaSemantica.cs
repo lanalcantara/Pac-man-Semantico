@@ -158,7 +158,7 @@ public class GemaValidaSemantica : InstanciaSemanticaBase
 
     private void GarantirGeometriaPrismaTranslucido()
     {
-        MeshFilter[] mfs = GetComponentsInChildren<MeshFilter>();
+        MeshFilter[] mfs = GetComponentsInChildren<MeshFilter>(true);
         if (mfs != null && mfs.Length > 0)
         {
             GameObject tempCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -168,7 +168,7 @@ public class GemaValidaSemantica : InstanciaSemanticaBase
 
             foreach (var mf in mfs)
             {
-                if (mf != null && mf.gameObject.name.Contains("Nucleo"))
+                if (mf != null)
                 {
                     mf.sharedMesh = cubeMesh;
                     mf.transform.localRotation = Quaternion.Euler(35f, 45f, 0f);

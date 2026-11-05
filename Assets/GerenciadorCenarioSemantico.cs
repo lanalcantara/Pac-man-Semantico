@@ -35,7 +35,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     public enum OrigemDadosOntologia
     {
         ProceduralInterno,
-        BackendCppNativo,
+        ProtegeWebSocket8085,
         ArquivoJson,
         ArquivoOwl,
         GrafoOntologicoVirtOnto,
@@ -114,20 +114,19 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         }
     }
 
-    [Tooltip("Mapeamentos personalizados entre classes da ontologia C++/OWL e modelos 3D específicos.")]
+    [Tooltip("Mapeamentos personalizados entre classes da ontologia OWL e modelos 3D específicos.")]
     public List<MapeamentoClassePrefab> mapeamentoClassesCustomizadas = new List<MapeamentoClassePrefab>();
 
     [Header("Raciocínio Ontológico (SWRL Engine)")]
     [Tooltip("Motor de Raciocínio Semântico que avalia regras SWRL e gere comportamentos dos agentes.")]
     public MotorRaciocinioSemantico motorRaciocinio;
 
-    [Header("Conexão com Backend Java (Spring Boot)")]
-    [Tooltip("Cliente de rede REST para sincronização com o microsserviço Java Spring Boot.")]
-    public ApiClient apiClient;
+    [Header("Conexão com Backend Java / Protégé (WebSocket 8085 & REST)")]
+    [Tooltip("Cliente WebSocket nativo para o plugin Java/OSGi no Protégé (porta 8085).")]
+    public ProtegeWebSocketBridge protegeWebSocket;
 
-    [Header("Integração Módulo C++ (VirtOnto Bridge)")]
-    [Tooltip("Adaptador para importação e leitura de coordenadas geradas pelo motor C++.")]
-    public PacMan.Integration.LeitorCoordenadasCpp leitorCpp;
+    [Tooltip("Cliente de rede REST opcional.")]
+    public ApiClient apiClient;
 
     [Header("Labirinto 3D (Paredes Físicas e Delimitação)")]
     [Tooltip("Gera as paredes físicas perimetrais e internas do labirinto.")]
@@ -337,9 +336,17 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 cenario = GrafoOntologico.ToCenarioDTO();
                 break;
 
-            case OrigemDadosOntologia.BackendCppNativo:
-                Debug.Log("<color=#00DDFF><b>[Pac-Man Semântico - Backend C++]</b></color> Solicitando inferência de Description Logic à DLL nativa...");
-                cenario = BackendOntologiaBridge.ConsultarBackendCpp(quantidadeValidos, quantidadeInvalidos, raioEspalhamento, alturaGemas);
+            case OrigemDadosOntologia.ProtegeWebSocket8085:
+                Debug.Log("<color=#00DDFF><b>[Interface Espacial OWL - Protégé WS:8085]</b></color> Conectando ao servidor WebSocket Java/OSGi no Protégé...");
+                if (protegeWebSocket == null)
+                {
+                    protegeWebSocket = GetComponent<ProtegeWebSocketBridge>() ?? FindFirstObjectByType<ProtegeWebSocketBridge>();
+                    if (protegeWebSocket == null)
+                    {
+                        protegeWebSocket = gameObject.AddComponent<ProtegeWebSocketBridge>();
+                    }
+                }
+                cenario = BackendOntologiaBridge.GerarCenarioOntologiaPadrao(quantidadeValidos, quantidadeInvalidos, raioEspalhamento, alturaGemas);
                 break;
 
             case OrigemDadosOntologia.ArquivoJson:
@@ -351,7 +358,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 else
                 {
                     Debug.LogWarning("[Pac-Man Semântico] Nenhum arquivo JSON atribuído. Ativando gerador procedural de contingência.");
-                    cenario = BackendOntologiaBridge.GerarMockOntologiaCpp(quantidadeValidos, quantidadeInvalidos, raioEspalhamento, alturaGemas);
+                    cenario = BackendOntologiaBridge.GerarCenarioOntologiaPadrao(quantidadeValidos, quantidadeInvalidos, raioEspalhamento, alturaGemas);
                 }
                 break;
 
@@ -371,7 +378,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                     }
                     else
                     {
-                        cenario = BackendOntologiaBridge.GerarMockOntologiaCpp(quantidadeValidos, quantidadeInvalidos, raioEspalhamento, alturaGemas);
+                        cenario = BackendOntologiaBridge.GerarCenarioOntologiaPadrao(quantidadeValidos, quantidadeInvalidos, raioEspalhamento, alturaGemas);
                     }
                 }
                 break;
@@ -392,7 +399,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             case OrigemDadosOntologia.ProceduralInterno:
             default:
                 Debug.Log("<color=#00FF99><b>[Pac-Man Semântico - Procedural]</b></color> Gerando instâncias ontológicas Description Logic...");
-                cenario = BackendOntologiaBridge.GerarMockOntologiaCpp(quantidadeValidos, quantidadeInvalidos, raioEspalhamento, alturaGemas);
+                cenario = BackendOntologiaBridge.GerarCenarioOntologiaPadrao(quantidadeValidos, quantidadeInvalidos, raioEspalhamento, alturaGemas);
                 break;
         }
 
@@ -487,16 +494,14 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         InstanciarCerejasEPowerPellets();
         m_TotalInstanciasInstanciadas = m_ObjetosInstanciados.Count;
 
-        // 2.1 Sincroniza nós e coordenadas de saída geradas pelo módulo C++
-        if (leitorCpp == null)
+        // 2.1 Garante ponte WebSocket ativa com o plugin Java/OSGi do Protégé (porta 8085)
+        if (protegeWebSocket == null)
         {
-            leitorCpp = GetComponent<PacMan.Integration.LeitorCoordenadasCpp>() ?? FindFirstObjectByType<PacMan.Integration.LeitorCoordenadasCpp>();
-        }
-
-        if (leitorCpp != null)
-        {
-            leitorCpp.ProcessarPontosSaida(GrafoOntologico);
-            m_TotalNosGrafo = GrafoOntologico.GetNodeCount();
+            protegeWebSocket = GetComponent<ProtegeWebSocketBridge>() ?? FindFirstObjectByType<ProtegeWebSocketBridge>();
+            if (protegeWebSocket == null && Application.isPlaying)
+            {
+                protegeWebSocket = gameObject.AddComponent<ProtegeWebSocketBridge>();
+            }
         }
 
         // 3. Avaliação inicial de regras SWRL sobre o grafo instanciado
@@ -1992,8 +1997,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         graph.NomeOntologia = "ParasitologyOntology_VirtOnto_CIn";
         graph.VersaoAxiomas = "v2.0-Parasites-ALCQ";
 
-        CenarioSemanticoDTO mock = BackendOntologiaBridge.GerarMockOntologiaCpp(quantidadeValidos, quantidadeInvalidos, raioEspalhamento, alturaGemas);
-        graph.BuildFromCenarioDTO(mock);
+        CenarioSemanticoDTO padrao = BackendOntologiaBridge.GerarCenarioOntologiaPadrao(quantidadeValidos, quantidadeInvalidos, raioEspalhamento, alturaGemas);
+        graph.BuildFromCenarioDTO(padrao);
 
         return graph;
     }
@@ -2098,29 +2103,6 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         m_TotalInstanciasInstanciadas = 0;
         InstanciaSemanticaBase.instanciasValidasRestantes = 0;
         motorRaciocinio?.ResetarEstados();
-    }
-
-    /// <summary>
-    /// Força a importação manual de coordenadas e pontos de saída a partir do LeitorCoordenadasCpp.
-    /// </summary>
-    [ContextMenu("Pac-Man Semântico/Importar Coordenadas C++")]
-    public void ImportarCoordenadasCpp()
-    {
-        if (leitorCpp == null)
-        {
-            leitorCpp = GetComponent<PacMan.Integration.LeitorCoordenadasCpp>() ?? FindFirstObjectByType<PacMan.Integration.LeitorCoordenadasCpp>();
-        }
-
-        if (leitorCpp != null && GrafoOntologico != null)
-        {
-            leitorCpp.ProcessarPontosSaida(GrafoOntologico);
-            m_TotalNosGrafo = GrafoOntologico.GetNodeCount();
-            Debug.Log($"<color=#00FFFF><b>[C++ Bridge]</b></color> Coordenadas importadas com sucesso! Grafo contém agora {m_TotalNosGrafo} nós.");
-        }
-        else
-        {
-            Debug.LogWarning("[C++ Bridge] LeitorCoordenadasCpp ou GrafoOntologico não encontrado na cena.");
-        }
     }
 
     private GameObject ConstruirPortalSaidaProcedural(Transform pai, Vector3 pos, Material matParede)

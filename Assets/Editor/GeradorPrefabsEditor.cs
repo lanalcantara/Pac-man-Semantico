@@ -229,10 +229,10 @@ public static class GeradorPrefabsEditor
         CriarPrefabs(forcarRecriacao: true);
     }
 
-    [MenuItem("Pac-Man Semântico/3. Gerar Arquivo JSON Exemplo (C++ Bridge)", false, 3)]
+    [MenuItem("Pac-Man Semântico/3. Gerar Arquivo JSON Exemplo (OWL Bridge)", false, 3)]
     public static void MenuGerarExemploJson()
     {
-        CenarioSemanticoDTO cenario = BackendOntologiaBridge.GerarMockOntologiaCpp(12, 6, 14f, 0.85f);
+        CenarioSemanticoDTO cenario = BackendOntologiaBridge.GerarCenarioOntologiaPadrao(12, 6, 14f, 0.85f);
         cenario.nomeOntologia = "PacMan_ALCQ_Ontology";
         cenario.versaoAxiomas = "v2.0-Export";
 

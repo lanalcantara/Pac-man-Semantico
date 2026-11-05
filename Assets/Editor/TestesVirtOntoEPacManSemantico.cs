@@ -385,49 +385,33 @@ public static class TestesVirtOntoEPacManSemantico
             Debug.LogError($"✘ [TESTE 10 FALHOU] InteracaoXRColisao: {ex.Message}");
         }
 
-        // --- TESTE 11: LeitorCoordenadasCpp e Bridge C++ com Grafo Ontológico ---
+        // --- TESTE 11: ProtegeWebSocketBridge (Porta 8085) e Sincronização com Reasoner ---
         totalTestes++;
         try
         {
-            GameObject leitorObj = new GameObject("Teste_LeitorCpp");
-            var leitor = leitorObj.AddComponent<PacMan.Integration.LeitorCoordenadasCpp>();
+            GameObject wsObj = new GameObject("Teste_ProtegeWebSocket");
+            var wsBridge = wsObj.AddComponent<PacMan.Network.ProtegeWebSocketBridge>();
 
-            // Configura pontos de saída C++ simulados
-            leitor.pontosSaidaCpp.Add(new PacMan.Integration.CoordenadaPontoSaidaDto
-            {
-                id = "cpp_exit_01",
-                x = 10.5f,
-                y = 0.0f,
-                z = -4.2f
-            });
-            leitor.pontosSaidaCpp.Add(new PacMan.Integration.CoordenadaPontoSaidaDto
-            {
-                id = "cpp_exit_02",
-                x = -10.5f,
-                y = 0.0f,
-                z = 8.4f
-            });
+            Debug.Assert(wsBridge.serverUri == "ws://localhost:8085", "URI padrão do WebSocket Protégé deve ser ws://localhost:8085.");
+            Debug.Assert(wsBridge.ReasonerConsistent, "O Reasoner deve iniciar no estado CONSISTENTE.");
 
-            Graph grafoTeste = new Graph();
-            leitor.ProcessarPontosSaida(grafoTeste);
+            wsBridge.EnviarInstanciacaoIndividuo("inst_01", "AscarisLumbricoides", true, "Nematoda");
+            Debug.Assert(wsBridge.AxiomsInsertedCount == 1, "Contagem de axiomas inseridos na ABox deve ser incrementada.");
 
-            // 1. Valida que os 2 nós individuais foram injetados no grafo
-            Debug.Assert(grafoTeste.GetNodeCount() == 2, $"Esperado 2 nós no grafo, obtido {grafoTeste.GetNodeCount()}");
+            wsBridge.DefinirStatusReasoner(false, "HermiT DisjointClassesException");
+            Debug.Assert(!wsBridge.ReasonerConsistent, "Status do Reasoner deve refletir estado INCONSISTENTE.");
 
-            Node noSaida1 = grafoTeste.GetNode("cpp_exit_01");
-            Debug.Assert(noSaida1 != null, "Nó 'cpp_exit_01' não encontrado no grafo.");
-            Debug.Assert(noSaida1.Type == NodeType.Individual, "Tipo de nó deve ser Individual.");
-            Debug.Assert(noSaida1.GetDisplayColor() == "#00FFFF", "Cor de exibição do ponto C++ deve ser #00FFFF (Ciano).");
-            Debug.Assert(Mathf.Approximately((float)noSaida1.Position.x, 10.5f), "Posição X incorreta.");
+            wsBridge.DesfazerUltimaAcaoInconsistente();
+            Debug.Assert(wsBridge.ReasonerConsistent, "Status do Reasoner deve voltar para CONSISTENTE após desfazer a ação.");
 
-            UnityEngine.Object.DestroyImmediate(leitorObj);
+            UnityEngine.Object.DestroyImmediate(wsObj);
 
             testesPassaram++;
-            Debug.Log("<color=#00FF66>✔ [TESTE 11 PASSOU]</color> LeitorCoordenadasCpp: Injeção de coordenadas 3D, DTOs e conversão em nós VirtOnto 100% validados.");
+            Debug.Log("<color=#00FF66>✔ [TESTE 11 PASSOU]</color> ProtegeWebSocketBridge (Porta 8085): Eventos de ABox, status do HermiT Reasoner e rollback 100% validados.");
         }
         catch (Exception ex)
         {
-            Debug.LogError($"✘ [TESTE 11 FALHOU] LeitorCoordenadasCpp: {ex.Message}");
+            Debug.LogError($"✘ [TESTE 11 FALHOU] ProtegeWebSocketBridge: {ex.Message}");
         }
 
         // --- TESTE 12: TelemetriaExperimento e Registo de Métricas CSV ---

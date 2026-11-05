@@ -95,7 +95,7 @@ public class SemanticHUDManager : MonoBehaviour
         SemanticHUDManager hud = FindFirstObjectByType<SemanticHUDManager>();
         if (hud == null)
         {
-            GameObject canvasObj = new GameObject("Semantic_HUD_Canvas");
+            GameObject canvasObj = new GameObject("Semantic_HUD_Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             hud = canvasObj.AddComponent<SemanticHUDManager>();
         }
         else if (hud.gameObject.name.IndexOf("Arcade", StringComparison.OrdinalIgnoreCase) >= 0)
@@ -387,24 +387,55 @@ public class SemanticHUDManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Utilitário seguro para obter ou criar um filho de UI garantindo que ele sempre nasça com RectTransform
+    /// e seja filho de um Canvas/RectTransform antes de receber qualquer componente TextMeshProUGUI ou Image.
+    /// </summary>
+    private static RectTransform ObterOuCriarFilhoUI(Transform pai, string nome)
+    {
+        Transform existente = pai.Find(nome);
+        if (existente != null)
+        {
+            RectTransform rtExistente = existente.GetComponent<RectTransform>();
+            if (rtExistente != null)
+            {
+                return rtExistente;
+            }
+            // Se existir um objeto antigo sem RectTransform, destrói imediatamente para recriar com RectTransform nativo
+            if (Application.isPlaying) Destroy(existente.gameObject);
+            else DestroyImmediate(existente.gameObject);
+        }
+
+        GameObject novoObj = new GameObject(nome, typeof(RectTransform));
+        novoObj.transform.SetParent(pai, false);
+        return novoObj.GetComponent<RectTransform>();
+    }
+
+    /// <summary>
     /// Constrói a interface científica usando TextMeshProUGUI e ScrollRect para o Log/Terminal de Ações.
     /// </summary>
     private void GarantirCanvasEComponentes()
     {
+        if (GetComponent<RectTransform>() == null)
+        {
+            gameObject.AddComponent<RectTransform>();
+        }
+
         if (canvasPrincipal == null) canvasPrincipal = GetComponent<Canvas>();
         if (canvasPrincipal == null)
         {
             canvasPrincipal = gameObject.AddComponent<Canvas>();
-            canvasPrincipal.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvasPrincipal.pixelPerfect = true;
         }
+        canvasPrincipal.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvasPrincipal.pixelPerfect = true;
 
-        canvasScaler = GetComponent<CanvasScaler>() ?? gameObject.AddComponent<CanvasScaler>();
+        canvasScaler = GetComponent<CanvasScaler>();
+        if (canvasScaler == null) canvasScaler = gameObject.AddComponent<CanvasScaler>();
         canvasScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         canvasScaler.referenceResolution = new Vector2(1920, 1080);
         canvasScaler.matchWidthOrHeight = 0.5f;
 
-        graphicRaycaster = GetComponent<GraphicRaycaster>() ?? gameObject.AddComponent<GraphicRaycaster>();
+        graphicRaycaster = GetComponent<GraphicRaycaster>();
+        if (graphicRaycaster == null) graphicRaycaster = gameObject.AddComponent<GraphicRaycaster>();
         graphicRaycaster.enabled = true;
 
         // Remove qualquer modal de Play ou painel Arcade legado caso exista como filho do Canvas
@@ -425,40 +456,30 @@ public class SemanticHUDManager : MonoBehaviour
         // =====================================================================
         // 2. BARRA SUPERIOR CIENTÍFICA (AXIOMAS / FOCO ATUAL / STATUS DO REASONER)
         // =====================================================================
-        Transform painelTr = transform.Find("Painel_OWL_HUD");
-        if (painelTr == null)
-        {
-            painelHUD = new GameObject("Painel_OWL_HUD");
-            painelHUD.transform.SetParent(transform, false);
-            RectTransform rt = painelHUD.AddComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0f, 1f);
-            rt.anchorMax = new Vector2(1f, 1f);
-            rt.pivot = new Vector2(0.5f, 1f);
-            rt.anchoredPosition = Vector2.zero;
-            rt.sizeDelta = new Vector2(0f, 56f);
+        RectTransform rtPainelHUD = ObterOuCriarFilhoUI(transform, "Painel_OWL_HUD");
+        painelHUD = rtPainelHUD.gameObject;
+        rtPainelHUD.anchorMin = new Vector2(0f, 1f);
+        rtPainelHUD.anchorMax = new Vector2(1f, 1f);
+        rtPainelHUD.pivot = new Vector2(0.5f, 1f);
+        rtPainelHUD.anchoredPosition = Vector2.zero;
+        rtPainelHUD.sizeDelta = new Vector2(0f, 56f);
 
-            Image img = painelHUD.AddComponent<Image>();
-            img.color = new Color(0.02f, 0.05f, 0.12f, 0.92f);
-        }
-        else
-        {
-            painelHUD = painelTr.gameObject;
-        }
+        Image imgPainel = painelHUD.GetComponent<Image>();
+        if (imgPainel == null) imgPainel = painelHUD.AddComponent<Image>();
+        imgPainel.color = new Color(0.02f, 0.05f, 0.12f, 0.92f);
 
         // 2.1 Esquerda: Axiomas Inseridos / Tamanho da ABox
         if (textoAxiomasABoxTMP == null)
         {
-            Transform tTr = painelHUD.transform.Find("Texto_AxiomasABox_TMP");
-            GameObject tObj = tTr != null ? tTr.gameObject : new GameObject("Texto_AxiomasABox_TMP");
-            tObj.transform.SetParent(painelHUD.transform, false);
-            RectTransform rt = tObj.GetComponent<RectTransform>() ?? tObj.AddComponent<RectTransform>();
+            RectTransform rt = ObterOuCriarFilhoUI(rtPainelHUD, "Texto_AxiomasABox_TMP");
             rt.anchorMin = new Vector2(0f, 0.5f);
             rt.anchorMax = new Vector2(0f, 0.5f);
             rt.pivot = new Vector2(0f, 0.5f);
             rt.anchoredPosition = new Vector2(28f, 0f);
             rt.sizeDelta = new Vector2(560f, 44f);
 
-            textoAxiomasABoxTMP = tObj.GetComponent<TextMeshProUGUI>() ?? tObj.AddComponent<TextMeshProUGUI>();
+            textoAxiomasABoxTMP = rt.gameObject.GetComponent<TextMeshProUGUI>();
+            if (textoAxiomasABoxTMP == null) textoAxiomasABoxTMP = rt.gameObject.AddComponent<TextMeshProUGUI>();
             textoAxiomasABoxTMP.fontSize = 18;
             textoAxiomasABoxTMP.alignment = TextAlignmentOptions.MidlineLeft;
             textoAxiomasABoxTMP.richText = true;
@@ -467,17 +488,15 @@ public class SemanticHUDManager : MonoBehaviour
         // 2.2 Centro: Foco Atual: [Nome da Classe]
         if (textoFocoAtualTMP == null)
         {
-            Transform tTr = painelHUD.transform.Find("Texto_FocoAtual_TMP");
-            GameObject tObj = tTr != null ? tTr.gameObject : new GameObject("Texto_FocoAtual_TMP");
-            tObj.transform.SetParent(painelHUD.transform, false);
-            RectTransform rt = tObj.GetComponent<RectTransform>() ?? tObj.AddComponent<RectTransform>();
+            RectTransform rt = ObterOuCriarFilhoUI(rtPainelHUD, "Texto_FocoAtual_TMP");
             rt.anchorMin = new Vector2(0.5f, 0.5f);
             rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = Vector2.zero;
             rt.sizeDelta = new Vector2(580f, 44f);
 
-            textoFocoAtualTMP = tObj.GetComponent<TextMeshProUGUI>() ?? tObj.AddComponent<TextMeshProUGUI>();
+            textoFocoAtualTMP = rt.gameObject.GetComponent<TextMeshProUGUI>();
+            if (textoFocoAtualTMP == null) textoFocoAtualTMP = rt.gameObject.AddComponent<TextMeshProUGUI>();
             textoFocoAtualTMP.fontSize = 18;
             textoFocoAtualTMP.alignment = TextAlignmentOptions.Center;
             textoFocoAtualTMP.richText = true;
@@ -486,17 +505,15 @@ public class SemanticHUDManager : MonoBehaviour
         // 2.3 Direita: Status do Reasoner (CONSISTENTE / INCONSISTENTE)
         if (textoStatusReasonerTMP == null)
         {
-            Transform tTr = painelHUD.transform.Find("Texto_StatusReasoner_TMP");
-            GameObject tObj = tTr != null ? tTr.gameObject : new GameObject("Texto_StatusReasoner_TMP");
-            tObj.transform.SetParent(painelHUD.transform, false);
-            RectTransform rt = tObj.GetComponent<RectTransform>() ?? tObj.AddComponent<RectTransform>();
+            RectTransform rt = ObterOuCriarFilhoUI(rtPainelHUD, "Texto_StatusReasoner_TMP");
             rt.anchorMin = new Vector2(1f, 0.5f);
             rt.anchorMax = new Vector2(1f, 0.5f);
             rt.pivot = new Vector2(1f, 0.5f);
             rt.anchoredPosition = new Vector2(-65f, 0f);
             rt.sizeDelta = new Vector2(500f, 44f);
 
-            textoStatusReasonerTMP = tObj.GetComponent<TextMeshProUGUI>() ?? tObj.AddComponent<TextMeshProUGUI>();
+            textoStatusReasonerTMP = rt.gameObject.GetComponent<TextMeshProUGUI>();
+            if (textoStatusReasonerTMP == null) textoStatusReasonerTMP = rt.gameObject.AddComponent<TextMeshProUGUI>();
             textoStatusReasonerTMP.fontSize = 18;
             textoStatusReasonerTMP.alignment = TextAlignmentOptions.MidlineRight;
             textoStatusReasonerTMP.richText = true;
@@ -506,29 +523,29 @@ public class SemanticHUDManager : MonoBehaviour
         Transform btnTr = painelHUD.transform.Find("Botao_Fechar");
         if (btnTr == null)
         {
-            GameObject btnObj = new GameObject("Botao_Fechar");
-            btnObj.transform.SetParent(painelHUD.transform, false);
-            RectTransform rt = btnObj.AddComponent<RectTransform>();
+            RectTransform rt = ObterOuCriarFilhoUI(rtPainelHUD, "Botao_Fechar");
+            GameObject btnObj = rt.gameObject;
             rt.anchorMin = new Vector2(1f, 0.5f);
             rt.anchorMax = new Vector2(1f, 0.5f);
             rt.pivot = new Vector2(1f, 0.5f);
             rt.anchoredPosition = new Vector2(-18f, 0f);
             rt.sizeDelta = new Vector2(30f, 28f);
 
-            Image img = btnObj.AddComponent<Image>();
+            Image img = btnObj.GetComponent<Image>();
+            if (img == null) img = btnObj.AddComponent<Image>();
             img.color = new Color(0.85f, 0.2f, 0.2f, 0.95f);
 
-            Button btn = btnObj.AddComponent<Button>();
+            Button btn = btnObj.GetComponent<Button>();
+            if (btn == null) btn = btnObj.AddComponent<Button>();
             btn.onClick.AddListener(AlternarVisibilidadePainel);
 
-            GameObject txtObj = new GameObject("Text_TMP");
-            txtObj.transform.SetParent(btnObj.transform, false);
-            RectTransform rtTxt = txtObj.AddComponent<RectTransform>();
+            RectTransform rtTxt = ObterOuCriarFilhoUI(rt, "Text_TMP");
             rtTxt.anchorMin = Vector2.zero;
             rtTxt.anchorMax = Vector2.one;
             rtTxt.sizeDelta = Vector2.zero;
 
-            TextMeshProUGUI txt = txtObj.AddComponent<TextMeshProUGUI>();
+            TextMeshProUGUI txt = rtTxt.gameObject.GetComponent<TextMeshProUGUI>();
+            if (txt == null) txt = rtTxt.gameObject.AddComponent<TextMeshProUGUI>();
             txt.fontSize = 15;
             txt.fontStyle = FontStyles.Bold;
             txt.text = "✕";
@@ -540,31 +557,30 @@ public class SemanticHUDManager : MonoBehaviour
         // 3. SCROLLRECT - TERMINAL / LOG DE AÇÕES ONTOLÓGICAS (INFERIOR ESQUERDO)
         // =====================================================================
         Transform termTr = transform.Find("Painel_Terminal_Log");
-        if (termTr == null)
+        if (termTr == null || termTr.GetComponent<RectTransform>() == null)
         {
-            painelTerminalLog = new GameObject("Painel_Terminal_Log");
-            painelTerminalLog.transform.SetParent(transform, false);
-            RectTransform rtTerm = painelTerminalLog.AddComponent<RectTransform>();
+            RectTransform rtTerm = ObterOuCriarFilhoUI(transform, "Painel_Terminal_Log");
+            painelTerminalLog = rtTerm.gameObject;
             rtTerm.anchorMin = new Vector2(0f, 0f);
             rtTerm.anchorMax = new Vector2(0f, 0f);
             rtTerm.pivot = new Vector2(0f, 0f);
             rtTerm.anchoredPosition = new Vector2(24f, 24f);
             rtTerm.sizeDelta = new Vector2(680f, 185f);
 
-            Image imgTerm = painelTerminalLog.AddComponent<Image>();
+            Image imgTerm = painelTerminalLog.GetComponent<Image>();
+            if (imgTerm == null) imgTerm = painelTerminalLog.AddComponent<Image>();
             imgTerm.color = new Color(0.01f, 0.03f, 0.09f, 0.88f);
 
             // Cabeçalho do Terminal
-            GameObject headerObj = new GameObject("Header_Terminal_TMP");
-            headerObj.transform.SetParent(painelTerminalLog.transform, false);
-            RectTransform rtHeader = headerObj.AddComponent<RectTransform>();
+            RectTransform rtHeader = ObterOuCriarFilhoUI(rtTerm, "Header_Terminal_TMP");
             rtHeader.anchorMin = new Vector2(0f, 1f);
             rtHeader.anchorMax = new Vector2(1f, 1f);
             rtHeader.pivot = new Vector2(0.5f, 1f);
             rtHeader.anchoredPosition = new Vector2(0f, -4f);
             rtHeader.sizeDelta = new Vector2(-20f, 24f);
 
-            TextMeshProUGUI txtHeader = headerObj.AddComponent<TextMeshProUGUI>();
+            TextMeshProUGUI txtHeader = rtHeader.gameObject.GetComponent<TextMeshProUGUI>();
+            if (txtHeader == null) txtHeader = rtHeader.gameObject.AddComponent<TextMeshProUGUI>();
             txtHeader.fontSize = 13;
             txtHeader.fontStyle = FontStyles.Bold;
             txtHeader.text = "TERMINAL DE LOGS (FEED DE TRIPLAS RDF / WEBSOCKET 8085)";
@@ -572,39 +588,41 @@ public class SemanticHUDManager : MonoBehaviour
             txtHeader.alignment = TextAlignmentOptions.MidlineLeft;
 
             // Viewport do ScrollRect
-            GameObject viewportObj = new GameObject("Viewport");
-            viewportObj.transform.SetParent(painelTerminalLog.transform, false);
-            RectTransform rtVp = viewportObj.AddComponent<RectTransform>();
+            RectTransform rtVp = ObterOuCriarFilhoUI(rtTerm, "Viewport");
+            GameObject viewportObj = rtVp.gameObject;
             rtVp.anchorMin = new Vector2(0f, 0f);
             rtVp.anchorMax = new Vector2(1f, 1f);
             rtVp.offsetMin = new Vector2(10f, 8f);
             rtVp.offsetMax = new Vector2(-10f, -30f);
 
-            Image imgVp = viewportObj.AddComponent<Image>();
+            Image imgVp = viewportObj.GetComponent<Image>();
+            if (imgVp == null) imgVp = viewportObj.AddComponent<Image>();
             imgVp.color = new Color(0f, 0f, 0f, 0.01f);
-            RectMask2D mask = viewportObj.AddComponent<RectMask2D>();
+            if (viewportObj.GetComponent<RectMask2D>() == null) viewportObj.AddComponent<RectMask2D>();
 
             // Content do ScrollRect
-            GameObject contentObj = new GameObject("Content");
-            contentObj.transform.SetParent(viewportObj.transform, false);
-            conteudoScrollTerminal = contentObj.AddComponent<RectTransform>();
+            conteudoScrollTerminal = ObterOuCriarFilhoUI(rtVp, "Content");
+            GameObject contentObj = conteudoScrollTerminal.gameObject;
             conteudoScrollTerminal.anchorMin = new Vector2(0f, 1f);
             conteudoScrollTerminal.anchorMax = new Vector2(1f, 1f);
             conteudoScrollTerminal.pivot = new Vector2(0.5f, 1f);
             conteudoScrollTerminal.anchoredPosition = Vector2.zero;
             conteudoScrollTerminal.sizeDelta = new Vector2(0f, 140f);
 
-            ContentSizeFitter csf = contentObj.AddComponent<ContentSizeFitter>();
+            ContentSizeFitter csf = contentObj.GetComponent<ContentSizeFitter>();
+            if (csf == null) csf = contentObj.AddComponent<ContentSizeFitter>();
             csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            textoLogTerminalTMP = contentObj.AddComponent<TextMeshProUGUI>();
+            textoLogTerminalTMP = contentObj.GetComponent<TextMeshProUGUI>();
+            if (textoLogTerminalTMP == null) textoLogTerminalTMP = contentObj.AddComponent<TextMeshProUGUI>();
             textoLogTerminalTMP.fontSize = 14;
             textoLogTerminalTMP.color = new Color(0.82f, 0.96f, 0.88f);
             textoLogTerminalTMP.alignment = TextAlignmentOptions.BottomLeft;
             textoLogTerminalTMP.richText = true;
             textoLogTerminalTMP.textWrappingMode = TextWrappingModes.Normal;
 
-            scrollRectTerminal = painelTerminalLog.AddComponent<ScrollRect>();
+            scrollRectTerminal = painelTerminalLog.GetComponent<ScrollRect>();
+            if (scrollRectTerminal == null) scrollRectTerminal = painelTerminalLog.AddComponent<ScrollRect>();
             scrollRectTerminal.viewport = rtVp;
             scrollRectTerminal.content = conteudoScrollTerminal;
             scrollRectTerminal.horizontal = false;

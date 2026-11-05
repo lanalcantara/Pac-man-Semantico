@@ -102,18 +102,19 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
             urpAsset.colorGradingLutSize = 32;
         }
 
-        // 4. Ativa Post-Processing e HDR em todas as Câmeras da cena
+        // 4. Ativa Post-Processing, HDR e Fundo Sólido Preto (sem Skybox) em todas as Câmeras da cena
+        RenderSettings.skybox = null;
+        RenderSettings.ambientMode = AmbientMode.Flat;
+        RenderSettings.ambientSkyColor = Color.black;
+
         Camera[] cameras = FindObjectsByType<Camera>(FindObjectsSortMode.None);
         foreach (Camera cam in cameras)
         {
             if (cam == null) continue;
             cam.allowHDR = true;
             cam.allowMSAA = true;
-            if (cam.CompareTag("MainCamera"))
-            {
-                cam.clearFlags = CameraClearFlags.SolidColor;
-                cam.backgroundColor = new Color(0.008f, 0.008f, 0.015f, 1.0f);
-            }
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = Color.black;
 
             UniversalAdditionalCameraData camData = cam.GetComponent<UniversalAdditionalCameraData>();
             if (camData == null)

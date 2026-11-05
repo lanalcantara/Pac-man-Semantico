@@ -266,6 +266,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     private void OnEnable()
     {
         ProtegeWebSocketBridge.OnTaxonomyReceived += AtualizarPlacasWayfindingTaxonomia;
+        ConfigurarIluminacaoSciFi();
+        LocalizarPlanoChao();
     }
 
     private void OnDisable()
@@ -309,9 +311,17 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
     private void Start()
     {
+        ConfigurarIluminacaoSciFi();
         if (Application.isPlaying)
         {
-            SemanticHUDManager.GarantirHUDAtivoNaCena();
+            try
+            {
+                SemanticHUDManager.GarantirHUDAtivoNaCena();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[GerenciadorCenarioSemantico] Aviso ao inicializar HUD: {ex.Message}");
+            }
         }
         GerarInstanciasOntologicas();
     }
@@ -1680,23 +1690,49 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     }
 
     /// <summary>
-    /// Cria o material de parede na estética "Dark Grid / Wireframe Retrowave":
-    /// Fundo preto profundo (#030306) com textura emissiva de GRADE (Grid/Wireframe) na cor da Superclasse OWL
-    /// (Roxo para Parasitas, Azul para Hospedeiros), eliminando blocos sólidos ofuscantes.
+    /// Cria ou carrega o material físico DarkGridMaterial na estética "Dark Grid / Wireframe Retrowave":
+    /// Fundo preto profundo com textura emissiva de GRADE (Grid/Wireframe) na cor da Superclasse OWL
+    /// (Roxo para Parasitas, Azul para Hospedeiros).
     /// </summary>
     public Material CriarMaterialParedePorSuperclasse(string superclasse, Vector2 tilingGrid = default)
     {
-        Color corSuperclasse = ObterCorTopologiaSuperclasse(superclasse);
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
-        Material mat = new Material(shader);
-        mat.name = $"Mat_Parede_DarkGrid_{superclasse}";
-
         if (tilingGrid == default || tilingGrid.x <= 0.01f)
         {
             tilingGrid = new Vector2(2f, 1f);
         }
 
-        // Gera texturas Base (preta com linhas) e Emissiva (preto absoluto no interior, branco apenas nas linhas da grade)
+        bool ehParasita = !string.IsNullOrEmpty(superclasse) &&
+                          (superclasse.IndexOf("Parasit", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                           superclasse.IndexOf("Nematod", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                           superclasse.IndexOf("Platyhelmint", StringComparison.OrdinalIgnoreCase) >= 0);
+
+        string nomeAssetMat = ehParasita ? "DarkGridMaterial_Parasitas_Roxo" : "DarkGridMaterial_Hospedeiros_Azul";
+
+        // 1. Prioriza o Material físico DarkGridMaterial salvo em Assets/Materials ou Resources
+        Material matFisico = Resources.Load<Material>(nomeAssetMat) ?? Resources.Load<Material>("DarkGridMaterial");
+#if UNITY_EDITOR
+        if (matFisico == null)
+        {
+            matFisico = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>($"Assets/Materials/{nomeAssetMat}.mat")
+                        ?? UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/DarkGridMaterial.mat");
+        }
+#endif
+        if (matFisico != null)
+        {
+            Material instanciaMat = new Material(matFisico);
+            instanciaMat.name = $"{nomeAssetMat}_Tiled";
+            if (instanciaMat.HasProperty("_BaseMap")) instanciaMat.SetTextureScale("_BaseMap", tilingGrid);
+            if (instanciaMat.HasProperty("_EmissionMap")) instanciaMat.SetTextureScale("_EmissionMap", tilingGrid);
+            instanciaMat.mainTextureScale = tilingGrid;
+            return instanciaMat;
+        }
+
+        // 2. Fallback procedural caso o material físico ainda não tenha sido importado
+        Color corSuperclasse = ObterCorTopologiaSuperclasse(superclasse);
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
+        Material mat = new Material(shader);
+        mat.name = $"Mat_Parede_DarkGrid_{superclasse}";
+
         GerarTexturasWireframeGrid(
             new Color(0.015f, 0.015f, 0.025f, 1f),
             corSuperclasse,
@@ -1716,8 +1752,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         mat.mainTexture = texBase;
         mat.mainTextureScale = tilingGrid;
 
-        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.05f);
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.20f);
+        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.0f);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.15f);
 
         if (mat.HasProperty("_EmissionColor"))
         {
@@ -1727,7 +1763,6 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 mat.SetTexture("_EmissionMap", texEmissiva);
                 mat.SetTextureScale("_EmissionMap", tilingGrid);
             }
-            // Apenas as linhas finas da grade (onde texEmissiva == branco) emitem luz néon; o interior do bloco é 100% preto
             Color corLinhaBrilhante = Color.Lerp(corSuperclasse, Color.white, 0.18f) * 1.35f;
             corLinhaBrilhante.a = 1f;
             mat.SetColor("_EmissionColor", corLinhaBrilhante);
@@ -1768,11 +1803,23 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     }
 
     /// <summary>
-    /// Cria o material "Dark Grid / Wireframe" para o chão (Plane):
+    /// Carrega ou cria o material físico "DarkGridMaterial_Chao" para o chão (Plane):
     /// Fundo preto profundo (#020205) com grade azul emissiva nítida (estilo Retrowave da referência).
     /// </summary>
     public Material CriarMaterialChaoLaboratorio()
     {
+        Material matChaoFisico = Resources.Load<Material>("DarkGridMaterial_Chao");
+#if UNITY_EDITOR
+        if (matChaoFisico == null)
+        {
+            matChaoFisico = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/DarkGridMaterial_Chao.mat");
+        }
+#endif
+        if (matChaoFisico != null)
+        {
+            return matChaoFisico;
+        }
+
         Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
         Material mat = new Material(shader);
         mat.name = "Mat_Chao_DarkGrid_Azul";
@@ -2060,11 +2107,21 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             dirLight.transform.rotation = Quaternion.Euler(52f, -35f, 0f);
         }
 
-        // Emissão global e Skybox quase totalmente pretas para estética Dark Grid Retrowave
+        // Desliga completamente o Skybox e força fundo sólido Preto em todas as Câmeras da cena
         RenderSettings.skybox = null;
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientSkyColor = new Color(0.01f, 0.01f, 0.02f, 1f);
-        RenderSettings.subtractiveShadowColor = new Color(0.005f, 0.005f, 0.015f, 1f);
+        RenderSettings.ambientSkyColor = Color.black;
+        RenderSettings.ambientEquatorColor = Color.black;
+        RenderSettings.ambientGroundColor = Color.black;
+        RenderSettings.subtractiveShadowColor = Color.black;
+
+        Camera[] todasCameras = FindObjectsByType<Camera>(FindObjectsSortMode.None);
+        foreach (Camera cam in todasCameras)
+        {
+            if (cam == null) continue;
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = Color.black;
+        }
 
         // Garante o otimizador gráfico Quest 3 (MSAA 4x, Render Scale 1.25, Anisotropic Forced On, HDR Bloom baixo)
         OtimizadorGraficoQuest3URP.AplicarOtimizacaoAutomaticaNoBoot();

@@ -211,6 +211,17 @@ public class ControladorXRJogador : MonoBehaviour
             cameraPrincipalXR = GetComponentInChildren<Camera>();
         }
 
+        // Seção 2 da Especificação Mestra: Garante que a câmera esteja DENTRO do labirinto (visão imersiva nos corredores),
+        // e não a 15.5m de altura como visão de topo antiga.
+        if (cameraPrincipalXR != null && !XRSettings.enabled)
+        {
+            if (cameraPrincipalXR.transform.localPosition.y > 4.0f)
+            {
+                cameraPrincipalXR.transform.localPosition = new Vector3(0f, 0.25f, -2.5f);
+                cameraPrincipalXR.transform.localRotation = Quaternion.Euler(14f, 0f, 0f);
+            }
+        }
+
         if (controladorEsquerdo == null)
         {
             Transform esq = transform.Find("Camera Offset/Left Hand Controller") ?? transform.Find("Left Hand Controller") ?? transform.Find("LeftController");

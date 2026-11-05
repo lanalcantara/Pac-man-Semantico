@@ -89,7 +89,11 @@ namespace PacMan.Player
         {
             if (characterController == null)
             {
-                characterController = GetComponent<CharacterController>() ?? gameObject.AddComponent<CharacterController>();
+                characterController = GetComponent<CharacterController>();
+                if (characterController == null)
+                {
+                    characterController = gameObject.AddComponent<CharacterController>();
+                }
             }
 
             if (characterController != null)

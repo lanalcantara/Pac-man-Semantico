@@ -35,7 +35,11 @@ public class MovimentoComeCome : MonoBehaviour
     {
         if (m_CharacterController == null)
         {
-            m_CharacterController = GetComponent<CharacterController>() ?? gameObject.AddComponent<CharacterController>();
+            m_CharacterController = GetComponent<CharacterController>();
+            if (m_CharacterController == null)
+            {
+                m_CharacterController = gameObject.AddComponent<CharacterController>();
+            }
         }
 
         if (m_CharacterController != null)

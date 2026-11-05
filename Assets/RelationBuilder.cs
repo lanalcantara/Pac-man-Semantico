@@ -166,7 +166,7 @@ public class RelationBuilder : MonoBehaviour
 
         if (m_LinhaAtiva == null)
         {
-            GameObject lineObj = new GameObject($"Linha_Conexao_Ativa_{sourceId}");
+            GameObject lineObj = new GameObject($"Linha_Conexao_Ativa_{sourceId}", typeof(LineRenderer));
             m_LinhaAtiva = ConfigurarLineRenderer(lineObj, corLinhaEmConstrucao);
         }
 
@@ -196,7 +196,7 @@ public class RelationBuilder : MonoBehaviour
         }
         else
         {
-            linhaFixaObj = new GameObject($"ObjectProperty_{nodoOrigemId}_{propriedadeAtiva}_{targetId}");
+            linhaFixaObj = new GameObject($"ObjectProperty_{nodoOrigemId}_{propriedadeAtiva}_{targetId}", typeof(LineRenderer));
             lrFixo = ConfigurarLineRenderer(linhaFixaObj, corLinhaFixada);
         }
 
@@ -256,7 +256,11 @@ public class RelationBuilder : MonoBehaviour
 
     private LineRenderer ConfigurarLineRenderer(GameObject host, Color cor)
     {
-        LineRenderer lr = host.GetComponent<LineRenderer>() ?? host.AddComponent<LineRenderer>();
+        LineRenderer lr = host.GetComponent<LineRenderer>();
+        if (lr == null)
+        {
+            lr = host.AddComponent<LineRenderer>();
+        }
         lr.useWorldSpace = true;
         lr.startWidth = larguraLinha;
         lr.endWidth = larguraLinha;

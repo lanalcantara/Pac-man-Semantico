@@ -10,12 +10,13 @@ using PacMan.Network;
 /// ============================================================================
 /// Substitui a mecânica arcade das antigas "Cerejas" por engenharia espacial
 /// de Object Properties OWL usando LineRenderer e TextMeshPro 3D:
-/// 1. Ao interagir com um Nodo A, ativa o "Modo de Conexão" e desenha uma linha
-///    física no espaço do Nodo A até o Player usando LineRenderer.
-/// 2. Ao interagir com um Nodo B, fixa a linha entre o Nodo A e o Nodo B.
-/// 3. Instancia um TextMeshPro flutuante no meio da linha com o rótulo da
-///    propriedade (ex: "has_host").
-/// 4. Envia a tripla (Nodo A -> has_host -> Nodo B) via WebSocket (porta 8085).
+/// 1. O LineRenderer fica OCULTO/DESATIVADO por padrão durante toda a navegação.
+/// 2. Somente quando o usuário INICIAR EXPLICITAMENTE a ação de conectar dois Nodos
+///    (Clique esquerdo do mouse apontando para um Nodo, Gatilho VR ou Tecla C),
+///    ativa o "Modo de Conexão" e estica a linha do Nodo A até o Player.
+/// 3. Ao clicar/acionar o segundo Nodo (Nodo B), fixa a linha entre o Nodo A e o Nodo B,
+///    instancia o TextMeshPro flutuante com a propriedade (ex: "has_host") e envia via WebSocket.
+/// 4. Botão Direito do Mouse ou ESC cancela e oculta imediatamente o LineRenderer ativo.
 /// ============================================================================
 /// </summary>
 [DisallowMultipleComponent]
@@ -27,7 +28,7 @@ public class RelationBuilder : MonoBehaviour
     [Tooltip("Rótulo padrão da propriedade de objeto a ser asserida (ex: has_host, has_habitat, has_transmission).")]
     public string propriedadeAtiva = "has_host";
 
-    [Tooltip("Catálogo de propriedades OWL alternáveis (Tecla Tab ou R).")]
+    [Tooltip("Catálogo de propriedades OWL alternáveis (Tecla Tab).")]
     public string[] catalogoPropriedades = new string[]
     {
         "has_host",
@@ -43,13 +44,15 @@ public class RelationBuilder : MonoBehaviour
     public Vector3 nodoOrigemPosicao;
 
     [Header("Configuração Visual do LineRenderer")]
-    public float larguraLinha = 0.06f;
+    public float larguraLinha = 0.055f;
     public Color corLinhaEmConstrucao = new Color(0.0f, 0.95f, 1.0f, 0.9f);
     public Color corLinhaFixada = new Color(0.66f, 0.33f, 0.97f, 0.95f);
+    public float distanciaMaximaSelecaoNodo = 18.0f;
 
     private LineRenderer m_LinhaAtiva;
     private Material m_MaterialLinha;
     private int m_IndicePropriedade = 0;
+    private IInstanciaSemantica m_NodoEmFoco;
 
     [Serializable]
     public class RelacaoCriada
@@ -69,22 +72,63 @@ public class RelationBuilder : MonoBehaviour
     private void Awake()
     {
         Instance = this;
+        emModoConexao = false;
         PrepararMaterialLinha();
+        LimparLinhasTemporariasOrfas();
     }
 
     private void OnEnable()
     {
-        InstanciaSemanticaBase.OnInstanciaInteragida += AoInteragirComNodo;
+        InstanciaSemanticaBase.OnInstanciaFocada += AoFocarNodo;
+        InstanciaSemanticaBase.OnInstanciaDesfocada += AoDesfocarNodo;
+        OcultarLinhaEmConstrucao();
     }
 
     private void OnDisable()
     {
-        InstanciaSemanticaBase.OnInstanciaInteragida -= AoInteragirComNodo;
+        InstanciaSemanticaBase.OnInstanciaFocada -= AoFocarNodo;
+        InstanciaSemanticaBase.OnInstanciaDesfocada -= AoDesfocarNodo;
+        CancelarModoConexao(silencioso: true);
+    }
+
+    private void LimparLinhasTemporariasOrfas()
+    {
+        // Remove qualquer objeto Linha_Conexao_Ativa_* residual para nunca atravessar a tela no início
+        LineRenderer[] todasLinhas = FindObjectsByType<LineRenderer>(FindObjectsSortMode.None);
+        for (int i = 0; i < todasLinhas.Length; i++)
+        {
+            if (todasLinhas[i] != null && todasLinhas[i].gameObject.name.StartsWith("Linha_Conexao_Ativa_", StringComparison.OrdinalIgnoreCase))
+            {
+                todasLinhas[i].enabled = false;
+                if (Application.isPlaying) Destroy(todasLinhas[i].gameObject);
+                else DestroyImmediate(todasLinhas[i].gameObject);
+            }
+        }
+    }
+
+    private void AoFocarNodo(IInstanciaSemantica instancia)
+    {
+        m_NodoEmFoco = instancia;
+    }
+
+    private void AoDesfocarNodo(IInstanciaSemantica instancia)
+    {
+        if (m_NodoEmFoco == instancia)
+        {
+            m_NodoEmFoco = null;
+        }
     }
 
     private void Update()
     {
-        // Permite alternar a Object Property ativa com Tab
+        // 1. Permite cancelar o Modo de Conexão a qualquer momento com Botão Direito ou ESC
+        if (emModoConexao && (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace)))
+        {
+            CancelarModoConexao(silencioso: false);
+            return;
+        }
+
+        // 2. Permite alternar a Object Property ativa com Tab
         if (Input.GetKeyDown(KeyCode.Tab) && catalogoPropriedades != null && catalogoPropriedades.Length > 0)
         {
             m_IndicePropriedade = (m_IndicePropriedade + 1) % catalogoPropriedades.Length;
@@ -95,21 +139,34 @@ public class RelationBuilder : MonoBehaviour
             }
         }
 
-        // Seção 2 da Especificação Mestra: Modo Criação (Do Zero In-Game) - Tecla N instancia um novo Nodo Ontológico no espaço
+        // 3. Modo Criação (Do Zero In-Game) - Tecla N instancia um novo Nodo Ontológico no espaço (sem ativar linha sozinha)
         if (Input.GetKeyDown(KeyCode.N))
         {
             InstanciarNodoCriacaoInGame();
         }
 
-        // Atualiza a ponta final da linha ativa até a posição atual do Player enquanto em Modo de Conexão
-        if (emModoConexao && m_LinhaAtiva != null)
+        // 4. Ação EXPLÍCITA do usuário para iniciar ou concluir a conexão entre dois Nodos (Clique Esquerdo ou Tecla C)
+        if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.C))
         {
-            Vector3 posPlayer = transform.position + Vector3.up * 0.45f;
-            m_LinhaAtiva.SetPosition(0, nodoOrigemPosicao);
-            m_LinhaAtiva.SetPosition(1, posPlayer);
+            TentarAcionarConexaoExplicita();
         }
 
-        // Faz os rótulos TextMeshPro 3D olharem para a câmera principal (Billboard legível)
+        // 5. Atualiza a ponta final da linha ativa SOMENTE enquanto emModoConexao for true; caso contrário mantém oculta
+        if (emModoConexao && m_LinhaAtiva != null)
+        {
+            if (!m_LinhaAtiva.gameObject.activeSelf) m_LinhaAtiva.gameObject.SetActive(true);
+            m_LinhaAtiva.enabled = true;
+
+            Vector3 posDestino = ObterPosicaoPontaConexao();
+            m_LinhaAtiva.SetPosition(0, nodoOrigemPosicao);
+            m_LinhaAtiva.SetPosition(1, posDestino);
+        }
+        else
+        {
+            OcultarLinhaEmConstrucao();
+        }
+
+        // 6. Faz os rótulos TextMeshPro 3D das relações já fixadas olharem para a câmera principal (Billboard legível)
         if (Camera.main != null && m_RelacoesFixadas.Count > 0)
         {
             Transform camTr = Camera.main.transform;
@@ -128,14 +185,87 @@ public class RelationBuilder : MonoBehaviour
         }
     }
 
-    private void AoInteragirComNodo(IInstanciaSemantica instancia, bool sucesso)
+    /// <summary>
+    /// Executa Raycast a partir do cursor do mouse (ou centro da câmera/foco XR) para detectar
+    /// o Nodo Ontológico que o usuário clicou explicitamente para conectar.
+    /// </summary>
+    private void TentarAcionarConexaoExplicita()
     {
-        if (instancia == null) return;
-        RegistrarInteracaoNodo(instancia.Id, instancia.NomeClasse, instancia.Posicao + Vector3.up * 0.45f, instancia.EhValida);
+        IInstanciaSemantica nodoAlvo = DetectarNodoSobCliqueOuMira();
+        if (nodoAlvo != null)
+        {
+            RegistrarInteracaoNodo(
+                nodoAlvo.Id,
+                nodoAlvo.NomeClasse,
+                nodoAlvo.Posicao + Vector3.up * 0.45f,
+                nodoAlvo.EhValida);
+        }
+        else if (emModoConexao && Input.GetMouseButtonDown(0))
+        {
+            // Se clicou no vazio enquanto estava em modo de conexão, cancela e esconde a linha para não poluir a tela
+            CancelarModoConexao(silencioso: false);
+        }
+    }
+
+    private IInstanciaSemantica DetectarNodoSobCliqueOuMira()
+    {
+        Camera cam = Camera.main;
+        if (cam != null)
+        {
+            // 1. Tenta Raycast pela posição do cursor do Mouse na tela
+            Ray raioMouse = cam.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(raioMouse, out RaycastHit hitMouse, distanciaMaximaSelecaoNodo, ~0, QueryTriggerInteraction.Collide))
+            {
+                IInstanciaSemantica instMouse = hitMouse.collider.GetComponentInParent<IInstanciaSemantica>()
+                                                ?? hitMouse.collider.GetComponent<IInstanciaSemantica>();
+                if (instMouse != null) return instMouse;
+            }
+
+            // 2. Se acionado por tecla C, tenta Raycast pelo centro da câmera
+            if (Input.GetKeyDown(KeyCode.C))
+            {
+                Ray raioCentro = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+                if (Physics.Raycast(raioCentro, out RaycastHit hitCentro, distanciaMaximaSelecaoNodo, ~0, QueryTriggerInteraction.Collide))
+                {
+                    IInstanciaSemantica instCentro = hitCentro.collider.GetComponentInParent<IInstanciaSemantica>()
+                                                     ?? hitCentro.collider.GetComponent<IInstanciaSemantica>();
+                    if (instCentro != null) return instCentro;
+                }
+            }
+        }
+
+        // 3. Fallback: Nodo atualmente sob foco do apontador XR (somente quando acionado por clique/gatilho explícito)
+        if (m_NodoEmFoco != null)
+        {
+            return m_NodoEmFoco;
+        }
+
+        return null;
+    }
+
+    private Vector3 ObterPosicaoPontaConexao()
+    {
+        Camera cam = Camera.main;
+        if (cam != null)
+        {
+            Ray raioMouse = cam.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(raioMouse, out RaycastHit hit, distanciaMaximaSelecaoNodo, ~0, QueryTriggerInteraction.Collide))
+            {
+                IInstanciaSemantica inst = hit.collider.GetComponentInParent<IInstanciaSemantica>()
+                                           ?? hit.collider.GetComponent<IInstanciaSemantica>();
+                if (inst != null)
+                {
+                    return inst.Posicao + Vector3.up * 0.45f;
+                }
+            }
+        }
+
+        return transform.position + Vector3.up * 0.45f;
     }
 
     /// <summary>
-    /// Processa a interação com um Nodo A (inicia Modo de Conexão) ou Nodo B (fixa a linha, cria rótulo TMP e envia tripla via WebSocket).
+    /// Processa a ação explícita de conexão com um Nodo A (inicia Modo de Conexão)
+    /// ou Nodo B (fixa a linha, cria rótulo TMP e envia tripla via WebSocket).
     /// </summary>
     public void RegistrarInteracaoNodo(string nodeId, string nodeClass, Vector3 nodePos, bool ehValido = true)
     {
@@ -143,16 +273,17 @@ public class RelationBuilder : MonoBehaviour
 
         if (!emModoConexao)
         {
-            // 1. Inicia Modo de Conexão a partir do Nodo A
             IniciarModoConexao(nodeId, nodeClass, nodePos);
         }
         else
         {
-            // Evita conectar o mesmo nodo a si mesmo imediatamente
+            // Se clicar no mesmo nodo de origem novamente, cancela e oculta a linha
             if (string.Equals(nodoOrigemId, nodeId, StringComparison.OrdinalIgnoreCase))
+            {
+                CancelarModoConexao(silencioso: false);
                 return;
+            }
 
-            // 2. Fixa a conexão no Nodo B, instancia TextMeshPro e envia tripla via WebSocket
             FinalizarConexao(nodeId, nodeClass, nodePos, ehValido);
         }
     }
@@ -170,11 +301,46 @@ public class RelationBuilder : MonoBehaviour
             m_LinhaAtiva = ConfigurarLineRenderer(lineObj, corLinhaEmConstrucao);
         }
 
+        m_LinhaAtiva.gameObject.name = $"Linha_Conexao_Ativa_{sourceId}";
+        m_LinhaAtiva.gameObject.SetActive(true);
+        m_LinhaAtiva.enabled = true;
         m_LinhaAtiva.positionCount = 2;
         m_LinhaAtiva.SetPosition(0, nodoOrigemPosicao);
-        m_LinhaAtiva.SetPosition(1, transform.position + Vector3.up * 0.45f);
+        m_LinhaAtiva.SetPosition(1, ObterPosicaoPontaConexao());
 
-        Debug.Log($"<color=#00E5FF><b>[RelationBuilder]</b></color> Modo de Conexão ATIVO: Origem '{sourceClass}' ({sourceId}) -> aguardando Nodo B para propriedade '{propriedadeAtiva}'...");
+        if (SemanticHUDManager.Instancia != null)
+        {
+            SemanticHUDManager.Instancia.AdicionarLinhaLog($"[CONEXÃO OWL] Origem '{sourceClass}' selecionada. Clique no 2º Nodo para '{propriedadeAtiva}' (Botão Direito cancela).");
+        }
+
+        Debug.Log($"<color=#00E5FF><b>[RelationBuilder]</b></color> Modo de Conexão ATIVO: Origem '{sourceClass}' ({sourceId}) -> aguardando clique no Nodo B para propriedade '{propriedadeAtiva}'...");
+    }
+
+    public void CancelarModoConexao(bool silencioso = false)
+    {
+        bool estavaAtivo = emModoConexao;
+        emModoConexao = false;
+        nodoOrigemId = null;
+        nodoOrigemClasse = null;
+
+        OcultarLinhaEmConstrucao();
+
+        if (estavaAtivo && !silencioso && SemanticHUDManager.Instancia != null)
+        {
+            SemanticHUDManager.Instancia.AdicionarLinhaLog("[CONEXÃO OWL] Modo de conexão cancelado.");
+        }
+    }
+
+    private void OcultarLinhaEmConstrucao()
+    {
+        if (m_LinhaAtiva != null)
+        {
+            m_LinhaAtiva.enabled = false;
+            if (m_LinhaAtiva.gameObject.activeSelf)
+            {
+                m_LinhaAtiva.gameObject.SetActive(false);
+            }
+        }
     }
 
     public void FinalizarConexao(string targetId, string targetClass, Vector3 targetPos, bool consistente = true)
@@ -183,22 +349,12 @@ public class RelationBuilder : MonoBehaviour
 
         emModoConexao = false;
 
-        // 1. Fixa a linha física no espaço entre o Nodo A e o Nodo B
-        GameObject linhaFixaObj;
-        LineRenderer lrFixo;
+        // 1. Cria um novo objeto dedicado para a linha fixada e oculta o LineRenderer de construção
+        OcultarLinhaEmConstrucao();
 
-        if (m_LinhaAtiva != null)
-        {
-            linhaFixaObj = m_LinhaAtiva.gameObject;
-            linhaFixaObj.name = $"ObjectProperty_{nodoOrigemId}_{propriedadeAtiva}_{targetId}";
-            lrFixo = m_LinhaAtiva;
-            m_LinhaAtiva = null;
-        }
-        else
-        {
-            linhaFixaObj = new GameObject($"ObjectProperty_{nodoOrigemId}_{propriedadeAtiva}_{targetId}", typeof(LineRenderer));
-            lrFixo = ConfigurarLineRenderer(linhaFixaObj, corLinhaFixada);
-        }
+        GameObject linhaFixaObj = new GameObject($"ObjectProperty_{nodoOrigemId}_{propriedadeAtiva}_{targetId}", typeof(LineRenderer));
+        LineRenderer lrFixo = ConfigurarLineRenderer(linhaFixaObj, corLinhaFixada);
+        lrFixo.enabled = true;
 
         Color corFinal = consistente ? corLinhaFixada : new Color(1.0f, 0.15f, 0.25f, 0.95f);
         lrFixo.startColor = corFinal;
@@ -266,6 +422,7 @@ public class RelationBuilder : MonoBehaviour
         lr.endWidth = larguraLinha;
         lr.numCapVertices = 4;
         lr.positionCount = 2;
+        lr.enabled = false;
 
         PrepararMaterialLinha();
         Material matInst = new Material(m_MaterialLinha);
@@ -285,13 +442,13 @@ public class RelationBuilder : MonoBehaviour
 
     private GameObject InstanciarRotuloFlutuanteTMP(Transform pai, Vector3 posicaoMundo, string textoPropriedade, Color corDestaque)
     {
-        GameObject labelObj = new GameObject($"TMP_Label_{textoPropriedade}");
+        GameObject labelObj = new GameObject($"TMP_Label_{textoPropriedade}", typeof(RectTransform));
         labelObj.transform.SetParent(pai, true);
         labelObj.transform.position = posicaoMundo;
 
         TextMeshPro tmp = labelObj.AddComponent<TextMeshPro>();
         tmp.text = textoPropriedade;
-        tmp.fontSize = 3.2f;
+        tmp.fontSize = 2.6f;
         tmp.fontStyle = FontStyles.Bold;
         tmp.color = Color.white;
         tmp.outlineColor = new Color32(0, 0, 0, 255);
@@ -311,7 +468,8 @@ public class RelationBuilder : MonoBehaviour
         RectTransform rt = labelObj.GetComponent<RectTransform>();
         if (rt != null)
         {
-            rt.sizeDelta = new Vector2(4.0f, 1.0f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(3.5f, 0.8f);
         }
 
         return labelObj;
@@ -321,8 +479,8 @@ public class RelationBuilder : MonoBehaviour
 
     /// <summary>
     /// Seção 2 da Especificação Mestra: Modo Criação (Do Zero In-Game).
-    /// Permite ao usuário soltar um novo Nodo Ontológico (Classe/Indivíduo) no espaço à sua frente
-    /// e conectá-lo via laser (LineRenderer) para construir a ontologia de dentro do jogo.
+    /// Permite ao usuário soltar um novo Nodo Ontológico (Classe/Indivíduo) no espaço à sua frente.
+    /// A linha de conexão só será ativada quando o usuário clicar explicitamente no nodo.
     /// </summary>
     public GameObject InstanciarNodoCriacaoInGame(string nomeClasseCustom = null)
     {
@@ -369,10 +527,9 @@ public class RelationBuilder : MonoBehaviour
 
         if (SemanticHUDManager.Instancia != null)
         {
-            SemanticHUDManager.Instancia.AdicionarLinhaLog($"[CRIAÇÃO IN-GAME] Nodo '{nomeClasse}' ({idNodo}) posicionado em {posSpawn:F1}");
+            SemanticHUDManager.Instancia.AdicionarLinhaLog($"[CRIAÇÃO IN-GAME] Nodo '{nomeClasse}' ({idNodo}) posicionado. Clique nele para conectar.");
         }
 
-        RegistrarInteracaoNodo(idNodo, nomeClasse, posSpawn, true);
         return nodoObj;
     }
 
@@ -385,4 +542,3 @@ public class RelationBuilder : MonoBehaviour
         }
     }
 }
-

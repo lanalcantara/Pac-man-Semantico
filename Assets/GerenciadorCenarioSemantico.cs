@@ -2467,7 +2467,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         GameObject poste = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         poste.name = "Poste_Suporte";
         poste.transform.SetParent(raizPlaca.transform, false);
-        poste.transform.localPosition = new Vector3(0f, 0.58f, 0f);
+        poste.transform.localPosition = new Vector3(0f, 0.56f, 0f);
         poste.transform.localScale = new Vector3(0.08f, 0.56f, 0.08f);
         Collider colPoste = poste.GetComponent<Collider>();
         if (colPoste != null)
@@ -2480,8 +2480,11 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         GameObject painel = GameObject.CreatePrimitive(PrimitiveType.Cube);
         painel.name = "Painel_Holografico";
         painel.transform.SetParent(raizPlaca.transform, false);
-        painel.transform.localPosition = new Vector3(0f, 1.22f, 0f);
-        painel.transform.localScale = new Vector3(2.20f, 0.54f, 0.05f);
+        painel.transform.localPosition = new Vector3(0f, PlacaSinalizacaoSemantica.AlturaCentroPainel, 0f);
+        painel.transform.localScale = new Vector3(
+            PlacaSinalizacaoSemantica.LarguraPainelHolografico,
+            PlacaSinalizacaoSemantica.AlturaPainelHolografico,
+            PlacaSinalizacaoSemantica.EspessuraPainelHolografico);
         Collider colPainel = painel.GetComponent<Collider>();
         if (colPainel != null)
         {
@@ -2493,8 +2496,12 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         GameObject molduraNeon = GameObject.CreatePrimitive(PrimitiveType.Cube);
         molduraNeon.name = "Moldura_Neon_HDR";
         molduraNeon.transform.SetParent(raizPlaca.transform, false);
-        molduraNeon.transform.localPosition = new Vector3(0f, 1.51f, 0f);
-        molduraNeon.transform.localScale = new Vector3(2.26f, 0.05f, 0.08f);
+        float topoPainel = PlacaSinalizacaoSemantica.AlturaCentroPainel + (PlacaSinalizacaoSemantica.AlturaPainelHolografico * 0.5f) + 0.02f;
+        molduraNeon.transform.localPosition = new Vector3(0f, topoPainel, 0f);
+        molduraNeon.transform.localScale = new Vector3(
+            PlacaSinalizacaoSemantica.LarguraPainelHolografico + 0.06f,
+            0.05f,
+            PlacaSinalizacaoSemantica.EspessuraPainelHolografico + 0.02f);
         Collider colMoldura = molduraNeon.GetComponent<Collider>();
         if (colMoldura != null)
         {
@@ -2502,27 +2509,17 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             else DestroyImmediate(colMoldura);
         }
 
-        // 5. Texto TextMeshPro 3D Frontal
-        GameObject txtFrenteObj = new GameObject("TMP_Texto_Frontal");
+        // 5. Texto TextMeshPro 3D Frontal (Perfeitamente centralizado e contido no Painel_Holografico)
+        GameObject txtFrenteObj = new GameObject("TMP_Texto_Frontal", typeof(RectTransform));
         txtFrenteObj.transform.SetParent(raizPlaca.transform, false);
-        txtFrenteObj.transform.localPosition = new Vector3(0f, 1.22f, -0.055f);
-        txtFrenteObj.transform.localRotation = Quaternion.identity;
         TextMeshPro tmpFrente = txtFrenteObj.AddComponent<TextMeshPro>();
-        tmpFrente.fontSize = 2.1f;
-        tmpFrente.alignment = TextAlignmentOptions.Center;
-        tmpFrente.rectTransform.sizeDelta = new Vector2(2.15f, 0.50f);
-        tmpFrente.textWrappingMode = TextWrappingModes.Normal;
+        PlacaSinalizacaoSemantica.CentralizarRectTransformNoPainel(tmpFrente, ehFaceTraseira: false);
 
         // 6. Texto TextMeshPro 3D Traseiro (Legível dos dois sentidos do corredor)
-        GameObject txtVersoObj = new GameObject("TMP_Texto_Traseiro");
+        GameObject txtVersoObj = new GameObject("TMP_Texto_Traseiro", typeof(RectTransform));
         txtVersoObj.transform.SetParent(raizPlaca.transform, false);
-        txtVersoObj.transform.localPosition = new Vector3(0f, 1.22f, 0.055f);
-        txtVersoObj.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
         TextMeshPro tmpVerso = txtVersoObj.AddComponent<TextMeshPro>();
-        tmpVerso.fontSize = 2.1f;
-        tmpVerso.alignment = TextAlignmentOptions.Center;
-        tmpVerso.rectTransform.sizeDelta = new Vector2(2.15f, 0.50f);
-        tmpVerso.textWrappingMode = TextWrappingModes.Normal;
+        PlacaSinalizacaoSemantica.CentralizarRectTransformNoPainel(tmpVerso, ehFaceTraseira: true);
 
         PlacaSinalizacaoSemantica placaComp = raizPlaca.AddComponent<PlacaSinalizacaoSemantica>();
         placaComp.textoFrontal = tmpFrente;

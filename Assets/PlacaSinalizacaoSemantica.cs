@@ -14,6 +14,15 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class PlacaSinalizacaoSemantica : MonoBehaviour
 {
+    public const float AlturaCentroPainel = 1.28f;
+    public const float LarguraPainelHolografico = 2.40f;
+    public const float AlturaPainelHolografico = 0.68f;
+    public const float EspessuraPainelHolografico = 0.06f;
+
+    public const float LarguraRectTexto = 2.16f;
+    public const float AlturaRectTexto = 0.54f;
+    public const float OffsetZTexto = 0.042f;
+
     [Header("Identificação da Bifurcação e Hierarquia OWL")]
     public string idBifurcacao = "Bifurcacao_01";
     public string setaDirecao = "⬆";
@@ -57,6 +66,7 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
 
     private void Awake()
     {
+        SincronizarGeometriaEPainelPlaca();
         GarantirReferenciasTextMeshPro();
         GarantirTextoPadraoOffline();
         AtualizarVisualPlaca();
@@ -64,6 +74,7 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
 
     private void OnEnable()
     {
+        SincronizarGeometriaEPainelPlaca();
         GarantirReferenciasTextMeshPro();
         GarantirTextoPadraoOffline();
         AtualizarVisualPlaca();
@@ -71,6 +82,7 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
 
     private void Start()
     {
+        SincronizarGeometriaEPainelPlaca();
         GarantirReferenciasTextMeshPro();
         GarantirTextoPadraoOffline();
         AtualizarVisualPlaca();
@@ -108,6 +120,7 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
         nomeClasseExibida = string.IsNullOrEmpty(nomeClasse) ? ObterNomeClasseOfflinePadrao(tipoHierarquia) : nomeClasse;
         corNeon = corCategoria;
 
+        SincronizarGeometriaEPainelPlaca();
         GarantirReferenciasTextMeshPro();
         AtualizarVisualPlaca();
     }
@@ -122,7 +135,7 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
         {
             nomeClasseExibida = ObterNomeClasseOfflinePadrao(tipoHierarquia);
         }
-        if ( string.IsNullOrEmpty(setaDirecao))
+        if (string.IsNullOrEmpty(setaDirecao))
         {
             setaDirecao = "⬆";
         }
@@ -165,6 +178,52 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
         return new Color(0.68f, 0.20f, 1.0f, 1.0f); // Roxo Neon
     }
 
+    /// <summary>
+    /// Garante que o pedestal, o poste de suporte, o painel holográfico e a moldura superior
+    /// estejam perfeitamente alinhados e dimensionados (inclusive em instâncias vindas de prefabs antigos).
+    /// </summary>
+    private void SincronizarGeometriaEPainelPlaca()
+    {
+        Transform trBase = transform.Find("Base_Pedestal");
+        if (trBase != null)
+        {
+            trBase.localPosition = new Vector3(0f, 0.04f, 0f);
+            trBase.localScale = new Vector3(0.45f, 0.04f, 0.45f);
+        }
+
+        Transform trPoste = transform.Find("Poste_Suporte");
+        if (trPoste != null)
+        {
+            trPoste.localPosition = new Vector3(0f, 0.56f, 0f);
+            trPoste.localScale = new Vector3(0.08f, 0.56f, 0.08f);
+        }
+
+        Transform trPainel = transform.Find("Painel_Holografico");
+        if (trPainel != null)
+        {
+            trPainel.localPosition = new Vector3(0f, AlturaCentroPainel, 0f);
+            trPainel.localRotation = Quaternion.identity;
+            trPainel.localScale = new Vector3(LarguraPainelHolografico, AlturaPainelHolografico, EspessuraPainelHolografico);
+            if (rendererPainelHolografico == null)
+            {
+                rendererPainelHolografico = trPainel.GetComponent<Renderer>();
+            }
+        }
+
+        Transform trMoldura = transform.Find("Moldura_Neon_HDR");
+        if (trMoldura != null)
+        {
+            float topoPainel = AlturaCentroPainel + (AlturaPainelHolografico * 0.5f) + 0.02f;
+            trMoldura.localPosition = new Vector3(0f, topoPainel, 0f);
+            trMoldura.localRotation = Quaternion.identity;
+            trMoldura.localScale = new Vector3(LarguraPainelHolografico + 0.06f, 0.05f, EspessuraPainelHolografico + 0.02f);
+            if (rendererMolduraNeon == null)
+            {
+                rendererMolduraNeon = trMoldura.GetComponent<Renderer>();
+            }
+        }
+    }
+
     private void GarantirReferenciasTextMeshPro()
     {
         if (textoFrontalTMP == null)
@@ -191,31 +250,54 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
         // Se ainda não houver componente TextMeshPro filho, cria automaticamente na frente e no verso da placa
         if (textoFrontalTMP == null)
         {
-            GameObject txtFrenteObj = new GameObject("TMP_Texto_Frontal");
+            GameObject txtFrenteObj = new GameObject("TMP_Texto_Frontal", typeof(RectTransform));
             txtFrenteObj.transform.SetParent(transform, false);
-            txtFrenteObj.transform.localPosition = new Vector3(0f, 1.22f, -0.055f);
-            txtFrenteObj.transform.localRotation = Quaternion.identity;
-            TextMeshPro tmpFrente = txtFrenteObj.AddComponent<TextMeshPro>();
-            tmpFrente.rectTransform.sizeDelta = new Vector2(2.15f, 0.54f);
-            textoFrontalTMP = tmpFrente;
+            textoFrontalTMP = txtFrenteObj.AddComponent<TextMeshPro>();
         }
 
         if (textoTraseiroTMP == null)
         {
-            GameObject txtVersoObj = new GameObject("TMP_Texto_Traseiro");
+            GameObject txtVersoObj = new GameObject("TMP_Texto_Traseiro", typeof(RectTransform));
             txtVersoObj.transform.SetParent(transform, false);
-            txtVersoObj.transform.localPosition = new Vector3(0f, 1.22f, 0.055f);
-            txtVersoObj.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-            TextMeshPro tmpVerso = txtVersoObj.AddComponent<TextMeshPro>();
-            tmpVerso.rectTransform.sizeDelta = new Vector2(2.15f, 0.54f);
-            textoTraseiroTMP = tmpVerso;
+            textoTraseiroTMP = txtVersoObj.AddComponent<TextMeshPro>();
         }
+
+        CentralizarRectTransformNoPainel(textoFrontalTMP, ehFaceTraseira: false);
+        CentralizarRectTransformNoPainel(textoTraseiroTMP, ehFaceTraseira: true);
+    }
+
+    /// <summary>
+    /// Força o RectTransform do TextMeshPro a ficar 100% centralizado no eixo (X=0, Y=AlturaCentroPainel)
+    /// e contido dentro das bordas do Painel_Holografico, corrigindo qualquer desalinhamento do Prefab.
+    /// </summary>
+    public static void CentralizarRectTransformNoPainel(TMP_Text tmp, bool ehFaceTraseira)
+    {
+        if (tmp == null) return;
+
+        RectTransform rt = tmp.rectTransform;
+        if (rt == null) return;
+
+        rt.anchorMin = new Vector2(0.5f, 0.5f);
+        rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = new Vector2(LarguraRectTexto, AlturaRectTexto);
+        rt.localScale = Vector3.one;
+        rt.localRotation = ehFaceTraseira ? Quaternion.Euler(0f, 180f, 0f) : Quaternion.identity;
+
+        Vector3 posCentralizada = new Vector3(0f, AlturaCentroPainel, ehFaceTraseira ? OffsetZTexto : -OffsetZTexto);
+        rt.localPosition = posCentralizada;
+        rt.anchoredPosition3D = posCentralizada;
     }
 
     public void AtualizarVisualPlaca()
     {
-        // Texto 100% em Branco Puro (#FFFFFF) com contorno preto (#000000) para nitidez absoluta no Quest 3
-        string conteudoFormatado = $"{setaDirecao} {tipoHierarquia}: {nomeClasseExibida}";
+        SincronizarGeometriaEPainelPlaca();
+        CentralizarRectTransformNoPainel(textoFrontalTMP, ehFaceTraseira: false);
+        CentralizarRectTransformNoPainel(textoTraseiroTMP, ehFaceTraseira: true);
+
+        // Layout em 2 linhas centralizadas: linha superior com a direção/hierarquia e linha inferior com a Classe OWL em destaque
+        // Isso impede que nomes como 'Nematoda' ou 'Platyhelminthes' escapem pelas laterais ou por baixo do painel!
+        string conteudoFormatado = $"<size=74%>{setaDirecao} {tipoHierarquia}:</size>\n<b>{nomeClasseExibida}</b>";
 
         AplicarTextoBrancoContornoPretoTMP(textoFrontalTMP, conteudoFormatado);
         AplicarTextoBrancoContornoPretoTMP(textoTraseiroTMP, conteudoFormatado);
@@ -249,11 +331,18 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
 
         tmp.text = texto;
         tmp.richText = true;
-        tmp.fontSize = 2.1f;
+
+        // Auto-Sizing ativo garante que qualquer nome de classe caiba 100% dentro do painel holográfico sem ultrapassar as bordas
+        tmp.enableAutoSizing = true;
+        tmp.fontSizeMin = 0.65f;
+        tmp.fontSizeMax = 1.50f;
+        tmp.fontSize = 1.45f;
         tmp.fontStyle = FontStyles.Bold;
         tmp.alignment = TextAlignmentOptions.Center;
-        tmp.textWrappingMode = TextWrappingModes.Normal;
-        tmp.overflowMode = TextOverflowModes.Overflow;
+        tmp.lineSpacing = -6f;
+        tmp.margin = new Vector4(0.08f, 0.04f, 0.08f, 0.04f);
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
+        tmp.overflowMode = TextOverflowModes.Ellipsis;
 
         // Branco Puro (#FFFFFF) com Contorno Preto (#000000)
         tmp.color = Color.white;

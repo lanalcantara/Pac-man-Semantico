@@ -58,6 +58,9 @@ public class InteracaoEspacialXR : MonoBehaviour
     [Tooltip("Exibir anel/retículo no ponto de impacto da mira.")]
     public bool mostrarReticulo = true;
 
+    [Tooltip("Quando true, o LineRenderer só é desenhado quando o usuário aciona explicitamente o gatilho/conexão, evitando linhas permanentes na tela.")]
+    public bool exibirLaserApenasAoAcionar = true;
+
     private LineRenderer m_LineRenderer;
     private SphereCollider m_ColisorProximidade;
     private IInstanciaSemantica m_InstanciaSobFoco;
@@ -115,6 +118,7 @@ public class InteracaoEspacialXR : MonoBehaviour
         m_LineRenderer.material = matLaser;
         m_LineRenderer.startColor = corLaserRepouso;
         m_LineRenderer.endColor = corLaserRepouso * 0.5f;
+        m_LineRenderer.enabled = false;
     }
 
     private void InicializarReticulo()
@@ -159,17 +163,30 @@ public class InteracaoEspacialXR : MonoBehaviour
             instanciaDetectada = hit.collider.GetComponentInParent<IInstanciaSemantica>() ?? hit.collider.GetComponent<IInstanciaSemantica>();
         }
 
+        bool gatilhoXRAtivo = false;
+        if (m_DispositivoXR.isValid)
+        {
+            if (m_DispositivoXR.TryGetFeatureValue(CommonUsages.triggerButton, out bool tb) && tb) gatilhoXRAtivo = true;
+            else if (m_DispositivoXR.TryGetFeatureValue(CommonUsages.trigger, out float tv) && tv > 0.25f) gatilhoXRAtivo = true;
+        }
+
+        bool deveExibirLinha = !exibirLaserApenasAoAcionar || gatilhoXRAtivo;
+
         if (m_LineRenderer != null)
         {
-            m_LineRenderer.enabled = true;
-            m_LineRenderer.SetPosition(0, origem);
-            m_LineRenderer.SetPosition(1, pontoFinal);
+            m_LineRenderer.enabled = deveExibirLinha;
+            if (deveExibirLinha)
+            {
+                m_LineRenderer.SetPosition(0, origem);
+                m_LineRenderer.SetPosition(1, pontoFinal);
+            }
         }
 
         if (m_ReticuloObj != null && mostrarReticulo)
         {
-            m_ReticuloObj.SetActive(colidiu);
-            if (colidiu)
+            bool exibirReticulo = deveExibirLinha && colidiu;
+            m_ReticuloObj.SetActive(exibirReticulo);
+            if (exibirReticulo)
             {
                 m_ReticuloObj.transform.position = pontoFinal;
             }
@@ -213,8 +230,8 @@ public class InteracaoEspacialXR : MonoBehaviour
 
         bool acionado = false;
 
-        // 1. Teclado / Mouse Fallback (Editor)
-        if (Input.GetButtonDown("Fire1") || Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.E))
+        // 1. Teclado Fallback explícito para captura à distância (Tecla E)
+        if (Input.GetKeyDown(KeyCode.E))
         {
             acionado = true;
         }
@@ -246,14 +263,23 @@ public class InteracaoEspacialXR : MonoBehaviour
 
         if (acionado)
         {
-            Debug.Log($"<color=#00FF99><b>[Captura Laser XR]</b></color> Capturando espécime '{m_InstanciaSobFoco.NomeClasse}' ({m_InstanciaSobFoco.Id}) via Raycast.");
             DispararVibracaoHaptica(0.5f, 0.12f);
 
             var inst = m_InstanciaSobFoco;
-            m_InstanciaSobFoco = null;
-            AjustarCorLaser(corLaserRepouso);
-
-            inst.Interagir(gameObject, ehRaycast: true);
+            if (RelationBuilder.Instance != null)
+            {
+                RelationBuilder.Instance.RegistrarInteracaoNodo(
+                    inst.Id,
+                    inst.NomeClasse,
+                    inst.Posicao + Vector3.up * 0.45f,
+                    inst.EhValida);
+            }
+            else
+            {
+                m_InstanciaSobFoco = null;
+                AjustarCorLaser(corLaserRepouso);
+                inst.Interagir(gameObject, ehRaycast: true);
+            }
         }
     }
 

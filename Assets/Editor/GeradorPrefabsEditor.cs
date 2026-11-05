@@ -257,11 +257,26 @@ public static class GeradorPrefabsEditor
 
     public static void VerificarECriarPrefabsAutomaticamente()
     {
+        if (Application.isPlaying) return;
+
+        GarantirPastasExistentes();
+        // Sempre regenera o Prefab da Placa de Sinalização Semântica para garantir o RectTransform centralizado no painel
+        CriarPrefabPlacaSinalizacao();
+
         if (!File.Exists(CaminhoGemaValida) || !File.Exists(CaminhoObstaculoInvalido) ||
-            !File.Exists(CaminhoPacManJogador) || !File.Exists(CaminhoPlacaSinalizacao) ||
-            !File.Exists(CaminhoGemaResources) || !File.Exists(CaminhoObstaculoResources) || !File.Exists(CaminhoPlacaResources))
+            !File.Exists(CaminhoPacManJogador) || !File.Exists(CaminhoGemaResources) || !File.Exists(CaminhoObstaculoResources))
         {
             CriarPrefabs(forcarRecriacao: false);
+        }
+
+        // Atualiza todas as placas já presentes na cena ativa
+        PlacaSinalizacaoSemantica[] placasCena = Object.FindObjectsByType<PlacaSinalizacaoSemantica>(FindObjectsSortMode.None);
+        for (int i = 0; i < placasCena.Length; i++)
+        {
+            if (placasCena[i] != null)
+            {
+                placasCena[i].AtualizarVisualPlaca();
+            }
         }
     }
 

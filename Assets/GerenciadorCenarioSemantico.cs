@@ -1708,12 +1708,15 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
         string nomeAssetMat = ehParasita ? "DarkGridMaterial_Parasitas_Roxo" : "DarkGridMaterial_Hospedeiros_Azul";
 
-        // 1. Prioriza o Material físico DarkGridMaterial salvo em Assets/Materials ou Resources
-        Material matFisico = Resources.Load<Material>(nomeAssetMat) ?? Resources.Load<Material>("DarkGridMaterial");
+        // 1. Prioriza o Material físico DarkGrid.mat / DarkGridMaterial salvo em Assets/Materials ou Resources
+        Material matFisico = Resources.Load<Material>(nomeAssetMat)
+                             ?? Resources.Load<Material>("DarkGrid")
+                             ?? Resources.Load<Material>("DarkGridMaterial");
 #if UNITY_EDITOR
         if (matFisico == null)
         {
             matFisico = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>($"Assets/Materials/{nomeAssetMat}.mat")
+                        ?? UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/DarkGrid.mat")
                         ?? UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/DarkGridMaterial.mat");
         }
 #endif
@@ -2422,6 +2425,10 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
         compPlaca.idBifurcacao = idPonto;
         compPlaca.ConfigurarPlaca(seta, prefixoHierarquia, nomeClasse, corNeon);
+
+        // Seção 3 da Especificação Mestra: Pequena Point Light em cima das Placas de Sinalização para iluminar o grid abaixo delas
+        AnexarLuzPontualDestaque(placaObj, corNeon, 2.8f, 1.15f);
+
         m_PlacasWayfinding.Add(compPlaca);
         return compPlaca;
     }

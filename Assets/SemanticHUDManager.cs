@@ -93,6 +93,12 @@ public class SemanticHUDManager : MonoBehaviour
         RemoverCanvasArcadeLegado();
 
         SemanticHUDManager hud = FindFirstObjectByType<SemanticHUDManager>();
+        if (hud != null && hud.GetComponent<RectTransform>() == null)
+        {
+            DestroyImmediate(hud.gameObject);
+            hud = null;
+        }
+
         if (hud == null)
         {
             GameObject canvasObj = new GameObject("Semantic_HUD_Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -410,14 +416,24 @@ public class SemanticHUDManager : MonoBehaviour
             {
                 return rtExistente;
             }
-            // Usa DestroyImmediate mesmo em Play Mode para remover o objeto sem RectTransform no mesmo frame
-            // (Destroy normal manteria o objeto vivo até o fim do frame e causaria MissingComponentException)
             DestroyImmediate(existente.gameObject);
         }
 
-        GameObject novoObj = new GameObject(nome, typeof(RectTransform));
+        GameObject novoObj = new GameObject(nome, typeof(RectTransform), typeof(CanvasRenderer));
         novoObj.transform.SetParent(pai, false);
         return novoObj.GetComponent<RectTransform>();
+    }
+
+    /// <summary>
+    /// Aplica fonte Branca (#FFFFFF) com Outline Preto (#000000) em qualquer TextMeshProUGUI
+    /// para nitidez absoluta contra o fundo Dark Grid sem ser lavado pelo Bloom.
+    /// </summary>
+    private static void AplicarNitidezTextoTMP(TextMeshProUGUI tmp, Color corBase)
+    {
+        if (tmp == null) return;
+        tmp.color = corBase;
+        tmp.outlineColor = new Color32(0, 0, 0, 255);
+        tmp.outlineWidth = 0.16f;
     }
 
     /// <summary>
@@ -425,11 +441,6 @@ public class SemanticHUDManager : MonoBehaviour
     /// </summary>
     private void GarantirCanvasEComponentes()
     {
-        if (GetComponent<RectTransform>() == null)
-        {
-            gameObject.AddComponent<RectTransform>();
-        }
-
         if (canvasPrincipal == null) canvasPrincipal = GetComponent<Canvas>();
         if (canvasPrincipal == null)
         {
@@ -437,6 +448,11 @@ public class SemanticHUDManager : MonoBehaviour
         }
         canvasPrincipal.renderMode = RenderMode.ScreenSpaceOverlay;
         canvasPrincipal.pixelPerfect = true;
+
+        if (GetComponent<RectTransform>() == null)
+        {
+            gameObject.AddComponent<RectTransform>();
+        }
 
         canvasScaler = GetComponent<CanvasScaler>();
         if (canvasScaler == null) canvasScaler = gameObject.AddComponent<CanvasScaler>();
@@ -479,7 +495,7 @@ public class SemanticHUDManager : MonoBehaviour
         imgPainel.color = new Color(0.02f, 0.05f, 0.12f, 0.92f);
 
         // 2.1 Esquerda: Axiomas Inseridos / Tamanho da ABox
-        if (textoAxiomasABoxTMP == null)
+        if (textoAxiomasABoxTMP == null || textoAxiomasABoxTMP.GetComponent<RectTransform>() == null)
         {
             RectTransform rt = ObterOuCriarFilhoUI(rtPainelHUD, "Texto_AxiomasABox_TMP");
             rt.anchorMin = new Vector2(0f, 0.5f);
@@ -488,15 +504,17 @@ public class SemanticHUDManager : MonoBehaviour
             rt.anchoredPosition = new Vector2(28f, 0f);
             rt.sizeDelta = new Vector2(560f, 44f);
 
-            textoAxiomasABoxTMP = rt.gameObject.GetComponent<TextMeshProUGUI>();
-            if (textoAxiomasABoxTMP == null) textoAxiomasABoxTMP = rt.gameObject.AddComponent<TextMeshProUGUI>();
-            textoAxiomasABoxTMP.fontSize = 18;
-            textoAxiomasABoxTMP.alignment = TextAlignmentOptions.MidlineLeft;
-            textoAxiomasABoxTMP.richText = true;
+            TextMeshProUGUI tmp = rt.gameObject.GetComponent<TextMeshProUGUI>();
+            if (tmp == null) tmp = rt.gameObject.AddComponent<TextMeshProUGUI>();
+            tmp.fontSize = 18;
+            tmp.alignment = TextAlignmentOptions.MidlineLeft;
+            tmp.richText = true;
+            AplicarNitidezTextoTMP(tmp, Color.white);
+            textoAxiomasABoxTMP = tmp;
         }
 
         // 2.2 Centro: Foco Atual: [Nome da Classe]
-        if (textoFocoAtualTMP == null)
+        if (textoFocoAtualTMP == null || textoFocoAtualTMP.GetComponent<RectTransform>() == null)
         {
             RectTransform rt = ObterOuCriarFilhoUI(rtPainelHUD, "Texto_FocoAtual_TMP");
             rt.anchorMin = new Vector2(0.5f, 0.5f);
@@ -505,15 +523,17 @@ public class SemanticHUDManager : MonoBehaviour
             rt.anchoredPosition = Vector2.zero;
             rt.sizeDelta = new Vector2(580f, 44f);
 
-            textoFocoAtualTMP = rt.gameObject.GetComponent<TextMeshProUGUI>();
-            if (textoFocoAtualTMP == null) textoFocoAtualTMP = rt.gameObject.AddComponent<TextMeshProUGUI>();
-            textoFocoAtualTMP.fontSize = 18;
-            textoFocoAtualTMP.alignment = TextAlignmentOptions.Center;
-            textoFocoAtualTMP.richText = true;
+            TextMeshProUGUI tmp = rt.gameObject.GetComponent<TextMeshProUGUI>();
+            if (tmp == null) tmp = rt.gameObject.AddComponent<TextMeshProUGUI>();
+            tmp.fontSize = 18;
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.richText = true;
+            AplicarNitidezTextoTMP(tmp, Color.white);
+            textoFocoAtualTMP = tmp;
         }
 
         // 2.3 Direita: Status do Reasoner (CONSISTENTE / INCONSISTENTE)
-        if (textoStatusReasonerTMP == null)
+        if (textoStatusReasonerTMP == null || textoStatusReasonerTMP.GetComponent<RectTransform>() == null)
         {
             RectTransform rt = ObterOuCriarFilhoUI(rtPainelHUD, "Texto_StatusReasoner_TMP");
             rt.anchorMin = new Vector2(1f, 0.5f);
@@ -522,11 +542,13 @@ public class SemanticHUDManager : MonoBehaviour
             rt.anchoredPosition = new Vector2(-65f, 0f);
             rt.sizeDelta = new Vector2(500f, 44f);
 
-            textoStatusReasonerTMP = rt.gameObject.GetComponent<TextMeshProUGUI>();
-            if (textoStatusReasonerTMP == null) textoStatusReasonerTMP = rt.gameObject.AddComponent<TextMeshProUGUI>();
-            textoStatusReasonerTMP.fontSize = 18;
-            textoStatusReasonerTMP.alignment = TextAlignmentOptions.MidlineRight;
-            textoStatusReasonerTMP.richText = true;
+            TextMeshProUGUI tmp = rt.gameObject.GetComponent<TextMeshProUGUI>();
+            if (tmp == null) tmp = rt.gameObject.AddComponent<TextMeshProUGUI>();
+            tmp.fontSize = 18;
+            tmp.alignment = TextAlignmentOptions.MidlineRight;
+            tmp.richText = true;
+            AplicarNitidezTextoTMP(tmp, Color.white);
+            textoStatusReasonerTMP = tmp;
         }
 
         // Botão [ X ] de Ocultar Painel
@@ -623,13 +645,14 @@ public class SemanticHUDManager : MonoBehaviour
             if (csf == null) csf = contentObj.AddComponent<ContentSizeFitter>();
             csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            textoLogTerminalTMP = contentObj.GetComponent<TextMeshProUGUI>();
-            if (textoLogTerminalTMP == null) textoLogTerminalTMP = contentObj.AddComponent<TextMeshProUGUI>();
-            textoLogTerminalTMP.fontSize = 14;
-            textoLogTerminalTMP.color = new Color(0.82f, 0.96f, 0.88f);
-            textoLogTerminalTMP.alignment = TextAlignmentOptions.BottomLeft;
-            textoLogTerminalTMP.richText = true;
-            textoLogTerminalTMP.textWrappingMode = TextWrappingModes.Normal;
+            TextMeshProUGUI tmpLog = contentObj.GetComponent<TextMeshProUGUI>();
+            if (tmpLog == null) tmpLog = contentObj.AddComponent<TextMeshProUGUI>();
+            tmpLog.fontSize = 14;
+            tmpLog.alignment = TextAlignmentOptions.BottomLeft;
+            tmpLog.richText = true;
+            tmpLog.textWrappingMode = TextWrappingModes.Normal;
+            AplicarNitidezTextoTMP(tmpLog, Color.white);
+            textoLogTerminalTMP = tmpLog;
 
             scrollRectTerminal = painelTerminalLog.GetComponent<ScrollRect>();
             if (scrollRectTerminal == null) scrollRectTerminal = painelTerminalLog.AddComponent<ScrollRect>();

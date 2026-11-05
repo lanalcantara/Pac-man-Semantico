@@ -29,16 +29,16 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
     public bool forcarFiltroAnisotropico = true;
 
     [Header("2. Estética Cibernética (HDR Post-Processing & Bloom)")]
-    [Tooltip("Limiar (Threshold) alto do Bloom para que apenas as linhas finas da grade (Wireframe) brilhem suavemente.")]
-    public float bloomThreshold = 1.15f;
+    [Tooltip("Limiar (Threshold = 1.5) alto do Bloom para que apenas as linhas finas da grade (Wireframe) brilhem suavemente.")]
+    public float bloomThreshold = 1.5f;
 
-    [Tooltip("Intensidade baixa do Bloom (0.35) para estética Dark Grid Retrowave limpa e nítida.")]
-    [Range(0.1f, 1.0f)]
-    public float bloomIntensity = 0.35f;
+    [Tooltip("Intensidade máxima (0.2) do Bloom para estética Dark Grid Retrowave limpa e nítida.")]
+    [Range(0.05f, 1.0f)]
+    public float bloomIntensity = 0.2f;
 
     [Tooltip("Espalhamento (Scatter) contido para preservar nitidez máxima no Quest 3.")]
     [Range(0.1f, 0.75f)]
-    public float bloomScatter = 0.38f;
+    public float bloomScatter = 0.35f;
 
     [Header("3. Iluminação Noturna e Fix de Sombras URP")]
     [Tooltip("Desativa sombras de Point Lights adicionais para eliminar o erro 'Reduced additional punctual light shadows resolution'.")]
@@ -161,9 +161,9 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
             bloom = profile.Add<Bloom>(true);
         }
 
-        // Força valores limpos de Dark Grid (mesmo se o componente na cena tiver serializado valores antigos)
-        bloomThreshold = 1.25f;
-        bloomIntensity = 0.25f;
+        // Força valores estritos da Especificação Mestra (Seção 3: Intensity máx 0.2, Threshold 1.5)
+        bloomThreshold = 1.5f;
+        bloomIntensity = 0.2f;
         bloomScatter = 0.35f;
 
         bloom.active = true;
@@ -216,9 +216,10 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
             }
         }
 
+        RenderSettings.skybox = null;
         RenderSettings.ambientMode = AmbientMode.Flat;
-        RenderSettings.ambientSkyColor = new Color(0.02f, 0.035f, 0.075f, 1.0f);
-        RenderSettings.subtractiveShadowColor = new Color(0.01f, 0.02f, 0.04f, 1.0f);
+        RenderSettings.ambientSkyColor = Color.black;
+        RenderSettings.subtractiveShadowColor = Color.black;
     }
 }
 

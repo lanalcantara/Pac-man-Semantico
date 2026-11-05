@@ -95,6 +95,12 @@ public class RelationBuilder : MonoBehaviour
             }
         }
 
+        // Seção 2 da Especificação Mestra: Modo Criação (Do Zero In-Game) - Tecla N instancia um novo Nodo Ontológico no espaço
+        if (Input.GetKeyDown(KeyCode.N))
+        {
+            InstanciarNodoCriacaoInGame();
+        }
+
         // Atualiza a ponta final da linha ativa até a posição atual do Player enquanto em Modo de Conexão
         if (emModoConexao && m_LinhaAtiva != null)
         {
@@ -284,8 +290,19 @@ public class RelationBuilder : MonoBehaviour
         tmp.fontSize = 3.2f;
         tmp.fontStyle = FontStyles.Bold;
         tmp.color = Color.white;
+        tmp.outlineColor = new Color32(0, 0, 0, 255);
+        tmp.outlineWidth = 0.20f;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.textWrappingMode = TextWrappingModes.NoWrap;
+
+        if (tmp.fontSharedMaterial != null)
+        {
+            Material matTexto = new Material(tmp.fontSharedMaterial);
+            if (matTexto.HasProperty("_FaceColor")) matTexto.SetColor("_FaceColor", Color.white);
+            if (matTexto.HasProperty("_OutlineColor")) matTexto.SetColor("_OutlineColor", Color.black);
+            if (matTexto.HasProperty("_OutlineWidth")) matTexto.SetFloat("_OutlineWidth", 0.20f);
+            tmp.fontMaterial = matTexto;
+        }
 
         RectTransform rt = labelObj.GetComponent<RectTransform>();
         if (rt != null)
@@ -294,6 +311,59 @@ public class RelationBuilder : MonoBehaviour
         }
 
         return labelObj;
+    }
+
+    private int m_ContadorNodosCriadosInGame = 0;
+
+    /// <summary>
+    /// Seção 2 da Especificação Mestra: Modo Criação (Do Zero In-Game).
+    /// Permite ao usuário soltar um novo Nodo Ontológico (Classe/Indivíduo) no espaço à sua frente
+    /// e conectá-lo via laser (LineRenderer) para construir a ontologia de dentro do jogo.
+    /// </summary>
+    public GameObject InstanciarNodoCriacaoInGame(string nomeClasseCustom = null)
+    {
+        m_ContadorNodosCriadosInGame++;
+        string[] classesSugestao = { "Parasite", "Host", "Nematoda", "Platyhelminthes", "Human", "SmallIntestine" };
+        string nomeClasse = !string.IsNullOrEmpty(nomeClasseCustom)
+            ? nomeClasseCustom
+            : classesSugestao[(m_ContadorNodosCriadosInGame - 1) % classesSugestao.Length];
+        string idNodo = $"node_ingame_{nomeClasse}_{m_ContadorNodosCriadosInGame:D2}";
+
+        Vector3 dirFrente = transform.forward.sqrMagnitude > 0.01f ? transform.forward.normalized : Vector3.forward;
+        Vector3 posSpawn = transform.position + dirFrente * 1.6f;
+        posSpawn.y = 0.45f;
+
+        GameObject nodoObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        nodoObj.name = $"OntologyNode_{idNodo}";
+        nodoObj.transform.position = posSpawn;
+        nodoObj.transform.localScale = new Vector3(0.42f, 0.42f, 0.42f);
+        nodoObj.transform.rotation = Quaternion.Euler(35f, 45f, 0f);
+
+        var ger = FindFirstObjectByType<GerenciadorCenarioSemantico>();
+        Renderer rend = nodoObj.GetComponent<Renderer>();
+        if (rend != null && ger != null)
+        {
+            rend.material = ger.CriarMaterialTranslúcidoNodo(new Color(0.0f, 0.85f, 1.0f, 1f), 0.65f);
+        }
+
+        if (ger != null)
+        {
+            ger.AnexarLuzPontualDestaque(nodoObj, new Color(0.0f, 0.85f, 1.0f, 1f), 2.5f, 1.25f);
+        }
+
+        BoxCollider boxCol = nodoObj.GetComponent<BoxCollider>();
+        if (boxCol != null) boxCol.isTrigger = true;
+
+        GemaInstanciaValida compNodo = nodoObj.AddComponent<GemaInstanciaValida>();
+        compNodo.Inicializar(idNodo, nomeClasse, $"{nomeClasse}({idNodo})", true);
+
+        if (SemanticHUDManager.Instancia != null)
+        {
+            SemanticHUDManager.Instancia.AdicionarLinhaLog($"[CRIAÇÃO IN-GAME] Nodo '{nomeClasse}' ({idNodo}) posicionado em {posSpawn:F1}");
+        }
+
+        RegistrarInteracaoNodo(idNodo, nomeClasse, posSpawn, true);
+        return nodoObj;
     }
 
     private void PrepararMaterialLinha()

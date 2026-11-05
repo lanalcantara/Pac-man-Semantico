@@ -40,7 +40,7 @@ namespace PacMan.Web
         public EstadoJogoDemo estadoAtual = EstadoJogoDemo.MenuInicial;
 
         [Header("Modo de Visualização da Câmera")]
-        public ModoCamera modoCamera = ModoCamera.Pinball3D;
+        public ModoCamera modoCamera = ModoCamera.TerceiraPessoaBaixa;
 
         [Header("Referências")]
         public MotorRaciocinioSemantico motorSemantico;
@@ -199,6 +199,11 @@ namespace PacMan.Web
         public void ConfigurarVisualEPerspectivaCamera()
         {
             if (m_CameraPrincipal == null) m_CameraPrincipal = Camera.main;
+            // Seção 2 da Especificação Mestra: O usuário está DENTRO do labirinto (visão imersiva rente ao corredor)
+            if (modoCamera == ModoCamera.Pinball3D || modoCamera == ModoCamera.MesaCompletaPinball)
+            {
+                modoCamera = ModoCamera.TerceiraPessoaBaixa;
+            }
             AplicarModoCamera(modoCamera);
         }
 
@@ -239,12 +244,12 @@ namespace PacMan.Web
                     break;
 
                 case ModoCamera.TerceiraPessoaBaixa:
-                    m_CameraPrincipal.fieldOfView = 65f;
+                    m_CameraPrincipal.fieldOfView = 68f;
                     if (pacmanTransform != null)
                     {
-                        camTransform.position = pacmanTransform.position + new Vector3(0f, 2.5f, -3.8f);
+                        camTransform.position = pacmanTransform.position + new Vector3(0f, 1.45f, -2.5f);
                     }
-                    camTransform.rotation = Quaternion.Euler(22f, 0f, 0f);
+                    camTransform.rotation = Quaternion.Euler(14f, 0f, 0f);
                     if (m_VisualPacMan != null) m_VisualPacMan.SetActive(true);
                     break;
 
@@ -279,9 +284,9 @@ namespace PacMan.Web
             }
             else if (modoCamera == ModoCamera.TerceiraPessoaBaixa)
             {
-                Vector3 targetPos = pacmanTransform.position + new Vector3(0f, 2.5f, -3.8f);
+                Vector3 targetPos = pacmanTransform.position + new Vector3(0f, 1.45f, -2.5f);
                 camTransform.position = Vector3.Lerp(camTransform.position, targetPos, Time.deltaTime * 10f);
-                camTransform.rotation = Quaternion.Euler(22f, 0f, 0f);
+                camTransform.rotation = Quaternion.Euler(14f, 0f, 0f);
             }
         }
 

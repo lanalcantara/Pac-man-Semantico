@@ -350,16 +350,22 @@ public class RelationBuilder : MonoBehaviour
             rend.material = ger.CriarMaterialTranslúcidoNodo(new Color(0.0f, 0.85f, 1.0f, 1f), 0.65f);
         }
 
-        if (ger != null)
-        {
-            ger.AnexarLuzPontualDestaque(nodoObj, new Color(0.0f, 0.85f, 1.0f, 1f), 2.5f, 1.25f);
-        }
+        GerenciadorCenarioSemantico.AnexarLuzPontualDestaque(nodoObj, new Color(0.0f, 0.85f, 1.0f, 1f), 2.5f, 1.25f);
 
         BoxCollider boxCol = nodoObj.GetComponent<BoxCollider>();
         if (boxCol != null) boxCol.isTrigger = true;
 
-        GemaInstanciaValida compNodo = nodoObj.AddComponent<GemaInstanciaValida>();
-        compNodo.Inicializar(idNodo, nomeClasse, $"{nomeClasse}({idNodo})", true);
+        GerenciadorInstancia compNodo = nodoObj.AddComponent<GerenciadorInstancia>();
+        compNodo.ConfigurarComDados(new DadoInstanciaSemantica
+        {
+            id = idNodo,
+            classeOntologica = nomeClasse,
+            expressaoDL = $"{nomeClasse}({idNodo})",
+            ehValida = true,
+            posicao = posSpawn,
+            valorPontuacao = 50,
+            descricaoSemantica = $"Nodo ontológico criado in-game ({nomeClasse})"
+        });
 
         if (SemanticHUDManager.Instancia != null)
         {

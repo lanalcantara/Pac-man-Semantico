@@ -99,7 +99,15 @@ public static class GeradorMaterialDarkGridEditor
             "DarkGridMaterial",
             texAzul,
             texMask,
-            azulNeon * 0.55f,
+            azulNeon * 0.45f,
+            new Vector2(2f, 1f));
+
+        CriarOuAtualizarMaterialDarkGrid(
+            CaminhoPastaMateriais + "/DarkGrid.mat",
+            "DarkGrid",
+            texAzul,
+            texMask,
+            azulNeon * 0.45f,
             new Vector2(2f, 1f));
 
         Material matChao = CriarOuAtualizarMaterialDarkGrid(
@@ -303,7 +311,11 @@ public static class GeradorMaterialDarkGridEditor
         mat.mainTextureScale = tiling;
 
         if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.0f);
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.15f);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.0f);
+        if (mat.HasProperty("_SpecularHighlights")) mat.SetFloat("_SpecularHighlights", 0.0f);
+        if (mat.HasProperty("_EnvironmentReflections")) mat.SetFloat("_EnvironmentReflections", 0.0f);
+        mat.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
+        mat.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
 
         mat.EnableKeyword("_EMISSION");
         mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;

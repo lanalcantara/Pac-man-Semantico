@@ -57,27 +57,33 @@ public static class GeradorMaterialDarkGridEditor
         if (!Directory.Exists(CaminhoPastaMateriais)) Directory.CreateDirectory(CaminhoPastaMateriais);
         if (!Directory.Exists(CaminhoPastaResources)) Directory.CreateDirectory(CaminhoPastaResources);
 
-        // 1. Gera e salva as Texturas PNG de Grade em disco
-        if (forcarRecriacao || !File.Exists(CaminhoTexBaseRoxo) || !File.Exists(CaminhoTexBaseAzul) || !File.Exists(CaminhoTexEmissao))
+        // 0. Limpa imediatamente qualquer Semantic_HUD_Canvas ou Texto_AxiomasABox_TMP corrompido salvo na cena
+        SemanticHUDManager.RemoverCanvasArcadeLegado();
+        GameObject hudAntigo = GameObject.Find("Semantic_HUD_Canvas");
+        if (hudAntigo != null)
         {
-            SalvarTexturasDarkGridPNG();
+            Object.DestroyImmediate(hudAntigo);
         }
+        SemanticHUDManager.GarantirHUDAtivoNaCena();
+
+        // 1. Gera e salva as Texturas PNG de Grade em disco com Refresh síncrono garantido
+        SalvarTexturasDarkGridPNG();
 
         Texture2D texRoxo = AssetDatabase.LoadAssetAtPath<Texture2D>(CaminhoTexBaseRoxo);
         Texture2D texAzul = AssetDatabase.LoadAssetAtPath<Texture2D>(CaminhoTexBaseAzul);
         Texture2D texMask = AssetDatabase.LoadAssetAtPath<Texture2D>(CaminhoTexEmissao);
 
-        // 2. Cria/Atualiza os Materiais físicos (.mat) no projeto
-        Color roxoNeon = new Color(0.62f, 0.18f, 1.0f, 1f);
-        Color azulNeon = new Color(0.05f, 0.38f, 1.0f, 1f);
-        Color azulChao = new Color(0.04f, 0.28f, 0.98f, 1f);
+        // 2. Cria/Atualiza os Materiais físicos (.mat) no projeto (emissão moderada para linhas nítidas sem estourar)
+        Color roxoNeon = new Color(0.68f, 0.20f, 1.0f, 1f);
+        Color azulNeon = new Color(0.08f, 0.45f, 1.0f, 1f);
+        Color azulChao = new Color(0.05f, 0.32f, 1.0f, 1f);
 
         Material matParedeRoxo = CriarOuAtualizarMaterialDarkGrid(
             CaminhoMatParedeRoxo,
             "DarkGridMaterial_Parasitas_Roxo",
             texRoxo,
             texMask,
-            roxoNeon * 1.35f,
+            roxoNeon * 0.55f,
             new Vector2(2f, 1f));
 
         Material matParedeAzul = CriarOuAtualizarMaterialDarkGrid(
@@ -85,7 +91,7 @@ public static class GeradorMaterialDarkGridEditor
             "DarkGridMaterial_Hospedeiros_Azul",
             texAzul,
             texMask,
-            azulNeon * 1.35f,
+            azulNeon * 0.55f,
             new Vector2(2f, 1f));
 
         Material matDarkGridPrincipal = CriarOuAtualizarMaterialDarkGrid(
@@ -93,7 +99,7 @@ public static class GeradorMaterialDarkGridEditor
             "DarkGridMaterial",
             texAzul,
             texMask,
-            azulNeon * 1.35f,
+            azulNeon * 0.55f,
             new Vector2(2f, 1f));
 
         Material matChao = CriarOuAtualizarMaterialDarkGrid(
@@ -101,23 +107,23 @@ public static class GeradorMaterialDarkGridEditor
             "DarkGridMaterial_Chao",
             texAzul,
             texMask,
-            azulChao * 1.25f,
-            new Vector2(22f, 22f));
+            azulChao * 0.45f,
+            new Vector2(28f, 28f));
 
-        // Atualiza também o material legado Mat_Parede_Labirinto_AzulNeon.mat para que qualquer parede já salva na cena fique com Dark Grid imediatamente
+        // Atualiza também o material legado Mat_Parede_Labirinto_AzulNeon.mat
         CriarOuAtualizarMaterialDarkGrid(
             CaminhoPastaMateriais + "/Mat_Parede_Labirinto_AzulNeon.mat",
             "Mat_Parede_Labirinto_AzulNeon",
             texAzul,
             texMask,
-            azulNeon * 1.35f,
+            azulNeon * 0.55f,
             new Vector2(2f, 1f));
 
         // Copia para Resources para carregamento garantido em runtime
-        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial.mat", "DarkGridMaterial", texAzul, texMask, azulNeon * 1.35f, new Vector2(2f, 1f));
-        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial_Parasitas_Roxo.mat", "DarkGridMaterial_Parasitas_Roxo", texRoxo, texMask, roxoNeon * 1.35f, new Vector2(2f, 1f));
-        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial_Hospedeiros_Azul.mat", "DarkGridMaterial_Hospedeiros_Azul", texAzul, texMask, azulNeon * 1.35f, new Vector2(2f, 1f));
-        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial_Chao.mat", "DarkGridMaterial_Chao", texAzul, texMask, azulChao * 1.25f, new Vector2(22f, 22f));
+        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial.mat", "DarkGridMaterial", texAzul, texMask, azulNeon * 0.55f, new Vector2(2f, 1f));
+        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial_Parasitas_Roxo.mat", "DarkGridMaterial_Parasitas_Roxo", texRoxo, texMask, roxoNeon * 0.55f, new Vector2(2f, 1f));
+        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial_Hospedeiros_Azul.mat", "DarkGridMaterial_Hospedeiros_Azul", texAzul, texMask, azulNeon * 0.55f, new Vector2(2f, 1f));
+        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial_Chao.mat", "DarkGridMaterial_Chao", texAzul, texMask, azulChao * 0.45f, new Vector2(28f, 28f));
 
         // 3. Garante Skybox Preto e Câmeras com Fundo Sólido Preto na cena ativa
         ForcarSkyboxECameraPretosNaCena();
@@ -244,9 +250,7 @@ public static class GeradorMaterialDarkGridEditor
         Object.DestroyImmediate(texAzul);
         Object.DestroyImmediate(texMask);
 
-        AssetDatabase.ImportAsset(CaminhoTexBaseRoxo, ImportAssetOptions.ForceUpdate);
-        AssetDatabase.ImportAsset(CaminhoTexBaseAzul, ImportAssetOptions.ForceUpdate);
-        AssetDatabase.ImportAsset(CaminhoTexEmissao, ImportAssetOptions.ForceUpdate);
+        AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
 
         ConfigurarImporterTexturaGrid(CaminhoTexBaseRoxo);
         ConfigurarImporterTexturaGrid(CaminhoTexBaseAzul);
@@ -326,3 +330,4 @@ public static class GeradorMaterialDarkGridEditor
     }
 }
 #endif
+

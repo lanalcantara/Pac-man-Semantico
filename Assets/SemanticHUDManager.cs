@@ -121,8 +121,18 @@ public class SemanticHUDManager : MonoBehaviour
             GameObject objLegado = GameObject.Find(nomesLegados[i]);
             if (objLegado != null && objLegado.GetComponent<SemanticHUDManager>() == null)
             {
-                if (Application.isPlaying) Destroy(objLegado);
-                else DestroyImmediate(objLegado);
+                DestroyImmediate(objLegado);
+            }
+        }
+
+        // Varre todos os TMP_Text na cena e remove imediatamente qualquer objeto corrompido sem RectTransform
+        TMP_Text[] todosTextos = FindObjectsByType<TMP_Text>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < todosTextos.Length; i++)
+        {
+            TMP_Text t = todosTextos[i];
+            if (t != null && t is TextMeshProUGUI && t.GetComponent<RectTransform>() == null)
+            {
+                DestroyImmediate(t.gameObject);
             }
         }
     }
@@ -400,9 +410,9 @@ public class SemanticHUDManager : MonoBehaviour
             {
                 return rtExistente;
             }
-            // Se existir um objeto antigo sem RectTransform, destrói imediatamente para recriar com RectTransform nativo
-            if (Application.isPlaying) Destroy(existente.gameObject);
-            else DestroyImmediate(existente.gameObject);
+            // Usa DestroyImmediate mesmo em Play Mode para remover o objeto sem RectTransform no mesmo frame
+            // (Destroy normal manteria o objeto vivo até o fim do frame e causaria MissingComponentException)
+            DestroyImmediate(existente.gameObject);
         }
 
         GameObject novoObj = new GameObject(nome, typeof(RectTransform));

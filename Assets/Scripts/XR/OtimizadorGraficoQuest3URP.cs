@@ -161,10 +161,10 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
             bloom = profile.Add<Bloom>(true);
         }
 
-        // Garante que valores antigos serializados na cena não estourem o Bloom na estética Dark Grid
-        if (bloomThreshold < 1.10f) bloomThreshold = 1.15f;
-        if (bloomIntensity > 0.45f) bloomIntensity = 0.35f;
-        if (bloomScatter > 0.45f) bloomScatter = 0.38f;
+        // Força valores limpos de Dark Grid (mesmo se o componente na cena tiver serializado valores antigos)
+        bloomThreshold = 1.25f;
+        bloomIntensity = 0.25f;
+        bloomScatter = 0.35f;
 
         bloom.active = true;
         bloom.threshold.overrideState = true;

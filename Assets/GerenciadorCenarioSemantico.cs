@@ -1717,7 +1717,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                         ?? UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/DarkGridMaterial.mat");
         }
 #endif
-        if (matFisico != null)
+        if (matFisico != null && matFisico.mainTexture != null)
         {
             Material instanciaMat = new Material(matFisico);
             instanciaMat.name = $"{nomeAssetMat}_Tiled";
@@ -1727,17 +1727,17 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             return instanciaMat;
         }
 
-        // 2. Fallback procedural caso o material físico ainda não tenha sido importado
+        // 2. Gera garantidamente as texturas Dark Grid em memória caso o material físico esteja sem textura
         Color corSuperclasse = ObterCorTopologiaSuperclasse(superclasse);
         Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
         Material mat = new Material(shader);
         mat.name = $"Mat_Parede_DarkGrid_{superclasse}";
 
         GerarTexturasWireframeGrid(
-            new Color(0.015f, 0.015f, 0.025f, 1f),
+            new Color(0.01f, 0.01f, 0.018f, 1f),
             corSuperclasse,
             256,
-            espessuraLinha: 7,
+            espessuraLinha: 8,
             subdivisoes: 2,
             out Texture2D texBase,
             out Texture2D texEmissiva);
@@ -1753,7 +1753,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         mat.mainTextureScale = tilingGrid;
 
         if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.0f);
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.15f);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.05f);
 
         if (mat.HasProperty("_EmissionColor"))
         {
@@ -1763,7 +1763,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 mat.SetTexture("_EmissionMap", texEmissiva);
                 mat.SetTextureScale("_EmissionMap", tilingGrid);
             }
-            Color corLinhaBrilhante = Color.Lerp(corSuperclasse, Color.white, 0.18f) * 1.35f;
+            Color corLinhaBrilhante = Color.Lerp(corSuperclasse, Color.white, 0.15f) * 0.55f;
             corLinhaBrilhante.a = 1f;
             mat.SetColor("_EmissionColor", corLinhaBrilhante);
         }
@@ -1815,7 +1815,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             matChaoFisico = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/DarkGridMaterial_Chao.mat");
         }
 #endif
-        if (matChaoFisico != null)
+        if (matChaoFisico != null && matChaoFisico.mainTexture != null)
         {
             return matChaoFisico;
         }
@@ -1824,15 +1824,15 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         Material mat = new Material(shader);
         mat.name = "Mat_Chao_DarkGrid_Azul";
 
-        Color corFundoPreto = new Color(0.01f, 0.01f, 0.02f, 1f);
-        Color corGradeAzul = new Color(0.05f, 0.28f, 1.0f, 1f);
-        Vector2 tilingChao = new Vector2(22f, 22f);
+        Color corFundoPreto = new Color(0.008f, 0.008f, 0.015f, 1f);
+        Color corGradeAzul = new Color(0.05f, 0.32f, 1.0f, 1f);
+        Vector2 tilingChao = new Vector2(28f, 28f);
 
         GerarTexturasWireframeGrid(
             corFundoPreto,
             corGradeAzul,
             256,
-            espessuraLinha: 5,
+            espessuraLinha: 6,
             subdivisoes: 1,
             out Texture2D texBase,
             out Texture2D texEmissiva);
@@ -1848,7 +1848,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         mat.mainTextureScale = tilingChao;
 
         if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.15f);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.05f);
 
         if (mat.HasProperty("_EmissionColor"))
         {
@@ -1858,7 +1858,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 mat.SetTexture("_EmissionMap", texEmissiva);
                 mat.SetTextureScale("_EmissionMap", tilingChao);
             }
-            mat.SetColor("_EmissionColor", corGradeAzul * 1.25f);
+            mat.SetColor("_EmissionColor", corGradeAzul * 0.45f);
         }
 
         return mat;
@@ -2659,8 +2659,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         // Topologia Semântica Dark Grid: parede preta com linhas de grade emissivas (Roxo = Parasitas | Azul = Hospedeiros)
         string superclasseRegiao = DeterminarSuperclassePorRegiao(pos, nome);
         Vector2 tilingParede = new Vector2(
-            Mathf.Max(1f, Mathf.Round(Mathf.Max(escala.x, escala.z) * 0.75f)),
-            Mathf.Max(1f, Mathf.Round(Mathf.Min(escala.x, escala.z) * 0.75f)));
+            Mathf.Max(1f, Mathf.Round(escala.x * 1.0f)),
+            Mathf.Max(1f, Mathf.Round(escala.z * 1.0f)));
 
         Material matRegiao = usarTopologiaSemanticaPorSuperclasse
             ? CriarMaterialParedePorSuperclasse(superclasseRegiao, tilingParede)

@@ -557,49 +557,7 @@ public class ControladorXRJogador : MonoBehaviour
         GameObject gemaObj = (inst is Component comp && comp != null) ? comp.gameObject : (col != null ? col.gameObject : null);
         if (gemaObj == null) return;
 
-        string idItem = inst != null && !string.IsNullOrEmpty(inst.Id) ? inst.Id : gemaObj.name;
-        string nomeClasseOriginal = inst != null && !string.IsNullOrEmpty(inst.NomeClasse) ? inst.NomeClasse : gemaObj.name;
-        string nomeClasseFormatado = InstanciaSemanticaBase.FormatarNomeClasse(nomeClasseOriginal);
-        int pontos = inst != null ? inst.ValorPontuacao : 10;
-        string expressaoDL = inst != null ? inst.ExpressaoDL : "";
-        string descSemantica = inst != null ? inst.DescricaoSemantica : "";
-
-        // Verifica Power Pellet
-        var motor = FindFirstObjectByType<MotorRaciocinioSemantico>();
-        bool ehGemaEspecial = (inst != null && (nomeClasseOriginal.IndexOf("Special", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                                nomeClasseOriginal.IndexOf("Power", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                                nomeClasseOriginal.IndexOf("Pellet", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                                (inst.PropriedadesDL != null && inst.PropriedadesDL.ContainsKey("isPowerPellet")))) ||
-                              gemaObj.name.IndexOf("Special", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                              gemaObj.name.IndexOf("Power", StringComparison.OrdinalIgnoreCase) >= 0;
-
-        if (ehGemaEspecial && motor != null)
-        {
-            motor.AtivarPowerPellet(8.0f);
-        }
-
-        // 1. Registra no sistema ontológico (Grafo)
-        InstanciaSemanticaBase.RegistrarConsumoOntologico(idItem, nomeClasseFormatado);
-
-        // 2. Atualiza HUDs (com classe correta, ex: Ascaris lumbricoides ou Enterobius vermicularis)
-        InstanciaSemanticaBase.AtualizarHUDs(idItem, nomeClasseFormatado, pontos, expressaoDL, descSemantica);
-
-        // 3. Atualiza pontuação lógica global
-        InstanciaSemanticaBase.pontuacaoLogica += pontos;
-        InstanciaSemanticaBase.totalColetadas++;
-        InstanciaSemanticaBase.instanciasValidasRestantes = Mathf.Max(0, InstanciaSemanticaBase.instanciasValidasRestantes - 1);
-
-        // 4. Impulso háptico suave nos comandos de RV
-        DispararHapticsDualController(0.45f, 0.15f);
-
-        // 5. Feedback visual Juice
-        if (GerenciadorEfeitosJuice.Instancia != null)
-        {
-            Color corGema = inst != null ? inst.CorDestaque : new Color(1f, 0.88f, 0.2f);
-            GerenciadorEfeitosJuice.Instancia.CriarExplosaoBrilhoColeta(gemaObj.transform.position, corGema);
-        }
-
-        // 6. Destrói/desativa a gema imediatamente para anular qualquer contato físico residual
+        // Desativa os colisores da gema para evitar múltiplas leituras e mantém o objeto ancorado na Rede Neural
         Collider[] cols = gemaObj.GetComponentsInChildren<Collider>();
         if (cols != null)
         {
@@ -608,8 +566,32 @@ public class ControladorXRJogador : MonoBehaviour
                 if (cols[i] != null) cols[i].enabled = false;
             }
         }
-        gemaObj.SetActive(false);
-        Destroy(gemaObj);
+
+        // Ao comer uma classe/subclasse/instância certa, os fantasmas ficam Azuis (Calmos) por 6s enquanto o Reasoner valida!
+        var motor = FindFirstObjectByType<MotorRaciocinioSemantico>();
+        if (motor != null)
+        {
+            motor.AtivarPowerPellet(6.0f);
+        }
+
+        if (inst != null)
+        {
+            // Dispara AoExecutarColeta -> NotificarInteracao(true) -> RelationBuilder conecta na Rede Neural!
+            inst.Interagir(PosicaoPacManReal != null ? PosicaoPacManReal.gameObject : gameObject, false);
+
+            if (RelationBuilder.Instance != null)
+            {
+                RelationBuilder.Instance.AdicionarItemComidoNaRedeNeural(inst, gemaObj);
+            }
+        }
+
+        DispararHapticsDualController(0.45f, 0.15f);
+
+        if (GerenciadorEfeitosJuice.Instancia != null)
+        {
+            Color corGema = inst != null ? inst.CorDestaque : new Color(0.1f, 1.0f, 0.55f);
+            GerenciadorEfeitosJuice.Instancia.CriarExplosaoBrilhoColeta(gemaObj.transform.position, corGema);
+        }
     }
 
     /// <summary>
@@ -673,12 +655,19 @@ public class ControladorXRJogador : MonoBehaviour
         // 2. Dispara vibração háptica potente em ambos os controladores de RV
         DispararHapticsDualController(0.85f, 0.45f);
 
-        // 3. Notifica ouvintes e sincroniza com os HUDs
+        // 3. O Fantasma QUEBRA o último pedaço da linha da Rede Neural do Pac-Man,
+        // fazendo aquela Classe/Subclasse/Instância reaparecer no corredor para o jogador voltar e comer de novo!
+        string nomeFantasma = fantasma != null ? fantasma.name : "Fantasma Caçador";
+        if (RelationBuilder.Instance != null)
+        {
+            RelationBuilder.Instance.QuebrarUltimoPedacoDaRedePorFantasma(nomeFantasma);
+        }
+
         var demoWeb = FindFirstObjectByType<PacMan.Web.ControladorDemoWeb>();
         if (demoWeb != null)
         {
             demoWeb.vidasRestantes = vidasRestantes;
-            demoWeb.ExibirAvisoColisao($"⚠️ DANO RECEBIDO! Vidas restantes: {vidasRestantes}");
+            demoWeb.ExibirAvisoColisao($"💥 FANTASMA QUEBROU SUA LINHA! Volte e reconecte o último item comido!");
         }
 
         var hudVR = FindFirstObjectByType<HUDHolograficoXR>();
@@ -686,9 +675,6 @@ public class ControladorXRJogador : MonoBehaviour
         {
             hudVR.AtualizarTextosHUD();
         }
-
-        // 4. Reposiciona com segurança sem empurrão físico pelo mapa
-        ReposicionarNoSpawn();
     }
 
     /// <summary>

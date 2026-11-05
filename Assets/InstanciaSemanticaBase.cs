@@ -156,8 +156,44 @@ public abstract class InstanciaSemanticaBase : MonoBehaviour, IInstanciaSemantic
         if (m_EhValida)
         {
             instanciasValidasRestantes++;
+            AtualizarRotulo3DInicial();
         }
         LocalizarPlayerTransform();
+    }
+
+    public void AtualizarRotulo3DInicial()
+    {
+        if (!m_EhValida) return;
+        string nomeFormatado = FormatarNomeClasse(m_NomeClasse);
+        string tipo = RelationBuilder.ClassificarTipoElementoOntologico(m_NomeClasse, m_ExpressaoDL);
+        RelationBuilder.AtualizarRotulo3DNodoNoMapa(
+            gameObject,
+            $"<color=#38BDF8><size=80%><b>[{tipo}]</b></size></color>\n<color=#FFFFFF><b>{nomeFormatado}</b></color>");
+    }
+
+    /// <summary>
+    /// Reativa esta Classe/Subclasse/Instância no corredor quando um Fantasma quebra o pedaço
+    /// da linha da Rede Neural que a conectava, permitindo ao Pac-Man voltar e comê-la novamente.
+    /// </summary>
+    public virtual void ReativarInstanciaParaReconexao()
+    {
+        m_Coletada = false;
+        m_EstaFocada = false;
+        instanciasValidasRestantes++;
+
+        gameObject.SetActive(true);
+        Collider[] cols = GetComponentsInChildren<Collider>(true);
+        if (cols != null)
+        {
+            for (int i = 0; i < cols.Length; i++)
+            {
+                if (cols[i] != null)
+                {
+                    cols[i].enabled = true;
+                    cols[i].isTrigger = true;
+                }
+            }
+        }
     }
 
     protected virtual void Update()
@@ -353,6 +389,10 @@ public abstract class InstanciaSemanticaBase : MonoBehaviour, IInstanciaSemantic
         }
 
         AplicarCoresNoMaterial();
+        if (m_EhValida)
+        {
+            AtualizarRotulo3DInicial();
+        }
     }
 
     public virtual void Interagir(GameObject interator, bool ehRaycast = false)

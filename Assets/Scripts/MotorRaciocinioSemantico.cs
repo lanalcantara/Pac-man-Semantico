@@ -333,19 +333,16 @@ namespace PacMan.Semantics
         /// </summary>
         public GameEntityState AvaliarRegraEstadoFantasma(string ghostId, bool pacmanIsPowered, float distancia)
         {
-            if (pacmanIsPowered && distancia < distanciaVulnerabilidade)
+            // 1. Quando o Pac-Man come uma Classe/Subclasse/Instância CERTA, os fantasmas ficam AZUIS (Vulnerable/Calmos)
+            // e não vão atrás dele durante o período de validação!
+            if (pacmanIsPowered)
             {
                 return GameEntityState.Vulnerable;
             }
 
-            // Se o Reasoner está INCONSISTENTE (erro lógico detectado pelo HermiT), entra imediatamente em Chase (Aggressive)
-            if (!reasonerConsistente)
-            {
-                return GameEntityState.Aggressive;
-            }
-
-            // Se o Reasoner está CONSISTENTE, permanece em Patrol (exceto para testes unitários diretos de proximidade estrita <= 3.5m quando fora do modo Play)
-            if (!Application.isPlaying && distancia <= 3.5f)
+            // 2. Se o Reasoner está INCONSISTENTE ou o Pac-Man se aproximou no corredor (<= 11.5m),
+            // o fantasma fica VERMELHO (Aggressive) e vai atrás do Pac-Man para tentar quebrar um pedaço da linha!
+            if (!reasonerConsistente || distancia <= 11.5f)
             {
                 return GameEntityState.Aggressive;
             }
@@ -437,7 +434,63 @@ namespace PacMan.Semantics
                 AplicarEstadoNoGameObjectDirect(ghostObj, novoEstado);
             }
 
+            AtualizarRotuloExplicativoFantasma3D(ghostObj, novoEstado);
             AtualizarComportamentoFisicoFantasmaDirect(ghostObj, id, novoEstado, posPacMan, posFantasma);
+        }
+
+        private void AtualizarRotuloExplicativoFantasma3D(GameObject ghostObj, GameEntityState estado)
+        {
+            if (ghostObj == null) return;
+
+            Transform trLabel = ghostObj.transform.Find("Rotulo_3D_Estado_Fantasma");
+            GameObject labelObj;
+            if (trLabel != null)
+            {
+                labelObj = trLabel.gameObject;
+            }
+            else
+            {
+                labelObj = new GameObject("Rotulo_3D_Estado_Fantasma", typeof(RectTransform));
+                labelObj.transform.SetParent(ghostObj.transform, false);
+                labelObj.transform.localPosition = new Vector3(0f, 1.38f, 0f);
+            }
+
+            TMPro.TextMeshPro tmp = labelObj.GetComponent<TMPro.TextMeshPro>();
+            if (tmp == null) tmp = labelObj.AddComponent<TMPro.TextMeshPro>();
+
+            if (estado == GameEntityState.Vulnerable)
+            {
+                tmp.text = $"<color=#38BDF8><b>🟦 FANTASMA CALMO ({Mathf.CeilToInt(tempoPowerRestante)}s)</b></color>\n<size=75%><color=#FFFFFF>Você comeu item CERTO: Não persegue!</color></size>";
+            }
+            else if (estado == GameEntityState.Aggressive)
+            {
+                tmp.text = "<color=#FF3344><b>🟥 CAÇANDO SUA LINHA!</b></color>\n<size=75%><color=#FFD700>Se bater em você, quebra o último elo!</color></size>";
+            }
+            else
+            {
+                tmp.text = "<color=#F59E0B><b>🟧 VIGIANDO CORREDOR</b></color>\n<size=75%><color=#FFFFFF>Se chegar perto, fica Vermelho e persegue!</color></size>";
+            }
+
+            tmp.richText = true;
+            tmp.fontSize = 1.95f;
+            tmp.fontStyle = TMPro.FontStyles.Bold;
+            tmp.color = Color.white;
+            tmp.outlineColor = new Color32(0, 0, 0, 255);
+            tmp.outlineWidth = 0.25f;
+            tmp.alignment = TMPro.TextAlignmentOptions.Center;
+            tmp.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+
+            RectTransform rt = labelObj.GetComponent<RectTransform>();
+            if (rt != null)
+            {
+                rt.pivot = new Vector2(0.5f, 0.5f);
+                rt.sizeDelta = new Vector2(5.0f, 1.1f);
+            }
+
+            if (labelObj.GetComponent<BillboardOlharCamera>() == null)
+            {
+                labelObj.AddComponent<BillboardOlharCamera>();
+            }
         }
 
         /// <summary>
@@ -485,8 +538,8 @@ namespace PacMan.Semantics
 
             Vector3 destinoTatico;
 
-            // 1. Modo Patrol (CONSISTENTE) ou Dispersão: Os Reasoner Agents ignoram o jogador e vagam proceduralmente pelos quadrantes
-            if (reasonerConsistente || m_ModoDispersaoAtivo)
+            // 1. Modo Patrol ou Vulnerable (Azul Calmo): Os fantasmas ignoram o jogador e vagam pelos quadrantes
+            if (pacmanIsPowered || (reasonerConsistente && Vector3.Distance(posAtual, posPacMan) > 11.5f))
             {
                 destinoTatico = cantosPatrulha[papelIndex % cantosPatrulha.Length];
             }
@@ -780,9 +833,19 @@ namespace PacMan.Semantics
             if (renderers != null)
             {
                 bool ehChaseInconsistente = novoEstado == GameEntityState.Aggressive;
-                Color corAlvo = ehChaseInconsistente
-                    ? new Color(1.0f, 0.08f, 0.12f, 1.0f) // Chase (INCONSISTENTE): Vermelho Sólido
-                    : new Color(0.10f, 0.55f, 1.0f, 0.52f); // Patrol (CONSISTENTE): Azul Translúcido
+                Color corAlvo;
+                if (novoEstado == GameEntityState.Vulnerable)
+                {
+                    corAlvo = new Color(0.08f, 0.55f, 1.0f, 0.60f); // Azul Translúcido Calmo (quando Pac-Man come item certo)
+                }
+                else if (ehChaseInconsistente)
+                {
+                    corAlvo = new Color(1.0f, 0.10f, 0.14f, 1.0f); // Vermelho Sólido (Caçando para quebrar a linha!)
+                }
+                else
+                {
+                    corAlvo = new Color(1.0f, 0.50f, 0.08f, 0.82f); // Laranja/Âmbar (Vigiando corredor)
+                }
 
                 for (int i = 0; i < renderers.Length; i++)
                 {

@@ -9,14 +9,17 @@ using PacMan.Network;
 /// ============================================================================
 /// INTERFACE ESPACIAL BIDIRECIONAL PARA ENGENHARIA DE ONTOLOGIAS OWL (Unity 6)
 /// ============================================================================
-/// Gerenciador Científico de HUD (SemanticHUDManager) utilizando TextMeshPro:
-/// 1. Substitui "Score" por "Tamanho da ABox: [X]".
-/// 2. Substitui "Vidas" por "Status do Reasoner":
-///    - Padrão: "CONSISTENTE" (Verde #00FF88).
-///    - Erro (exception do HermiT): "INCONSISTENTE" (Vermelho #FF2233, piscando).
-/// 3. Substitui "Última Captura" por "Foco Atual: [Nome da Classe]".
-/// 4. Componente ScrollRect (Terminal de Logs / Feed de Triplas RDF) para exibir feed em tempo real
-///    (ex: "[+] researcher_01 instanciou AscarisLumbricoides").
+/// Gerenciador Científico de HUD (SemanticHUDManager) com Tipografia Grande e Explicativa:
+/// 1. Barra Superior Grande (24pt):
+///    - "Rede Ontológica (ABox): [X] Elos"
+///    - "Último Comido: [Tipo | Nome da Classe]"
+///    - "Status do Reasoner & Fantasmas"
+/// 2. Painel Explicativo em Tempo Real (22pt-25pt):
+///    - Explica em letras grandes O QUE o Pac-Man acabou de comer (Classe, Subclasse ou Instância).
+///    - Explica POR QUE os fantasmas mudaram de cor (Azuis = Calmos após comer item certo;
+///      Vermelhos = Caçando para quebrar um pedaço da sua linha da Rede Neural!).
+/// 3. Terminal da Rede Neural Ontológica (Inferior Esquerdo ampliado, 19pt):
+///    - Mostra em letras grandes cada conexão criada ou quebrada pelo fantasma.
 /// ============================================================================
 /// </summary>
 public class SemanticHUDManager : MonoBehaviour
@@ -36,16 +39,18 @@ public class SemanticHUDManager : MonoBehaviour
     public TMP_Text textoSubtituloPlayTMP;
     public TMP_Text textoDescricaoPlayTMP;
 
-    [Header("Painel Superior do HUD (TextMeshPro)")]
+    [Header("Painel Superior do HUD (TextMeshPro Grande)")]
     public GameObject painelHUD;
-    [Tooltip("Exibe 'Axiomas Inseridos: [X] | Tamanho da ABox: [X]'")]
     public TMP_Text textoAxiomasABoxTMP;
-    [Tooltip("Exibe 'Status do Reasoner: CONSISTENTE (Verde)' ou 'INCONSISTENTE (Vermelho piscando)'")]
     public TMP_Text textoStatusReasonerTMP;
-    [Tooltip("Exibe 'Foco Atual: [Nome da Classe]'")]
     public TMP_Text textoFocoAtualTMP;
 
-    [Header("Terminal / Log de Ações (ScrollRect + TextMeshPro)")]
+    [Header("Painel Explicativo de Jogo (O que comeu + Por que o Fantasma mudou de cor)")]
+    public GameObject painelExplicativoJogo;
+    public TMP_Text textoExplicacaoCapturaTMP;
+    public TMP_Text textoExplicacaoFantasmaTMP;
+
+    [Header("Terminal / Log da Rede Neural Ontológica (ScrollRect Ampliado)")]
     public GameObject painelTerminalLog;
     public ScrollRect scrollRectTerminal;
     public RectTransform conteudoScrollTerminal;
@@ -60,10 +65,9 @@ public class SemanticHUDManager : MonoBehaviour
     public int axiomasInseridos = 0;
     public bool reasonerConsistente = true;
     public string detalheErroReasoner = "";
-    public string focoAtualClasse = "Nenhuma classe em foco";
+    public string focoAtualClasse = "Siga as Placas de Trânsito!";
     public bool painelAberto = true;
 
-    // Propriedades de compatibilidade com scripts existentes
     public int pontuacaoAtual
     {
         get => axiomasInseridos;
@@ -73,7 +77,7 @@ public class SemanticHUDManager : MonoBehaviour
     public int vidasRestantes
     {
         get => reasonerConsistente ? 3 : 0;
-        set { /* Substituído pelo Status do Reasoner */ }
+        set { }
     }
 
     public string entidadeAtual
@@ -83,7 +87,7 @@ public class SemanticHUDManager : MonoBehaviour
     }
 
     private readonly List<string> m_LinhasLog = new List<string>();
-    private const int MAX_LINHAS_LOG = 60;
+    private const int MAX_LINHAS_LOG = 40;
     private float m_TimerPiscaInconsistente = 0f;
     private bool m_EstadoVisivelPisca = true;
 
@@ -131,7 +135,6 @@ public class SemanticHUDManager : MonoBehaviour
             }
         }
 
-        // Varre todos os TMP_Text na cena e remove imediatamente qualquer objeto corrompido sem RectTransform
         TMP_Text[] todosTextos = FindObjectsByType<TMP_Text>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int i = 0; i < todosTextos.Length; i++)
         {
@@ -194,8 +197,9 @@ public class SemanticHUDManager : MonoBehaviour
 
         if (m_LinhasLog.Count == 0)
         {
-            AdicionarLinhaLog("[SYS] Interface Espacial Bidirecional OWL inicializada.");
-            AdicionarLinhaLog("[WS:8085] Aguardando sincronização com plugin Protégé (HermiT Reasoner)...");
+            AdicionarLinhaLog("<color=#FFD700><b>[COMO JOGAR]</b></color> Siga as <b>Placas de Trânsito</b> nos corredores para ver quais Classes e Subclasses pegar!");
+            AdicionarLinhaLog("<color=#00FF88><b>[REDE NEURAL]</b></color> Tudo que você come forma uma linha conectada atrás do Pac-Man.");
+            AdicionarLinhaLog("<color=#FF4455><b>[FANTASMAS]</b></color> Fantasmas <b>Vermelhos</b> perseguem e quebram sua linha! Coma itens certos para deixá-los <b>Azuis (Calmos)</b>!");
         }
 
         DefinirPainelVisivel(true);
@@ -204,7 +208,6 @@ public class SemanticHUDManager : MonoBehaviour
 
     private void Update()
     {
-        // Efeito de alerta piscante quando o HermiT Reasoner detecta INCONSISTÊNCIA
         if (!reasonerConsistente && textoStatusReasonerTMP != null)
         {
             m_TimerPiscaInconsistente += Time.unscaledDeltaTime * 5.0f;
@@ -213,9 +216,36 @@ public class SemanticHUDManager : MonoBehaviour
             {
                 m_EstadoVisivelPisca = visivel;
                 textoStatusReasonerTMP.text = m_EstadoVisivelPisca
-                    ? "Status do Reasoner: <color=#FF2233><b>⚠ INCONSISTENTE</b></color>"
-                    : "Status do Reasoner: <color=#660011><b>⚠ INCONSISTENTE</b></color>";
+                    ? "Reasoner: <color=#FF2233><b>⚠ INCONSISTENTE (Fantasmas Caçando!)</b></color>"
+                    : "Reasoner: <color=#880011><b>⚠ INCONSISTENTE (Fantasmas Caçando!)</b></color>";
             }
+        }
+
+        AtualizarExplicacaoDinamicaFantasmas();
+    }
+
+    private void AtualizarExplicacaoDinamicaFantasmas()
+    {
+        if (textoExplicacaoFantasmaTMP == null) return;
+
+        var motor = FindFirstObjectByType<PacMan.Semantics.MotorRaciocinioSemantico>();
+        if (motor != null && motor.pacmanIsPowered && motor.tempoPowerRestante > 0f)
+        {
+            textoExplicacaoFantasmaTMP.text =
+                $"<color=#38BDF8><b>🟦 POR QUE OS FANTASMAS MUDARAM PARA AZUL ({Mathf.CeilToInt(motor.tempoPowerRestante)}s)?</b></color> " +
+                $"Você comeu uma Classe/Subclasse CERTA! O Reasoner validou sua rede e eles ficam <b>CALMOS (não vão atrás de você)</b>!";
+        }
+        else if (!reasonerConsistente)
+        {
+            textoExplicacaoFantasmaTMP.text =
+                "<color=#FF3344><b>🟥 POR QUE OS FANTASMAS ESTÃO VERMELHOS?</b></color> " +
+                "Inconsistência detectada! Eles estão <b>PERSEGUINDO VOCÊ</b> para quebrar a linha da sua Rede Ontológica!";
+        }
+        else
+        {
+            textoExplicacaoFantasmaTMP.text =
+                "<color=#F59E0B><b>🟧/🟥 COMPORTAMENTO DOS FANTASMAS:</b></color> " +
+                "Perto de você eles ficam <b>VERMELHOS e perseguem</b> para quebrar sua linha! Coma um item CERTO para deixá-los <b>AZUIS (Calmos)</b>!";
         }
     }
 
@@ -255,13 +285,14 @@ public class SemanticHUDManager : MonoBehaviour
     private void AoFocarInstancia(IInstanciaSemantica inst)
     {
         if (inst == null) return;
-        focoAtualClasse = InstanciaSemanticaBase.FormatarNomeClasse(inst.NomeClasse);
+        string nome = InstanciaSemanticaBase.FormatarNomeClasse(inst.NomeClasse);
+        string tipo = RelationBuilder.ClassificarTipoElementoOntologico(inst.NomeClasse, inst.ExpressaoDL);
+        focoAtualClasse = $"[{tipo}] {nome}";
         AtualizarDisplay();
     }
 
     private void AoDesfocarInstancia(IInstanciaSemantica inst)
     {
-        // Mantém o último foco ou exibe estado neutro
         AtualizarDisplay();
     }
 
@@ -270,19 +301,52 @@ public class SemanticHUDManager : MonoBehaviour
         if (inst != null)
         {
             string nomeClasse = InstanciaSemanticaBase.FormatarNomeClasse(inst.NomeClasse);
-            focoAtualClasse = nomeClasse;
+            string tipo = RelationBuilder.ClassificarTipoElementoOntologico(inst.NomeClasse, inst.ExpressaoDL);
+            focoAtualClasse = $"[{tipo}] {nomeClasse}";
 
-            // Se o ProtegeWebSocketBridge não estiver ativo na cena para incrementar por evento, atualiza localmente
-            if (ProtegeWebSocketBridge.Instance == null)
+            if (!sucesso || !inst.EhValida)
             {
-                axiomasInseridos++;
-                AdicionarLinhaLog($"[+] researcher_01 instanciou {inst.NomeClasse}");
-                if (!inst.EhValida)
-                {
-                    DefinirStatusReasoner(false, $"HermiT: Violação em {inst.NomeClasse}");
-                }
+                DefinirStatusReasoner(false, $"Violação em {nomeClasse}");
             }
         }
+        AtualizarDisplay();
+    }
+
+    /// <summary>
+    /// Exibe em letras grandes e legíveis exatamente o que o Pac-Man acabou de comer
+    /// e como isso foi conectado na Rede Neural Ontológica.
+    /// </summary>
+    public void RegistrarCapturaExplicativa(string nomeItem, string tipoHierarquico, string axiomaDL, int totalElosRede, string relacaoCriada)
+    {
+        focoAtualClasse = $"[{tipoHierarquico}] {nomeItem}";
+        reasonerConsistente = true;
+
+        if (textoExplicacaoCapturaTMP != null)
+        {
+            textoExplicacaoCapturaTMP.text =
+                $"<color=#00FF88><b>🟢 VOCÊ COMEU ({tipoHierarquico.ToUpperInvariant()}):</b></color> <color=#FFFFFF><size=112%><b>{nomeItem}</b></size></color>   " +
+                $"<color=#38BDF8><b>[Conectado via '{relacaoCriada}' — Elo #{totalElosRede} da Rede Neural]</b></color>";
+        }
+
+        AdicionarLinhaLog(
+            $"<color=#00FF88><b>[✔ COMEU #{totalElosRede}]</b></color> <b>{tipoHierarquico}: {nomeItem}</b> conectado na Rede Neural via <i>{relacaoCriada}</i>! (Fantasmas Azuis por 6s)");
+
+        AtualizarDisplay();
+    }
+
+    /// <summary>
+    /// Exibe um alerta grande e claro quando o Fantasma bate no Pac-Man e quebra um pedaço da linha!
+    /// </summary>
+    public void ExibirAlertaQuebraDeLinha(string nomeFantasma, string itemQuebrado, string explicacao)
+    {
+        focoAtualClasse = $"🔄 Reconectar: {itemQuebrado}";
+
+        if (textoExplicacaoCapturaTMP != null)
+        {
+            textoExplicacaoCapturaTMP.text =
+                $"<color=#FF3344><b>💥 LINHA QUEBRADA ({itemQuebrado})!</b></color> <color=#FFD700><b>{explicacao}</b></color>";
+        }
+
         AtualizarDisplay();
     }
 
@@ -310,10 +374,6 @@ public class SemanticHUDManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Adiciona uma entrada ao ScrollRect (Log/Terminal de Ações) no formato científico OWL.
-    /// Exemplo: "[+] researcher_01 instanciou AscarisLumbricoides"
-    /// </summary>
     public void AdicionarLinhaLog(string mensagem)
     {
         if (string.IsNullOrEmpty(mensagem)) return;
@@ -341,7 +401,6 @@ public class SemanticHUDManager : MonoBehaviour
         }
     }
 
-    // Métodos legados de compatibilidade
     public void DefinirPontuacao(int pontos) => DefinirAxiomasInseridos(pontos);
     public void DefinirVidas(int vidas) => DefinirStatusReasoner(vidas > 0);
     public void DefinirEntidade(string nomeEntidade) => DefinirFocoAtual(nomeEntidade);
@@ -350,6 +409,7 @@ public class SemanticHUDManager : MonoBehaviour
     {
         painelAberto = !painelAberto;
         if (painelHUD != null) painelHUD.SetActive(painelAberto);
+        if (painelExplicativoJogo != null) painelExplicativoJogo.SetActive(painelAberto);
         if (painelTerminalLog != null) painelTerminalLog.SetActive(painelAberto);
     }
 
@@ -362,6 +422,7 @@ public class SemanticHUDManager : MonoBehaviour
     {
         painelAberto = visivel;
         if (painelHUD != null) painelHUD.SetActive(visivel);
+        if (painelExplicativoJogo != null) painelExplicativoJogo.SetActive(visivel);
         if (painelTerminalLog != null) painelTerminalLog.SetActive(visivel);
     }
 
@@ -386,26 +447,21 @@ public class SemanticHUDManager : MonoBehaviour
 
     public void AtualizarDisplay()
     {
-        string txtAxiomas = $"Tamanho da ABox: <color=#00E5FF><b>{axiomasInseridos}</b></color>";
+        string txtAxiomas = $"Rede Neural (ABox): <color=#00FF88><b>{axiomasInseridos} Elos</b></color>";
         string txtReasoner = reasonerConsistente
-            ? "Status do Reasoner: <color=#00FF88><b>CONSISTENTE</b></color>"
-            : "Status do Reasoner: <color=#FF2233><b>⚠ INCONSISTENTE</b></color>";
-        string txtFoco = $"Foco Atual: <color=#38BDF8><b>{focoAtualClasse}</b></color>";
+            ? "Reasoner: <color=#00FF88><b>CONSISTENTE</b></color>"
+            : "Reasoner: <color=#FF2233><b>⚠ INCONSISTENTE</b></color>";
+        string txtFoco = $"Item / Alvo: <color=#FFD700><b>{focoAtualClasse}</b></color>";
 
         if (textoAxiomasABoxTMP != null) textoAxiomasABoxTMP.text = txtAxiomas;
         if (textoStatusReasonerTMP != null) textoStatusReasonerTMP.text = txtReasoner;
         if (textoFocoAtualTMP != null) textoFocoAtualTMP.text = txtFoco;
 
-        // Sincroniza campos legados se existirem
         if (textoPontuacao != null) textoPontuacao.text = txtAxiomas;
         if (textoVidas != null) textoVidas.text = txtReasoner;
         if (textoEntidadeOntologica != null) textoEntidadeOntologica.text = txtFoco;
     }
 
-    /// <summary>
-    /// Utilitário seguro para obter ou criar um filho de UI garantindo que ele sempre nasça com RectTransform
-    /// e seja filho de um Canvas/RectTransform antes de receber qualquer componente TextMeshProUGUI ou Image.
-    /// </summary>
     private static RectTransform ObterOuCriarFilhoUI(Transform pai, string nome)
     {
         Transform existente = pai.Find(nome);
@@ -424,21 +480,14 @@ public class SemanticHUDManager : MonoBehaviour
         return novoObj.GetComponent<RectTransform>();
     }
 
-    /// <summary>
-    /// Aplica fonte Branca (#FFFFFF) com Outline Preto (#000000) em qualquer TextMeshProUGUI
-    /// para nitidez absoluta contra o fundo Dark Grid sem ser lavado pelo Bloom.
-    /// </summary>
     private static void AplicarNitidezTextoTMP(TextMeshProUGUI tmp, Color corBase)
     {
         if (tmp == null) return;
         tmp.color = corBase;
         tmp.outlineColor = new Color32(0, 0, 0, 255);
-        tmp.outlineWidth = 0.16f;
+        tmp.outlineWidth = 0.20f;
     }
 
-    /// <summary>
-    /// Constrói a interface científica usando TextMeshProUGUI e ScrollRect para o Log/Terminal de Ações.
-    /// </summary>
     private void GarantirCanvasEComponentes()
     {
         if (canvasPrincipal == null) canvasPrincipal = GetComponent<Canvas>();
@@ -464,23 +513,21 @@ public class SemanticHUDManager : MonoBehaviour
         if (graphicRaycaster == null) graphicRaycaster = gameObject.AddComponent<GraphicRaycaster>();
         graphicRaycaster.enabled = true;
 
-        // Remove qualquer modal de Play ou painel Arcade legado caso exista como filho do Canvas
-        Transform modalTr = transform.Find("Modal_Play_Canvas");
-        if (modalTr != null)
+        // Reconstrói os painéis com fontes grandes e legíveis
+        string[] paineisParaAtualizar = { "Modal_Play_Canvas", "Painel_Arcade_HUD", "Painel_Terminal_Log", "Painel_Explicativo_Jogo" };
+        for (int i = 0; i < paineisParaAtualizar.Length; i++)
         {
-            if (Application.isPlaying) Destroy(modalTr.gameObject);
-            else DestroyImmediate(modalTr.gameObject);
-        }
-        Transform arcadeTr = transform.Find("Painel_Arcade_HUD");
-        if (arcadeTr != null)
-        {
-            if (Application.isPlaying) Destroy(arcadeTr.gameObject);
-            else DestroyImmediate(arcadeTr.gameObject);
+            Transform trAntigo = transform.Find(paineisParaAtualizar[i]);
+            if (trAntigo != null)
+            {
+                if (Application.isPlaying) Destroy(trAntigo.gameObject);
+                else DestroyImmediate(trAntigo.gameObject);
+            }
         }
         modalPlayCanvas = null;
 
         // =====================================================================
-        // 2. BARRA SUPERIOR CIENTÍFICA (AXIOMAS / FOCO ATUAL / STATUS DO REASONER)
+        // 1. BARRA SUPERIOR AMPLIADA (FONTE 24PT BOLD)
         // =====================================================================
         RectTransform rtPainelHUD = ObterOuCriarFilhoUI(transform, "Painel_OWL_HUD");
         painelHUD = rtPainelHUD.gameObject;
@@ -488,158 +535,169 @@ public class SemanticHUDManager : MonoBehaviour
         rtPainelHUD.anchorMax = new Vector2(1f, 1f);
         rtPainelHUD.pivot = new Vector2(0.5f, 1f);
         rtPainelHUD.anchoredPosition = Vector2.zero;
-        rtPainelHUD.sizeDelta = new Vector2(0f, 56f);
+        rtPainelHUD.sizeDelta = new Vector2(0f, 68f);
 
         Image imgPainel = painelHUD.GetComponent<Image>();
         if (imgPainel == null) imgPainel = painelHUD.AddComponent<Image>();
-        imgPainel.color = new Color(0.02f, 0.05f, 0.12f, 0.92f);
+        imgPainel.color = new Color(0.02f, 0.05f, 0.12f, 0.94f);
 
-        // 2.1 Esquerda: Axiomas Inseridos / Tamanho da ABox
-        if (textoAxiomasABoxTMP == null || textoAxiomasABoxTMP.GetComponent<RectTransform>() == null)
+        // 1.1 Esquerda: Rede Neural (ABox)
         {
             RectTransform rt = ObterOuCriarFilhoUI(rtPainelHUD, "Texto_AxiomasABox_TMP");
             rt.anchorMin = new Vector2(0f, 0.5f);
             rt.anchorMax = new Vector2(0f, 0.5f);
             rt.pivot = new Vector2(0f, 0.5f);
             rt.anchoredPosition = new Vector2(28f, 0f);
-            rt.sizeDelta = new Vector2(560f, 44f);
+            rt.sizeDelta = new Vector2(540f, 54f);
 
             TextMeshProUGUI tmp = rt.gameObject.GetComponent<TextMeshProUGUI>();
             if (tmp == null) tmp = rt.gameObject.AddComponent<TextMeshProUGUI>();
-            tmp.fontSize = 18;
+            tmp.fontSize = 24;
+            tmp.fontStyle = FontStyles.Bold;
             tmp.alignment = TextAlignmentOptions.MidlineLeft;
             tmp.richText = true;
             AplicarNitidezTextoTMP(tmp, Color.white);
             textoAxiomasABoxTMP = tmp;
         }
 
-        // 2.2 Centro: Foco Atual: [Nome da Classe]
-        if (textoFocoAtualTMP == null || textoFocoAtualTMP.GetComponent<RectTransform>() == null)
+        // 1.2 Centro: Último Comido / Alvo em Foco
         {
             RectTransform rt = ObterOuCriarFilhoUI(rtPainelHUD, "Texto_FocoAtual_TMP");
             rt.anchorMin = new Vector2(0.5f, 0.5f);
             rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = Vector2.zero;
-            rt.sizeDelta = new Vector2(580f, 44f);
+            rt.sizeDelta = new Vector2(760f, 54f);
 
             TextMeshProUGUI tmp = rt.gameObject.GetComponent<TextMeshProUGUI>();
             if (tmp == null) tmp = rt.gameObject.AddComponent<TextMeshProUGUI>();
-            tmp.fontSize = 18;
+            tmp.fontSize = 24;
+            tmp.fontStyle = FontStyles.Bold;
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.richText = true;
             AplicarNitidezTextoTMP(tmp, Color.white);
             textoFocoAtualTMP = tmp;
         }
 
-        // 2.3 Direita: Status do Reasoner (CONSISTENTE / INCONSISTENTE)
-        if (textoStatusReasonerTMP == null || textoStatusReasonerTMP.GetComponent<RectTransform>() == null)
+        // 1.3 Direita: Status do Reasoner
         {
             RectTransform rt = ObterOuCriarFilhoUI(rtPainelHUD, "Texto_StatusReasoner_TMP");
             rt.anchorMin = new Vector2(1f, 0.5f);
             rt.anchorMax = new Vector2(1f, 0.5f);
             rt.pivot = new Vector2(1f, 0.5f);
             rt.anchoredPosition = new Vector2(-65f, 0f);
-            rt.sizeDelta = new Vector2(500f, 44f);
+            rt.sizeDelta = new Vector2(520f, 54f);
 
             TextMeshProUGUI tmp = rt.gameObject.GetComponent<TextMeshProUGUI>();
             if (tmp == null) tmp = rt.gameObject.AddComponent<TextMeshProUGUI>();
-            tmp.fontSize = 18;
+            tmp.fontSize = 23;
+            tmp.fontStyle = FontStyles.Bold;
             tmp.alignment = TextAlignmentOptions.MidlineRight;
             tmp.richText = true;
             AplicarNitidezTextoTMP(tmp, Color.white);
             textoStatusReasonerTMP = tmp;
         }
 
-        // Botão [ X ] de Ocultar Painel
-        Transform btnTr = painelHUD.transform.Find("Botao_Fechar");
-        if (btnTr == null)
+        // =====================================================================
+        // 2. PAINEL EXPLICATIVO EM TEMPO REAL (O QUE COMEU + POR QUE O FANTASMA MUDOU DE COR)
+        // =====================================================================
         {
-            RectTransform rt = ObterOuCriarFilhoUI(rtPainelHUD, "Botao_Fechar");
-            GameObject btnObj = rt.gameObject;
-            rt.anchorMin = new Vector2(1f, 0.5f);
-            rt.anchorMax = new Vector2(1f, 0.5f);
-            rt.pivot = new Vector2(1f, 0.5f);
-            rt.anchoredPosition = new Vector2(-18f, 0f);
-            rt.sizeDelta = new Vector2(30f, 28f);
+            RectTransform rtExp = ObterOuCriarFilhoUI(transform, "Painel_Explicativo_Jogo");
+            painelExplicativoJogo = rtExp.gameObject;
+            rtExp.anchorMin = new Vector2(0f, 1f);
+            rtExp.anchorMax = new Vector2(1f, 1f);
+            rtExp.pivot = new Vector2(0.5f, 1f);
+            rtExp.anchoredPosition = new Vector2(0f, -70f);
+            rtExp.sizeDelta = new Vector2(-48f, 92f);
 
-            Image img = btnObj.GetComponent<Image>();
-            if (img == null) img = btnObj.AddComponent<Image>();
-            img.color = new Color(0.85f, 0.2f, 0.2f, 0.95f);
+            Image imgExp = painelExplicativoJogo.GetComponent<Image>();
+            if (imgExp == null) imgExp = painelExplicativoJogo.AddComponent<Image>();
+            imgExp.color = new Color(0.01f, 0.04f, 0.10f, 0.88f);
 
-            Button btn = btnObj.GetComponent<Button>();
-            if (btn == null) btn = btnObj.AddComponent<Button>();
-            btn.onClick.AddListener(AlternarVisibilidadePainel);
+            // Linha 1: O que o Pac-Man comeu e qual elo da rede neural foi formado/quebrado
+            RectTransform rtCap = ObterOuCriarFilhoUI(rtExp, "Texto_ExplicacaoCaptura_TMP");
+            rtCap.anchorMin = new Vector2(0f, 0.5f);
+            rtCap.anchorMax = new Vector2(1f, 1f);
+            rtCap.offsetMin = new Vector2(20f, 2f);
+            rtCap.offsetMax = new Vector2(-20f, -6f);
 
-            RectTransform rtTxt = ObterOuCriarFilhoUI(rt, "Text_TMP");
-            rtTxt.anchorMin = Vector2.zero;
-            rtTxt.anchorMax = Vector2.one;
-            rtTxt.sizeDelta = Vector2.zero;
+            TextMeshProUGUI tmpCap = rtCap.gameObject.GetComponent<TextMeshProUGUI>();
+            if (tmpCap == null) tmpCap = rtCap.gameObject.AddComponent<TextMeshProUGUI>();
+            tmpCap.fontSize = 22;
+            tmpCap.fontStyle = FontStyles.Bold;
+            tmpCap.alignment = TextAlignmentOptions.MidlineLeft;
+            tmpCap.richText = true;
+            tmpCap.text = "<color=#00FF88><b>🟢 OBJETIVO:</b></color> Siga as <b>Placas de Trânsito</b> nos corredores e coma as <b>Classes, Subclasses e Instâncias certas</b> para tecer sua Rede Neural Ontológica!";
+            AplicarNitidezTextoTMP(tmpCap, Color.white);
+            textoExplicacaoCapturaTMP = tmpCap;
 
-            TextMeshProUGUI txt = rtTxt.gameObject.GetComponent<TextMeshProUGUI>();
-            if (txt == null) txt = rtTxt.gameObject.AddComponent<TextMeshProUGUI>();
-            txt.fontSize = 15;
-            txt.fontStyle = FontStyles.Bold;
-            txt.text = "✕";
-            txt.color = Color.white;
-            txt.alignment = TextAlignmentOptions.Center;
+            // Linha 2: Por que os fantasmas mudaram de cor (Azul vs Vermelho)
+            RectTransform rtFan = ObterOuCriarFilhoUI(rtExp, "Texto_ExplicacaoFantasma_TMP");
+            rtFan.anchorMin = new Vector2(0f, 0f);
+            rtFan.anchorMax = new Vector2(1f, 0.5f);
+            rtFan.offsetMin = new Vector2(20f, 6f);
+            rtFan.offsetMax = new Vector2(-20f, -2f);
+
+            TextMeshProUGUI tmpFan = rtFan.gameObject.GetComponent<TextMeshProUGUI>();
+            if (tmpFan == null) tmpFan = rtFan.gameObject.AddComponent<TextMeshProUGUI>();
+            tmpFan.fontSize = 20;
+            tmpFan.fontStyle = FontStyles.Bold;
+            tmpFan.alignment = TextAlignmentOptions.MidlineLeft;
+            tmpFan.richText = true;
+            AplicarNitidezTextoTMP(tmpFan, Color.white);
+            textoExplicacaoFantasmaTMP = tmpFan;
         }
 
         // =====================================================================
-        // 3. SCROLLRECT - TERMINAL / LOG DE AÇÕES ONTOLÓGICAS (INFERIOR ESQUERDO)
+        // 3. PAINEL INFERIOR ESQUERDO AMPLIADO (FONTE GRANDE 19PT PARA LEITURA FÁCIL)
         // =====================================================================
-        Transform termTr = transform.Find("Painel_Terminal_Log");
-        if (termTr == null || termTr.GetComponent<RectTransform>() == null)
         {
             RectTransform rtTerm = ObterOuCriarFilhoUI(transform, "Painel_Terminal_Log");
             painelTerminalLog = rtTerm.gameObject;
             rtTerm.anchorMin = new Vector2(0f, 0f);
             rtTerm.anchorMax = new Vector2(0f, 0f);
             rtTerm.pivot = new Vector2(0f, 0f);
-            rtTerm.anchoredPosition = new Vector2(24f, 24f);
-            rtTerm.sizeDelta = new Vector2(680f, 185f);
+            rtTerm.anchoredPosition = new Vector2(24f, 20f);
+            rtTerm.sizeDelta = new Vector2(920f, 230f);
 
             Image imgTerm = painelTerminalLog.GetComponent<Image>();
             if (imgTerm == null) imgTerm = painelTerminalLog.AddComponent<Image>();
-            imgTerm.color = new Color(0.01f, 0.03f, 0.09f, 0.88f);
+            imgTerm.color = new Color(0.01f, 0.03f, 0.09f, 0.90f);
 
-            // Cabeçalho do Terminal
             RectTransform rtHeader = ObterOuCriarFilhoUI(rtTerm, "Header_Terminal_TMP");
             rtHeader.anchorMin = new Vector2(0f, 1f);
             rtHeader.anchorMax = new Vector2(1f, 1f);
             rtHeader.pivot = new Vector2(0.5f, 1f);
-            rtHeader.anchoredPosition = new Vector2(0f, -4f);
-            rtHeader.sizeDelta = new Vector2(-20f, 24f);
+            rtHeader.anchoredPosition = new Vector2(0f, -6f);
+            rtHeader.sizeDelta = new Vector2(-24f, 30f);
 
             TextMeshProUGUI txtHeader = rtHeader.gameObject.GetComponent<TextMeshProUGUI>();
             if (txtHeader == null) txtHeader = rtHeader.gameObject.AddComponent<TextMeshProUGUI>();
-            txtHeader.fontSize = 13;
+            txtHeader.fontSize = 18;
             txtHeader.fontStyle = FontStyles.Bold;
-            txtHeader.text = "TERMINAL DE LOGS (FEED DE TRIPLAS RDF / WEBSOCKET 8085)";
-            txtHeader.color = new Color(0.0f, 0.85f, 1.0f);
+            txtHeader.text = "📋 HISTÓRICO DO QUE O PAC-MAN COMEU & REDE NEURAL ONTOLÓGICA";
+            txtHeader.color = new Color(0.0f, 0.92f, 1.0f);
             txtHeader.alignment = TextAlignmentOptions.MidlineLeft;
 
-            // Viewport do ScrollRect
             RectTransform rtVp = ObterOuCriarFilhoUI(rtTerm, "Viewport");
             GameObject viewportObj = rtVp.gameObject;
             rtVp.anchorMin = new Vector2(0f, 0f);
             rtVp.anchorMax = new Vector2(1f, 1f);
-            rtVp.offsetMin = new Vector2(10f, 8f);
-            rtVp.offsetMax = new Vector2(-10f, -30f);
+            rtVp.offsetMin = new Vector2(14f, 10f);
+            rtVp.offsetMax = new Vector2(-14f, -38f);
 
             Image imgVp = viewportObj.GetComponent<Image>();
             if (imgVp == null) imgVp = viewportObj.AddComponent<Image>();
             imgVp.color = new Color(0f, 0f, 0f, 0.01f);
             if (viewportObj.GetComponent<RectMask2D>() == null) viewportObj.AddComponent<RectMask2D>();
 
-            // Content do ScrollRect
             conteudoScrollTerminal = ObterOuCriarFilhoUI(rtVp, "Content");
             GameObject contentObj = conteudoScrollTerminal.gameObject;
             conteudoScrollTerminal.anchorMin = new Vector2(0f, 1f);
             conteudoScrollTerminal.anchorMax = new Vector2(1f, 1f);
             conteudoScrollTerminal.pivot = new Vector2(0.5f, 1f);
             conteudoScrollTerminal.anchoredPosition = Vector2.zero;
-            conteudoScrollTerminal.sizeDelta = new Vector2(0f, 140f);
+            conteudoScrollTerminal.sizeDelta = new Vector2(0f, 180f);
 
             ContentSizeFitter csf = contentObj.GetComponent<ContentSizeFitter>();
             if (csf == null) csf = contentObj.AddComponent<ContentSizeFitter>();
@@ -647,7 +705,9 @@ public class SemanticHUDManager : MonoBehaviour
 
             TextMeshProUGUI tmpLog = contentObj.GetComponent<TextMeshProUGUI>();
             if (tmpLog == null) tmpLog = contentObj.AddComponent<TextMeshProUGUI>();
-            tmpLog.fontSize = 14;
+            tmpLog.fontSize = 19;
+            tmpLog.fontStyle = FontStyles.Bold;
+            tmpLog.lineSpacing = 4f;
             tmpLog.alignment = TextAlignmentOptions.BottomLeft;
             tmpLog.richText = true;
             tmpLog.textWrappingMode = TextWrappingModes.Normal;
@@ -661,23 +721,11 @@ public class SemanticHUDManager : MonoBehaviour
             scrollRectTerminal.horizontal = false;
             scrollRectTerminal.vertical = true;
             scrollRectTerminal.movementType = ScrollRect.MovementType.Clamped;
-            scrollRectTerminal.scrollSensitivity = 20f;
-        }
-        else
-        {
-            painelTerminalLog = termTr.gameObject;
-            scrollRectTerminal = painelTerminalLog.GetComponent<ScrollRect>();
-            if (scrollRectTerminal != null)
-            {
-                conteudoScrollTerminal = scrollRectTerminal.content;
-                if (conteudoScrollTerminal != null && textoLogTerminalTMP == null)
-                {
-                    textoLogTerminalTMP = conteudoScrollTerminal.GetComponent<TMP_Text>();
-                }
-            }
+            scrollRectTerminal.scrollSensitivity = 25f;
         }
 
         if (painelHUD != null) painelHUD.SetActive(true);
+        if (painelExplicativoJogo != null) painelExplicativoJogo.SetActive(true);
         if (painelTerminalLog != null) painelTerminalLog.SetActive(true);
     }
 }

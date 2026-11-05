@@ -138,9 +138,19 @@ public class GemaValidaSemantica : InstanciaSemanticaBase
         // 2. Atualiza o HUD em tempo real com a classe em foco
         AtualizarHUDs(m_Id, nomeClasseFormatado, m_ValorPontuacao, m_ExpressaoDL, m_DescricaoSemantica);
 
-        // 3. Emite feedback visual cibernético e háptico (SEM som de arcade)
+        // 3. Emite feedback visual cibernético e háptico e acalma os fantasmas (Azuis por 6s)
+        var motor = FindFirstObjectByType<PacMan.Semantics.MotorRaciocinioSemantico>();
+        if (motor != null)
+        {
+            motor.AtivarPowerPellet(6.0f);
+        }
+
         EmitirFeedbackHaptico(interator, 0.35f, 0.12f);
         NotificarInteracao(sucesso: true);
+        if (RelationBuilder.Instance != null)
+        {
+            RelationBuilder.Instance.AdicionarItemComidoNaRedeNeural(this, gameObject);
+        }
         CriarEfeitoVisual(sucesso: true);
 
         // 4. Em vez de destruir o Nodo como uma gema de arcade, mantém o Nodo ancorado no espaço

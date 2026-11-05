@@ -125,8 +125,18 @@ public class GerenciadorInstancia : InstanciaSemanticaBase
         RegistrarConsumoOntologico(m_Id, classeOntologica, ehValida, expressaoDL);
         AtualizarHUDs(m_Id, FormatarNomeClasse(classeOntologica), valorPontuacao, expressaoDL, descricaoSemantica);
 
+        var motor = FindFirstObjectByType<PacMan.Semantics.MotorRaciocinioSemantico>();
+        if (motor != null)
+        {
+            motor.AtivarPowerPellet(6.0f);
+        }
+
         EmitirFeedbackHaptico(interator, 0.35f, 0.12f);
         NotificarInteracao(sucesso: true);
+        if (RelationBuilder.Instance != null)
+        {
+            RelationBuilder.Instance.AdicionarItemComidoNaRedeNeural(this, gameObject);
+        }
         CriarEfeitoVisual(sucesso: true);
 
         // Mantém o Nodo ancorado no espaço com colisor desativado para sustentar visualmente as arestas (LineRenderer)

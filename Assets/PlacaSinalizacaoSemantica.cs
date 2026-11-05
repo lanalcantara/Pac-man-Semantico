@@ -3,31 +3,36 @@ using UnityEngine;
 
 /// <summary>
 /// ============================================================================
-/// INTERFACE ESPACIAL BIDIRECIONAL OWL - Placa de Sinalização Semântica (Wayfinding)
+/// INTERFACE ESPACIAL BIDIRECIONAL OWL - Placa de Trânsito Semântica (Wayfinding)
 /// ============================================================================
-/// Poste / Painel Holográfico posicionado nas bifurcações e entradas de corredores
-/// do labirinto procedural para indicar explicitamente a hierarquia da TBox
-/// (Superclasses e Subclasses OWL) de forma agnóstica de domínio.
+/// Placa direcional em formato de Placa de Trânsito Rodoviária/Urbana (com poste,
+/// borda refletiva e ponta em formato de seta direcional física) posicionada nas
+/// bifurcações do labirinto para indicar claramente:
+/// 1. A DIREÇÃO do corredor (⬅ ESQUERDA, ➡ DIREITA, ⬆ FRENTE, ⬇ RETORNO).
+/// 2. Quais CLASSES, SUBCLASSES e INSTÂNCIAS certas existem naquela direção.
+/// 3. Quais classes disjuntas/erradas EVITAR naquele corredor para construir a ontologia.
 /// ============================================================================
 /// </summary>
 [ExecuteAlways]
 [DisallowMultipleComponent]
 public class PlacaSinalizacaoSemantica : MonoBehaviour
 {
-    public const float AlturaCentroPainel = 1.28f;
-    public const float LarguraPainelHolografico = 2.40f;
-    public const float AlturaPainelHolografico = 0.68f;
+    public const float AlturaCentroPainel = 1.34f;
+    public const float LarguraPainelHolografico = 2.50f;
+    public const float AlturaPainelHolografico = 0.78f;
     public const float EspessuraPainelHolografico = 0.06f;
 
-    public const float LarguraRectTexto = 2.16f;
-    public const float AlturaRectTexto = 0.54f;
-    public const float OffsetZTexto = 0.042f;
+    public const float LarguraRectTexto = 2.30f;
+    public const float AlturaRectTexto = 0.68f;
+    public const float OffsetZTexto = 0.045f;
 
     [Header("Identificação da Bifurcação e Hierarquia OWL")]
     public string idBifurcacao = "Bifurcacao_01";
     public string setaDirecao = "⬆";
     public string tipoHierarquia = "Superclasse";
     public string nomeClasseExibida = "Parasitas";
+    public string itensCertosCorredor = "Nematoda, Ascaris";
+    public string itensErradosEvitar = "Hospedeiro Inválido";
 
     [Header("Referências Visuais e TextMeshPro")]
     public TMP_Text textoFrontalTMP;
@@ -57,16 +62,16 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
 
     public Renderer[] renderersEmissivos;
 
-    [Header("Estética Cibernética Dark Grid")]
-    public Color corNeon = new Color(0.65f, 0.20f, 1.0f, 1.0f);
-    [Range(0.5f, 2.0f)]
-    public float intensidadeEmissaoHDR = 0.85f;
+    [Header("Cores de Placa de Trânsito Semântica")]
+    public Color corNeon = new Color(0.10f, 0.75f, 0.40f, 1.0f);
+    [Range(0.4f, 1.8f)]
+    public float intensidadeEmissaoHDR = 0.75f;
 
     private static TMP_FontAsset s_FontePadraoTMP;
 
     private void Awake()
     {
-        SincronizarGeometriaEPainelPlaca();
+        SincronizarGeometriaPlacaTransito();
         GarantirReferenciasTextMeshPro();
         GarantirTextoPadraoOffline();
         AtualizarVisualPlaca();
@@ -74,7 +79,7 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
 
     private void OnEnable()
     {
-        SincronizarGeometriaEPainelPlaca();
+        SincronizarGeometriaPlacaTransito();
         GarantirReferenciasTextMeshPro();
         GarantirTextoPadraoOffline();
         AtualizarVisualPlaca();
@@ -82,16 +87,14 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
 
     private void Start()
     {
-        SincronizarGeometriaEPainelPlaca();
+        SincronizarGeometriaPlacaTransito();
         GarantirReferenciasTextMeshPro();
         GarantirTextoPadraoOffline();
         AtualizarVisualPlaca();
     }
 
     /// <summary>
-    /// Sobrecarga canônica exigida pela especificação:
-    /// Inicializa a placa recebendo o nome da classe OWL e o tipo de relação/hierarquia
-    /// (ex: ConfigurarPlaca("Parasitas", "Superclasse") ou ConfigurarPlaca("Nematoda", "Subclasse")).
+    /// Sobrecarga canônica: Inicializa a placa recebendo o nome da classe OWL e o tipo de relação/hierarquia.
     /// </summary>
     public void ConfigurarPlaca(string nomeClasse, string tipoRelacao = "Subclasse")
     {
@@ -100,9 +103,6 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
         ConfigurarPlaca(seta, tipoRelacao, nomeClasse, corAutomatica);
     }
 
-    /// <summary>
-    /// Sobrecarga com cor customizada: ConfigurarPlaca("Nematoda", "Subclasse", corNeon).
-    /// </summary>
     public void ConfigurarPlaca(string nomeClasse, string tipoRelacao, Color corCategoria)
     {
         string seta = !string.IsNullOrEmpty(setaDirecao) ? setaDirecao : "⬆";
@@ -110,34 +110,75 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
     }
 
     /// <summary>
-    /// Atualiza dinamicamente o texto e o brilho da placa de sinalização
-    /// a partir da taxonomia TBox recebida via WebSocket ou Grafo OWL local/offline.
+    /// Atualiza a placa de trânsito com a direção, a classe/subclasse principal e dicas do que pegar/evitar no corredor.
     /// </summary>
-    public void ConfigurarPlaca(string seta, string prefixoHierarquia, string nomeClasse, Color corCategoria)
+    public void ConfigurarPlaca(string seta, string prefixoHierarquia, string nomeClasse, Color corCategoria, string dicasCertas = null, string dicasEvitar = null)
     {
         setaDirecao = string.IsNullOrEmpty(seta) ? "⬆" : seta;
         tipoHierarquia = NormalizarTipoRelacao(prefixoHierarquia);
         nomeClasseExibida = string.IsNullOrEmpty(nomeClasse) ? ObterNomeClasseOfflinePadrao(tipoHierarquia) : nomeClasse;
         corNeon = corCategoria;
 
-        SincronizarGeometriaEPainelPlaca();
+        PreencherDicasSemanticasDoCorredor(nomeClasseExibida, tipoHierarquia, dicasCertas, dicasEvitar);
+
+        SincronizarGeometriaPlacaTransito();
         GarantirReferenciasTextMeshPro();
         AtualizarVisualPlaca();
     }
 
+    private void PreencherDicasSemanticasDoCorredor(string classe, string hierarquia, string certasCustom, string evitarCustom)
+    {
+        if (!string.IsNullOrEmpty(certasCustom))
+        {
+            itensCertosCorredor = certasCustom;
+        }
+        else
+        {
+            string cLower = (classe ?? "").ToLowerInvariant();
+            if (cLower.Contains("parasit"))
+                itensCertosCorredor = "Subclasses: Nematoda, Platyhelminthes";
+            else if (cLower.Contains("hosped") || cLower.Contains("host"))
+                itensCertosCorredor = "Subclasses: Human, SmallIntestine";
+            else if (cLower.Contains("nematod"))
+                itensCertosCorredor = "Instâncias: Ascaris, Enterobius";
+            else if (cLower.Contains("platy") || cLower.Contains("cestod"))
+                itensCertosCorredor = "Instância: Taenia solium";
+            else if (cLower.Contains("human"))
+                itensCertosCorredor = "Relação: has_host -> Human";
+            else if (cLower.Contains("intestin"))
+                itensCertosCorredor = "Relação: has_habitat -> Intestine";
+            else if (cLower.Contains("fecal"))
+                itensCertosCorredor = "Relação: has_transmission -> FecalOral";
+            else
+                itensCertosCorredor = $"Itens de {classe}";
+        }
+
+        if (!string.IsNullOrEmpty(evitarCustom))
+        {
+            itensErradosEvitar = evitarCustom;
+        }
+        else
+        {
+            string cLower = (classe ?? "").ToLowerInvariant();
+            if (cLower.Contains("nematod"))
+                itensErradosEvitar = "FlatSegments (Disjunto)";
+            else if (cLower.Contains("platy"))
+                itensErradosEvitar = "Cylindrical (Disjunto)";
+            else if (cLower.Contains("parasit"))
+                itensErradosEvitar = "Classes Disjuntas (Vermelhas)";
+            else
+                itensErradosEvitar = "Anomalia Disjunta (Vermelha)";
+        }
+    }
+
     private void GarantirTextoPadraoOffline()
     {
-        if (string.IsNullOrEmpty(tipoHierarquia))
+        if (string.IsNullOrEmpty(tipoHierarquia)) tipoHierarquia = "Superclasse";
+        if (string.IsNullOrEmpty(nomeClasseExibida)) nomeClasseExibida = ObterNomeClasseOfflinePadrao(tipoHierarquia);
+        if (string.IsNullOrEmpty(setaDirecao)) setaDirecao = "⬆";
+        if (string.IsNullOrEmpty(itensCertosCorredor) || string.IsNullOrEmpty(itensErradosEvitar))
         {
-            tipoHierarquia = "Superclasse";
-        }
-        if (string.IsNullOrEmpty(nomeClasseExibida))
-        {
-            nomeClasseExibida = ObterNomeClasseOfflinePadrao(tipoHierarquia);
-        }
-        if (string.IsNullOrEmpty(setaDirecao))
-        {
-            setaDirecao = "⬆";
+            PreencherDicasSemanticasDoCorredor(nomeClasseExibida, tipoHierarquia, null, null);
         }
     }
 
@@ -165,6 +206,15 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
         return "Nematoda";
     }
 
+    private string ObterTextoDirecaoTransito(string seta)
+    {
+        if (string.IsNullOrEmpty(seta)) return "⬆ SIGA EM FRENTE";
+        if (seta.Contains("⬅")) return "⬅ VIRE À ESQUERDA";
+        if (seta.Contains("➡")) return "➡ VIRE À DIREITA";
+        if (seta.Contains("⬇")) return "⬇ CORREDOR SUL";
+        return "⬆ SIGA EM FRENTE";
+    }
+
     private Color DeterminarCorPorClasseOuRelacao(string nomeClasse, string tipoRelacao)
     {
         string combinado = $"{nomeClasse} {tipoRelacao}";
@@ -173,29 +223,31 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
             combinado.IndexOf("Human", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
             combinado.IndexOf("Intestine", System.StringComparison.OrdinalIgnoreCase) >= 0)
         {
-            return new Color(0.05f, 0.55f, 1.0f, 1.0f); // Azul Neon
+            return new Color(0.08f, 0.55f, 1.0f, 1.0f); // Placa Rodoviária Azul
         }
-        return new Color(0.68f, 0.20f, 1.0f, 1.0f); // Roxo Neon
+        return new Color(0.12f, 0.78f, 0.42f, 1.0f); // Placa Rodoviária Verde-Esmeralda
     }
 
     /// <summary>
-    /// Garante que o pedestal, o poste de suporte, o painel holográfico e a moldura superior
-    /// estejam perfeitamente alinhados e dimensionados (inclusive em instâncias vindas de prefabs antigos).
+    /// Modela a placa em formato autêntico de Placa de Trânsito Direcional:
+    /// - Poste cilíndrico firme no chão
+    /// - Placa retangular com bordas refletivas (superior e inferior)
+    /// - Ponta triangular (losango 45°) apontando na direção da seta (Esquerda, Direita ou Frente)!
     /// </summary>
-    private void SincronizarGeometriaEPainelPlaca()
+    private void SincronizarGeometriaPlacaTransito()
     {
         Transform trBase = transform.Find("Base_Pedestal");
         if (trBase != null)
         {
             trBase.localPosition = new Vector3(0f, 0.04f, 0f);
-            trBase.localScale = new Vector3(0.45f, 0.04f, 0.45f);
+            trBase.localScale = new Vector3(0.42f, 0.04f, 0.42f);
         }
 
         Transform trPoste = transform.Find("Poste_Suporte");
         if (trPoste != null)
         {
-            trPoste.localPosition = new Vector3(0f, 0.56f, 0f);
-            trPoste.localScale = new Vector3(0.08f, 0.56f, 0.08f);
+            trPoste.localPosition = new Vector3(0f, 0.62f, 0f);
+            trPoste.localScale = new Vector3(0.10f, 0.62f, 0.10f);
         }
 
         Transform trPainel = transform.Find("Painel_Holografico");
@@ -213,14 +265,67 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
         Transform trMoldura = transform.Find("Moldura_Neon_HDR");
         if (trMoldura != null)
         {
-            float topoPainel = AlturaCentroPainel + (AlturaPainelHolografico * 0.5f) + 0.02f;
+            float topoPainel = AlturaCentroPainel + (AlturaPainelHolografico * 0.5f) + 0.025f;
             trMoldura.localPosition = new Vector3(0f, topoPainel, 0f);
             trMoldura.localRotation = Quaternion.identity;
-            trMoldura.localScale = new Vector3(LarguraPainelHolografico + 0.06f, 0.05f, EspessuraPainelHolografico + 0.02f);
+            trMoldura.localScale = new Vector3(LarguraPainelHolografico + 0.08f, 0.055f, EspessuraPainelHolografico + 0.02f);
             if (rendererMolduraNeon == null)
             {
                 rendererMolduraNeon = trMoldura.GetComponent<Renderer>();
             }
+        }
+
+        // Borda inferior de placa de trânsito
+        Transform trMolduraInf = transform.Find("Moldura_Inferior_Transito");
+        if (trMolduraInf == null)
+        {
+            GameObject objInf = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            objInf.name = "Moldura_Inferior_Transito";
+            objInf.transform.SetParent(transform, false);
+            Collider c = objInf.GetComponent<Collider>();
+            if (c != null)
+            {
+                if (Application.isPlaying) Destroy(c);
+                else DestroyImmediate(c);
+            }
+            trMolduraInf = objInf.transform;
+        }
+        float basePainel = AlturaCentroPainel - (AlturaPainelHolografico * 0.5f) - 0.025f;
+        trMolduraInf.localPosition = new Vector3(0f, basePainel, 0f);
+        trMolduraInf.localRotation = Quaternion.identity;
+        trMolduraInf.localScale = new Vector3(LarguraPainelHolografico + 0.08f, 0.055f, EspessuraPainelHolografico + 0.02f);
+
+        // Ponta de Seta Física de Placa de Trânsito (aponta para Esquerda ⬅, Direita ➡ ou Topo ⬆)
+        Transform trPontaSeta = transform.Find("Ponta_Seta_Transito");
+        if (trPontaSeta == null)
+        {
+            GameObject objSeta = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            objSeta.name = "Ponta_Seta_Transito";
+            objSeta.transform.SetParent(transform, false);
+            Collider c = objSeta.GetComponent<Collider>();
+            if (c != null)
+            {
+                if (Application.isPlaying) Destroy(c);
+                else DestroyImmediate(c);
+            }
+            trPontaSeta = objSeta.transform;
+        }
+
+        float ladoSeta = AlturaPainelHolografico * 0.68f;
+        trPontaSeta.localScale = new Vector3(ladoSeta, ladoSeta, EspessuraPainelHolografico + 0.01f);
+        trPontaSeta.localRotation = Quaternion.Euler(0f, 0f, 45f);
+
+        if (!string.IsNullOrEmpty(setaDirecao) && setaDirecao.Contains("⬅"))
+        {
+            trPontaSeta.localPosition = new Vector3(-(LarguraPainelHolografico * 0.5f), AlturaCentroPainel, 0f);
+        }
+        else if (!string.IsNullOrEmpty(setaDirecao) && setaDirecao.Contains("➡"))
+        {
+            trPontaSeta.localPosition = new Vector3((LarguraPainelHolografico * 0.5f), AlturaCentroPainel, 0f);
+        }
+        else
+        {
+            trPontaSeta.localPosition = new Vector3(0f, AlturaCentroPainel + (AlturaPainelHolografico * 0.5f), 0f);
         }
     }
 
@@ -247,7 +352,6 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
             }
         }
 
-        // Se ainda não houver componente TextMeshPro filho, cria automaticamente na frente e no verso da placa
         if (textoFrontalTMP == null)
         {
             GameObject txtFrenteObj = new GameObject("TMP_Texto_Frontal", typeof(RectTransform));
@@ -266,10 +370,6 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
         CentralizarRectTransformNoPainel(textoTraseiroTMP, ehFaceTraseira: true);
     }
 
-    /// <summary>
-    /// Força o RectTransform do TextMeshPro a ficar 100% centralizado no eixo (X=0, Y=AlturaCentroPainel)
-    /// e contido dentro das bordas do Painel_Holografico, corrigindo qualquer desalinhamento do Prefab.
-    /// </summary>
     public static void CentralizarRectTransformNoPainel(TMP_Text tmp, bool ehFaceTraseira)
     {
         if (tmp == null) return;
@@ -291,17 +391,24 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
 
     public void AtualizarVisualPlaca()
     {
-        SincronizarGeometriaEPainelPlaca();
+        SincronizarGeometriaPlacaTransito();
         CentralizarRectTransformNoPainel(textoFrontalTMP, ehFaceTraseira: false);
         CentralizarRectTransformNoPainel(textoTraseiroTMP, ehFaceTraseira: true);
 
-        // Layout em 2 linhas centralizadas: linha superior com a direção/hierarquia e linha inferior com a Classe OWL em destaque
-        // Isso impede que nomes como 'Nematoda' ou 'Platyhelminthes' escapem pelas laterais ou por baixo do painel!
-        string conteudoFormatado = $"<size=74%>{setaDirecao} {tipoHierarquia}:</size>\n<b>{nomeClasseExibida}</b>";
+        string direcaoTxt = ObterTextoDirecaoTransito(setaDirecao);
+
+        // Formato de Placa de Trânsito Direcional:
+        // Linha 1: Seta + Direção em Amarelo Trânsito (#FFD700)
+        // Linha 2: Tipo (Classe/Subclasse) + Nome em Branco Puro Grande (#FFFFFF)
+        // Linha 3: Guia do que pegar (✔) e do que evitar (✖) naquele corredor
+        string conteudoFormatado =
+            $"<color=#FFD700><size=70%><b>{direcaoTxt} ({tipoHierarquia.ToUpperInvariant()})</b></size></color>\n" +
+            $"<color=#FFFFFF><size=105%><b>{nomeClasseExibida}</b></size></color>\n" +
+            $"<size=62%><color=#4ADE80>✔ {itensCertosCorredor}</color>  |  <color=#FCA5A5>✖ Evite: {itensErradosEvitar}</color></size>";
 
         AplicarTextoBrancoContornoPretoTMP(textoFrontalTMP, conteudoFormatado);
         AplicarTextoBrancoContornoPretoTMP(textoTraseiroTMP, conteudoFormatado);
-        AplicarMateriaisEmissivosHDR(corNeon);
+        AplicarMateriaisPlacaTransito(corNeon);
     }
 
     private static TMP_FontAsset ObterFontePadraoTMP()
@@ -331,39 +438,27 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
 
         tmp.text = texto;
         tmp.richText = true;
-
-        // Auto-Sizing ativo garante que qualquer nome de classe caiba 100% dentro do painel holográfico sem ultrapassar as bordas
         tmp.enableAutoSizing = true;
-        tmp.fontSizeMin = 0.65f;
-        tmp.fontSizeMax = 1.50f;
-        tmp.fontSize = 1.45f;
+        tmp.fontSizeMin = 0.58f;
+        tmp.fontSizeMax = 1.42f;
+        tmp.fontSize = 1.30f;
         tmp.fontStyle = FontStyles.Bold;
         tmp.alignment = TextAlignmentOptions.Center;
-        tmp.lineSpacing = -6f;
-        tmp.margin = new Vector4(0.08f, 0.04f, 0.08f, 0.04f);
+        tmp.lineSpacing = -4f;
+        tmp.margin = new Vector4(0.06f, 0.03f, 0.06f, 0.03f);
         tmp.textWrappingMode = TextWrappingModes.NoWrap;
         tmp.overflowMode = TextOverflowModes.Ellipsis;
 
-        // Branco Puro (#FFFFFF) com Contorno Preto (#000000)
         tmp.color = Color.white;
         tmp.outlineColor = new Color32(0, 0, 0, 255);
-        tmp.outlineWidth = 0.22f;
+        tmp.outlineWidth = 0.24f;
 
         if (tmp.fontSharedMaterial != null)
         {
             Material matTexto = new Material(tmp.fontSharedMaterial);
-            if (matTexto.HasProperty("_FaceColor"))
-            {
-                matTexto.SetColor("_FaceColor", Color.white);
-            }
-            if (matTexto.HasProperty("_OutlineColor"))
-            {
-                matTexto.SetColor("_OutlineColor", Color.black);
-            }
-            if (matTexto.HasProperty("_OutlineWidth"))
-            {
-                matTexto.SetFloat("_OutlineWidth", 0.22f);
-            }
+            if (matTexto.HasProperty("_FaceColor")) matTexto.SetColor("_FaceColor", Color.white);
+            if (matTexto.HasProperty("_OutlineColor")) matTexto.SetColor("_OutlineColor", Color.black);
+            if (matTexto.HasProperty("_OutlineWidth")) matTexto.SetFloat("_OutlineWidth", 0.24f);
             tmp.fontMaterial = matTexto;
         }
 
@@ -376,53 +471,59 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
         tmp.ForceMeshUpdate();
     }
 
-    private void AplicarMateriaisEmissivosHDR(Color corBase)
+    private void AplicarMateriaisPlacaTransito(Color corBase)
     {
         Shader shaderLit = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
-        Color corEmissaoHDR = corBase * intensidadeEmissaoHDR;
+        if (shaderLit == null) return;
 
-        if (rendererMolduraNeon != null && shaderLit != null)
+        // Moldura refletiva estilo Placa de Trânsito (Amarelo/Neon)
+        Color corBordaTransito = Color.Lerp(corBase, new Color(1.0f, 0.85f, 0.10f, 1f), 0.35f);
+        Color corEmissaoHDR = corBordaTransito * intensidadeEmissaoHDR;
+
+        Material matMoldura = new Material(shaderLit);
+        matMoldura.name = $"Mat_MolduraTransito_{nomeClasseExibida}";
+        if (matMoldura.HasProperty("_BaseColor")) matMoldura.SetColor("_BaseColor", corBordaTransito);
+        if (matMoldura.HasProperty("_Color")) matMoldura.SetColor("_Color", corBordaTransito);
+        if (matMoldura.HasProperty("_EmissionColor"))
         {
-            Material matMoldura = new Material(shaderLit);
-            matMoldura.name = $"Mat_MolduraWayfinding_{nomeClasseExibida}";
-            if (matMoldura.HasProperty("_BaseColor")) matMoldura.SetColor("_BaseColor", corBase);
-            if (matMoldura.HasProperty("_Color")) matMoldura.SetColor("_Color", corBase);
-            if (matMoldura.HasProperty("_EmissionColor"))
-            {
-                matMoldura.EnableKeyword("_EMISSION");
-                matMoldura.SetColor("_EmissionColor", corEmissaoHDR);
-            }
-            rendererMolduraNeon.sharedMaterial = matMoldura;
+            matMoldura.EnableKeyword("_EMISSION");
+            matMoldura.SetColor("_EmissionColor", corEmissaoHDR);
         }
 
-        if (renderersEmissivos != null && shaderLit != null)
+        if (rendererMolduraNeon != null) rendererMolduraNeon.sharedMaterial = matMoldura;
+
+        Transform trInf = transform.Find("Moldura_Inferior_Transito");
+        if (trInf != null && trInf.TryGetComponent<Renderer>(out Renderer rInf))
         {
-            Material matEmissivo = new Material(shaderLit);
-            matEmissivo.name = $"Mat_EmissivoWayfinding_{nomeClasseExibida}";
-            if (matEmissivo.HasProperty("_BaseColor")) matEmissivo.SetColor("_BaseColor", corBase);
-            if (matEmissivo.HasProperty("_Color")) matEmissivo.SetColor("_Color", corBase);
-            if (matEmissivo.HasProperty("_EmissionColor"))
-            {
-                matEmissivo.EnableKeyword("_EMISSION");
-                matEmissivo.SetColor("_EmissionColor", corEmissaoHDR);
-            }
-            for (int i = 0; i < renderersEmissivos.Length; i++)
-            {
-                if (renderersEmissivos[i] != null)
-                {
-                    renderersEmissivos[i].sharedMaterial = matEmissivo;
-                }
-            }
+            rInf.sharedMaterial = matMoldura;
         }
 
-        // Fundo do painel holográfico: PRETO PROFUNDO SEM EMISSÃO para que o texto Branco Puro com contorno preto fique 100% legível!
-        if (rendererPainelHolografico != null && shaderLit != null)
+        Transform trSeta = transform.Find("Ponta_Seta_Transito");
+        if (trSeta != null && trSeta.TryGetComponent<Renderer>(out Renderer rSeta))
+        {
+            rSeta.sharedMaterial = matMoldura;
+        }
+
+        // Poste cinza metálico de placa de rua
+        Transform trPoste = transform.Find("Poste_Suporte");
+        if (trPoste != null && trPoste.TryGetComponent<Renderer>(out Renderer rPoste))
+        {
+            Material matPoste = new Material(shaderLit);
+            Color cinzaPoste = new Color(0.22f, 0.25f, 0.30f, 1f);
+            if (matPoste.HasProperty("_BaseColor")) matPoste.SetColor("_BaseColor", cinzaPoste);
+            if (matPoste.HasProperty("_Color")) matPoste.SetColor("_Color", cinzaPoste);
+            rPoste.sharedMaterial = matPoste;
+        }
+
+        // Fundo da Placa de Trânsito: Verde Rodoviário Escuro ou Azul Rodoviário Escuro (alto contraste para letras brancas/amarelas)
+        if (rendererPainelHolografico != null)
         {
             Material matPainel = new Material(shaderLit);
-            matPainel.name = $"Mat_PainelWayfinding_Preto_{nomeClasseExibida}";
-            Color corFundoPreto = new Color(0.01f, 0.015f, 0.03f, 1.0f);
-            if (matPainel.HasProperty("_BaseColor")) matPainel.SetColor("_BaseColor", corFundoPreto);
-            if (matPainel.HasProperty("_Color")) matPainel.SetColor("_Color", corFundoPreto);
+            matPainel.name = $"Mat_FundoPlacaTransito_{nomeClasseExibida}";
+            Color corFundoPlaca = Color.Lerp(new Color(0.01f, 0.03f, 0.05f, 1f), corBase, 0.18f);
+            corFundoPlaca.a = 1.0f;
+            if (matPainel.HasProperty("_BaseColor")) matPainel.SetColor("_BaseColor", corFundoPlaca);
+            if (matPainel.HasProperty("_Color")) matPainel.SetColor("_Color", corFundoPlaca);
             if (matPainel.HasProperty("_Smoothness")) matPainel.SetFloat("_Smoothness", 0.0f);
             if (matPainel.HasProperty("_SpecularHighlights")) matPainel.SetFloat("_SpecularHighlights", 0.0f);
             if (matPainel.HasProperty("_EnvironmentReflections")) matPainel.SetFloat("_EnvironmentReflections", 0.0f);

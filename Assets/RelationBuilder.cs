@@ -6,17 +6,17 @@ using PacMan.Network;
 
 /// <summary>
 /// ============================================================================
-/// INTERFACE ESPACIAL BIDIRECIONAL OWL - RelationBuilder (Object Properties)
+/// REDE NEURAL / GRAFO ONTOLÓGICO DO PAC-MAN (RelationBuilder)
 /// ============================================================================
-/// Substitui a mecânica arcade das antigas "Cerejas" por engenharia espacial
-/// de Object Properties OWL usando LineRenderer e TextMeshPro 3D:
-/// 1. O LineRenderer fica OCULTO/DESATIVADO por padrão durante toda a navegação.
-/// 2. Somente quando o usuário INICIAR EXPLICITAMENTE a ação de conectar dois Nodos
-///    (Clique esquerdo do mouse apontando para um Nodo, Gatilho VR ou Tecla C),
-///    ativa o "Modo de Conexão" e estica a linha do Nodo A até o Player.
-/// 3. Ao clicar/acionar o segundo Nodo (Nodo B), fixa a linha entre o Nodo A e o Nodo B,
-///    instancia o TextMeshPro flutuante com a propriedade (ex: "has_host") e envia via WebSocket.
-/// 4. Botão Direito do Mouse ou ESC cancela e oculta imediatamente o LineRenderer ativo.
+/// Conecta tudo o que o Pac-Man come (Classes -> Subclasses -> Instâncias)
+/// formando uma Rede Neural / Grafo Ontológico luminoso pelo labirinto:
+/// 1. Cada item válido comido vira um Nó Sináptico fixo no corredor e é conectado
+///    ao item anterior por um segmento de linha neon + rótulo da relação OWL.
+/// 2. Uma linha guia ativa sai do último item comido e segue atrás do Pac-Man,
+///    mostrando o fio da rede neural sendo tecido em tempo real.
+/// 3. Quando um Fantasma bate no Pac-Man, ele QUEBRA o último pedaço dessa linha!
+///    O item comido reaparece no corredor com aviso "🔄 COMA NOVAMENTE", exigindo
+///    que o jogador volte lá para comer aquela classe/subclasse/instância de novo.
 /// ============================================================================
 /// </summary>
 [DisallowMultipleComponent]
@@ -25,34 +25,28 @@ public class RelationBuilder : MonoBehaviour
     public static RelationBuilder Instance { get; private set; }
 
     [Header("Configuração de Object Property OWL")]
-    [Tooltip("Rótulo padrão da propriedade de objeto a ser asserida (ex: has_host, has_habitat, has_transmission).")]
-    public string propriedadeAtiva = "has_host";
+    public string propriedadeAtiva = "subClassOf / has_host";
 
-    [Tooltip("Catálogo de propriedades OWL alternáveis (Tecla Tab).")]
     public string[] catalogoPropriedades = new string[]
     {
+        "subClassOf",
+        "instanceOf",
         "has_host",
         "has_habitat",
-        "has_transmission",
-        "has_morphology"
+        "has_transmission"
     };
 
-    [Header("Estado do Modo de Conexão")]
+    [Header("Estado da Rede Neural Ontológica")]
     public bool emModoConexao = false;
     public string nodoOrigemId;
     public string nodoOrigemClasse;
     public Vector3 nodoOrigemPosicao;
 
-    [Header("Configuração Visual do LineRenderer")]
-    public float larguraLinha = 0.055f;
-    public Color corLinhaEmConstrucao = new Color(0.0f, 0.95f, 1.0f, 0.9f);
-    public Color corLinhaFixada = new Color(0.66f, 0.33f, 0.97f, 0.95f);
-    public float distanciaMaximaSelecaoNodo = 18.0f;
-
-    private LineRenderer m_LinhaAtiva;
-    private Material m_MaterialLinha;
-    private int m_IndicePropriedade = 0;
-    private IInstanciaSemantica m_NodoEmFoco;
+    [Header("Configuração Visual dos Fios da Rede Neural")]
+    public float larguraLinha = 0.075f;
+    public Color corLinhaGuiaPacMan = new Color(0.0f, 0.95f, 1.0f, 0.95f);
+    public Color corLinhaRedeFixada = new Color(0.20f, 1.0f, 0.55f, 0.95f);
+    public Color corLinhaQuebradaAlerta = new Color(1.0f, 0.20f, 0.25f, 0.95f);
 
     [Serializable]
     public class RelacaoCriada
@@ -66,34 +60,51 @@ public class RelationBuilder : MonoBehaviour
         public GameObject labelObject;
     }
 
+    [Serializable]
+    public class EloRedeNeuralOntologica
+    {
+        public int indiceOrdem;
+        public string nodeId;
+        public string nomeClasse;
+        public string tipoElemento; // "Classe", "Subclasse" ou "Instância"
+        public string relacaoComAnterior;
+        public Vector3 posicaoMundo;
+        public Vector3 escalaOriginal;
+        public GameObject objetoNodoNoMapa;
+        public InstanciaSemanticaBase componenteInstancia;
+        public GameObject objetoLinhaAteEsteNodo;
+        public GameObject objetoRotuloLinha;
+    }
+
     private readonly List<RelacaoCriada> m_RelacoesFixadas = new List<RelacaoCriada>();
     public IReadOnlyList<RelacaoCriada> RelacoesFixadas => m_RelacoesFixadas;
+
+    private readonly List<EloRedeNeuralOntologica> m_CadeiaRedeNeural = new List<EloRedeNeuralOntologica>();
+    public IReadOnlyList<EloRedeNeuralOntologica> CadeiaRedeNeural => m_CadeiaRedeNeural;
+
+    private LineRenderer m_LinhaGuiaPacMan;
+    private Material m_MaterialLinha;
+    private int m_IndicePropriedade = 0;
 
     private void Awake()
     {
         Instance = this;
-        emModoConexao = false;
         PrepararMaterialLinha();
         LimparLinhasTemporariasOrfas();
     }
 
     private void OnEnable()
     {
-        InstanciaSemanticaBase.OnInstanciaFocada += AoFocarNodo;
-        InstanciaSemanticaBase.OnInstanciaDesfocada += AoDesfocarNodo;
-        OcultarLinhaEmConstrucao();
+        InstanciaSemanticaBase.OnInstanciaInteragida += AoInteragirComNodo;
     }
 
     private void OnDisable()
     {
-        InstanciaSemanticaBase.OnInstanciaFocada -= AoFocarNodo;
-        InstanciaSemanticaBase.OnInstanciaDesfocada -= AoDesfocarNodo;
-        CancelarModoConexao(silencioso: true);
+        InstanciaSemanticaBase.OnInstanciaInteragida -= AoInteragirComNodo;
     }
 
     private void LimparLinhasTemporariasOrfas()
     {
-        // Remove qualquer objeto Linha_Conexao_Ativa_* residual para nunca atravessar a tela no início
         LineRenderer[] todasLinhas = FindObjectsByType<LineRenderer>(FindObjectsSortMode.None);
         for (int i = 0; i < todasLinhas.Length; i++)
         {
@@ -106,68 +117,59 @@ public class RelationBuilder : MonoBehaviour
         }
     }
 
-    private void AoFocarNodo(IInstanciaSemantica instancia)
+    private Vector3 ObterPosicaoPacManReal()
     {
-        m_NodoEmFoco = instancia;
-    }
-
-    private void AoDesfocarNodo(IInstanciaSemantica instancia)
-    {
-        if (m_NodoEmFoco == instancia)
+        GameObject visPac = GameObject.Find("Visual_PacMan");
+        if (visPac != null)
         {
-            m_NodoEmFoco = null;
+            return visPac.transform.position + Vector3.up * 0.42f;
         }
+        return transform.position + Vector3.up * 0.42f;
     }
 
     private void Update()
     {
-        // 1. Permite cancelar o Modo de Conexão a qualquer momento com Botão Direito ou ESC
-        if (emModoConexao && (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Backspace)))
-        {
-            CancelarModoConexao(silencioso: false);
-            return;
-        }
-
-        // 2. Permite alternar a Object Property ativa com Tab
+        // Alterna propriedade com Tab
         if (Input.GetKeyDown(KeyCode.Tab) && catalogoPropriedades != null && catalogoPropriedades.Length > 0)
         {
             m_IndicePropriedade = (m_IndicePropriedade + 1) % catalogoPropriedades.Length;
             propriedadeAtiva = catalogoPropriedades[m_IndicePropriedade];
             if (SemanticHUDManager.Instancia != null)
             {
-                SemanticHUDManager.Instancia.AdicionarLinhaLog($"[OWL] Object Property selecionada: {propriedadeAtiva}");
+                SemanticHUDManager.Instancia.AdicionarLinhaLog($"[OWL] Relação ativa: {propriedadeAtiva}");
             }
         }
 
-        // 3. Modo Criação (Do Zero In-Game) - Tecla N instancia um novo Nodo Ontológico no espaço (sem ativar linha sozinha)
         if (Input.GetKeyDown(KeyCode.N))
         {
             InstanciarNodoCriacaoInGame();
         }
 
-        // 4. Ação EXPLÍCITA do usuário para iniciar ou concluir a conexão entre dois Nodos (Clique Esquerdo ou Tecla C)
-        if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.C))
+        // Atualiza a Linha Guia da Rede Neural que sai do ÚLTIMO item comido e segue atrás do Pac-Man
+        if (m_CadeiaRedeNeural.Count > 0)
         {
-            TentarAcionarConexaoExplicita();
-        }
+            EloRedeNeuralOntologica ultimoElo = m_CadeiaRedeNeural[m_CadeiaRedeNeural.Count - 1];
+            emModoConexao = true;
+            nodoOrigemId = ultimoElo.nodeId;
+            nodoOrigemClasse = ultimoElo.nomeClasse;
+            nodoOrigemPosicao = ultimoElo.posicaoMundo + Vector3.up * 0.38f;
 
-        // 5. Atualiza a ponta final da linha ativa SOMENTE enquanto emModoConexao for true; caso contrário mantém oculta
-        if (emModoConexao && m_LinhaAtiva != null)
-        {
-            if (!m_LinhaAtiva.gameObject.activeSelf) m_LinhaAtiva.gameObject.SetActive(true);
-            m_LinhaAtiva.enabled = true;
-
-            Vector3 posDestino = ObterPosicaoPontaConexao();
-            m_LinhaAtiva.SetPosition(0, nodoOrigemPosicao);
-            m_LinhaAtiva.SetPosition(1, posDestino);
+            GarantirLinhaGuiaPacMan();
+            m_LinhaGuiaPacMan.enabled = true;
+            m_LinhaGuiaPacMan.SetPosition(0, nodoOrigemPosicao);
+            m_LinhaGuiaPacMan.SetPosition(1, ObterPosicaoPacManReal());
         }
         else
         {
-            OcultarLinhaEmConstrucao();
+            emModoConexao = false;
+            if (m_LinhaGuiaPacMan != null)
+            {
+                m_LinhaGuiaPacMan.enabled = false;
+            }
         }
 
-        // 6. Faz os rótulos TextMeshPro 3D das relações já fixadas olharem para a câmera principal (Billboard legível)
-        if (Camera.main != null && m_RelacoesFixadas.Count > 0)
+        // Billboard: faz todos os rótulos 3D das linhas olharem para a câmera
+        if (Camera.main != null)
         {
             Transform camTr = Camera.main.transform;
             for (int i = 0; i < m_RelacoesFixadas.Count; i++)
@@ -185,232 +187,301 @@ public class RelationBuilder : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Executa Raycast a partir do cursor do mouse (ou centro da câmera/foco XR) para detectar
-    /// o Nodo Ontológico que o usuário clicou explicitamente para conectar.
-    /// </summary>
-    private void TentarAcionarConexaoExplicita()
+    private void GarantirLinhaGuiaPacMan()
     {
-        IInstanciaSemantica nodoAlvo = DetectarNodoSobCliqueOuMira();
-        if (nodoAlvo != null)
+        if (m_LinhaGuiaPacMan == null)
         {
-            RegistrarInteracaoNodo(
-                nodoAlvo.Id,
-                nodoAlvo.NomeClasse,
-                nodoAlvo.Posicao + Vector3.up * 0.45f,
-                nodoAlvo.EhValida);
-        }
-        else if (emModoConexao && Input.GetMouseButtonDown(0))
-        {
-            // Se clicou no vazio enquanto estava em modo de conexão, cancela e esconde a linha para não poluir a tela
-            CancelarModoConexao(silencioso: false);
+            GameObject lineObj = new GameObject("Linha_RedeNeural_PacMan", typeof(LineRenderer));
+            m_LinhaGuiaPacMan = ConfigurarLineRenderer(lineObj, corLinhaGuiaPacMan, larguraLinha * 0.85f);
         }
     }
 
-    private IInstanciaSemantica DetectarNodoSobCliqueOuMira()
+    private void AoInteragirComNodo(IInstanciaSemantica instancia, bool sucesso)
     {
-        Camera cam = Camera.main;
-        if (cam != null)
-        {
-            // 1. Tenta Raycast pela posição do cursor do Mouse na tela
-            Ray raioMouse = cam.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(raioMouse, out RaycastHit hitMouse, distanciaMaximaSelecaoNodo, ~0, QueryTriggerInteraction.Collide))
-            {
-                IInstanciaSemantica instMouse = hitMouse.collider.GetComponentInParent<IInstanciaSemantica>()
-                                                ?? hitMouse.collider.GetComponent<IInstanciaSemantica>();
-                if (instMouse != null) return instMouse;
-            }
+        if (instancia == null) return;
 
-            // 2. Se acionado por tecla C, tenta Raycast pelo centro da câmera
-            if (Input.GetKeyDown(KeyCode.C))
-            {
-                Ray raioCentro = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
-                if (Physics.Raycast(raioCentro, out RaycastHit hitCentro, distanciaMaximaSelecaoNodo, ~0, QueryTriggerInteraction.Collide))
-                {
-                    IInstanciaSemantica instCentro = hitCentro.collider.GetComponentInParent<IInstanciaSemantica>()
-                                                     ?? hitCentro.collider.GetComponent<IInstanciaSemantica>();
-                    if (instCentro != null) return instCentro;
-                }
-            }
-        }
+        // Apenas itens VÁLIDOS (Classes, Subclasses e Instâncias certas) entram na Rede Neural do Pac-Man.
+        // Obstáculos/Fantasmas não viram nós da rede; ao baterem no Pac-Man, eles quebram o último elo!
+        if (!sucesso || !instancia.EhValida) return;
 
-        // 3. Fallback: Nodo atualmente sob foco do apontador XR (somente quando acionado por clique/gatilho explícito)
-        if (m_NodoEmFoco != null)
-        {
-            return m_NodoEmFoco;
-        }
-
-        return null;
-    }
-
-    private Vector3 ObterPosicaoPontaConexao()
-    {
-        Camera cam = Camera.main;
-        if (cam != null)
-        {
-            Ray raioMouse = cam.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(raioMouse, out RaycastHit hit, distanciaMaximaSelecaoNodo, ~0, QueryTriggerInteraction.Collide))
-            {
-                IInstanciaSemantica inst = hit.collider.GetComponentInParent<IInstanciaSemantica>()
-                                           ?? hit.collider.GetComponent<IInstanciaSemantica>();
-                if (inst != null)
-                {
-                    return inst.Posicao + Vector3.up * 0.45f;
-                }
-            }
-        }
-
-        return transform.position + Vector3.up * 0.45f;
+        GameObject objMapa = (instancia is Component c && c != null) ? c.gameObject : null;
+        AdicionarItemComidoNaRedeNeural(instancia, objMapa);
     }
 
     /// <summary>
-    /// Processa a ação explícita de conexão com um Nodo A (inicia Modo de Conexão)
-    /// ou Nodo B (fixa a linha, cria rótulo TMP e envia tripla via WebSocket).
+    /// Chamado quando o Pac-Man come uma Classe, Subclasse ou Instância certa no labirinto.
+    /// Conecta este item ao anterior formando a Rede Neural / Grafo Ontológico atrás do Pac-Man.
     /// </summary>
-    public void RegistrarInteracaoNodo(string nodeId, string nodeClass, Vector3 nodePos, bool ehValido = true)
+    public void AdicionarItemComidoNaRedeNeural(IInstanciaSemantica instancia, GameObject objNodo = null)
     {
-        if (string.IsNullOrEmpty(nodeId)) return;
+        if (instancia == null || string.IsNullOrEmpty(instancia.Id)) return;
 
-        if (!emModoConexao)
+        // Evita duplicar se já for o último elo conectado
+        for (int i = 0; i < m_CadeiaRedeNeural.Count; i++)
         {
-            IniciarModoConexao(nodeId, nodeClass, nodePos);
+            if (string.Equals(m_CadeiaRedeNeural[i].nodeId, instancia.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+
+        string nomeFormatado = InstanciaSemanticaBase.FormatarNomeClasse(instancia.NomeClasse);
+        string tipoHierarquico = ClassificarTipoElementoOntologico(instancia.NomeClasse, instancia.ExpressaoDL);
+        Vector3 posNodo = objNodo != null ? objNodo.transform.position : instancia.Posicao;
+        Vector3 escalaOrig = objNodo != null ? objNodo.transform.localScale : new Vector3(0.45f, 0.45f, 0.45f);
+
+        int novoIndice = m_CadeiaRedeNeural.Count + 1;
+        string relacao = DeterminarRelacaoComEloAnterior(
+            m_CadeiaRedeNeural.Count > 0 ? m_CadeiaRedeNeural[m_CadeiaRedeNeural.Count - 1] : null,
+            nomeFormatado,
+            tipoHierarquico);
+
+        GameObject linhaSegmentoObj = null;
+        GameObject rotuloSegmentoObj = null;
+
+        // Se já havia um item comido antes, cria o segmento de linha fixo da Rede Neural entre o anterior e este!
+        if (m_CadeiaRedeNeural.Count > 0)
+        {
+            EloRedeNeuralOntologica anterior = m_CadeiaRedeNeural[m_CadeiaRedeNeural.Count - 1];
+            Vector3 pOrigem = anterior.posicaoMundo + Vector3.up * 0.38f;
+            Vector3 pDestino = posNodo + Vector3.up * 0.38f;
+
+            linhaSegmentoObj = new GameObject($"EloRede_{anterior.nomeClasse}_para_{nomeFormatado}", typeof(LineRenderer));
+            LineRenderer lrFixo = ConfigurarLineRenderer(linhaSegmentoObj, corLinhaRedeFixada, larguraLinha);
+            lrFixo.enabled = true;
+            lrFixo.SetPosition(0, pOrigem);
+            lrFixo.SetPosition(1, pDestino);
+
+            Vector3 pontoMedio = (pOrigem + pDestino) * 0.5f + Vector3.up * 0.34f;
+            string textoAresta = $"🔗 {relacao}\n<size=75%>({anterior.nomeClasse} ➔ {nomeFormatado})</size>";
+            rotuloSegmentoObj = InstanciarRotuloFlutuanteTMP(linhaSegmentoObj.transform, pontoMedio, textoAresta, corLinhaRedeFixada);
+
+            m_RelacoesFixadas.Add(new RelacaoCriada
+            {
+                sourceId = anterior.nodeId,
+                sourceClass = anterior.nomeClasse,
+                propertyName = relacao,
+                targetId = instancia.Id,
+                targetClass = nomeFormatado,
+                lineObject = linhaSegmentoObj,
+                labelObject = rotuloSegmentoObj
+            });
+
+            // Envia a tripla via WebSocket para o Protégé se ativo
+            var ws = ProtegeWebSocketBridge.Instance ?? FindFirstObjectByType<ProtegeWebSocketBridge>();
+            if (ws != null)
+            {
+                ws.EnviarRelacaoObjectProperty(anterior.nodeId, anterior.nomeClasse, relacao, instancia.Id, nomeFormatado, true);
+            }
+        }
+
+        // Atualiza o rótulo 3D sobre o item no mapa para mostrar que ele agora faz parte da Rede Neural
+        if (objNodo != null)
+        {
+            AtualizarRotulo3DNodoNoMapa(
+                objNodo,
+                $"<color=#00FF88><b>✔ CONECTADO #{novoIndice} ({tipoHierarquico})</b></color>\n<color=#FFFFFF><b>{nomeFormatado}</b></color>");
+        }
+
+        EloRedeNeuralOntologica novoElo = new EloRedeNeuralOntologica
+        {
+            indiceOrdem = novoIndice,
+            nodeId = instancia.Id,
+            nomeClasse = nomeFormatado,
+            tipoElemento = tipoHierarquico,
+            relacaoComAnterior = relacao,
+            posicaoMundo = posNodo,
+            escalaOriginal = escalaOrig,
+            objetoNodoNoMapa = objNodo,
+            componenteInstancia = instancia as InstanciaSemanticaBase,
+            objetoLinhaAteEsteNodo = linhaSegmentoObj,
+            objetoRotuloLinha = rotuloSegmentoObj
+        };
+
+        m_CadeiaRedeNeural.Add(novoElo);
+
+        // Atualiza o HUD explicando o que o Pac-Man acabou de comer e por que os fantasmas ficaram azuis!
+        if (SemanticHUDManager.Instancia != null)
+        {
+            SemanticHUDManager.Instancia.DefinirAxiomasInseridos(m_CadeiaRedeNeural.Count);
+            SemanticHUDManager.Instancia.RegistrarCapturaExplicativa(
+                nomeFormatado,
+                tipoHierarquico,
+                instancia.ExpressaoDL,
+                m_CadeiaRedeNeural.Count,
+                relacao);
+        }
+    }
+
+    /// <summary>
+    /// MECÂNICA SOLICITADA PELA USUÁRIA:
+    /// Quando o Fantasma bate no Pac-Man, ele QUEBRA um pedaço da linha da Rede Neural!
+    /// O último item comido é desconectado e REAPARECE no labirinto para que o jogador
+    /// tenha que voltar lá e comer aquela Classe, Subclasse ou Instância certa novamente!
+    /// </summary>
+    public bool QuebrarUltimoPedacoDaRedePorFantasma(string nomeFantasma = "Fantasma Caçador")
+    {
+        if (m_CadeiaRedeNeural.Count == 0)
+        {
+            if (SemanticHUDManager.Instancia != null)
+            {
+                SemanticHUDManager.Instancia.ExibirAlertaQuebraDeLinha(
+                    nomeFantasma,
+                    "Nenhum elo ativo",
+                    "Sua rede ainda estava vazia! Siga as placas de trânsito e coma uma Classe/Subclasse válida (Verde/Ciano).");
+            }
+            return false;
+        }
+
+        int idxUltimo = m_CadeiaRedeNeural.Count - 1;
+        EloRedeNeuralOntologica eloQuebrado = m_CadeiaRedeNeural[idxUltimo];
+        m_CadeiaRedeNeural.RemoveAt(idxUltimo);
+
+        // 1. Destrói o pedaço da linha que conectava até esse item
+        if (eloQuebrado.objetoLinhaAteEsteNodo != null)
+        {
+            for (int i = m_RelacoesFixadas.Count - 1; i >= 0; i--)
+            {
+                if (m_RelacoesFixadas[i].lineObject == eloQuebrado.objetoLinhaAteEsteNodo)
+                {
+                    m_RelacoesFixadas.RemoveAt(i);
+                }
+            }
+            Destroy(eloQuebrado.objetoLinhaAteEsteNodo);
+        }
+
+        // 2. Reativa aquela Classe / Subclasse / Instância lá no corredor original para o Pac-Man voltar e comer de novo!
+        if (eloQuebrado.objetoNodoNoMapa != null)
+        {
+            GameObject nodoObj = eloQuebrado.objetoNodoNoMapa;
+            nodoObj.SetActive(true);
+            nodoObj.transform.position = eloQuebrado.posicaoMundo;
+            nodoObj.transform.localScale = eloQuebrado.escalaOriginal.sqrMagnitude > 0.01f
+                ? eloQuebrado.escalaOriginal
+                : new Vector3(0.45f, 0.45f, 0.45f);
+
+            if (eloQuebrado.componenteInstancia != null)
+            {
+                eloQuebrado.componenteInstancia.ReativarInstanciaParaReconexao();
+            }
+            else
+            {
+                Collider[] cols = nodoObj.GetComponentsInChildren<Collider>(true);
+                for (int i = 0; i < cols.Length; i++)
+                {
+                    if (cols[i] != null) cols[i].enabled = true;
+                }
+            }
+
+            AtualizarRotulo3DNodoNoMapa(
+                nodoObj,
+                $"<color=#FFD700><b>🔄 LINHA QUEBRADA! VOLTE E COMA:</b></color>\n<color=#FFFFFF><b>[{eloQuebrado.tipoElemento}] {eloQuebrado.nomeClasse}</b></color>");
+        }
+
+        // 3. Atualiza o contador e mostra o aviso grande na tela explicando qual pedaço da linha quebrou
+        if (SemanticHUDManager.Instancia != null)
+        {
+            SemanticHUDManager.Instancia.DefinirAxiomasInseridos(m_CadeiaRedeNeural.Count);
+            SemanticHUDManager.Instancia.ExibirAlertaQuebraDeLinha(
+                nomeFantasma,
+                $"{eloQuebrado.tipoElemento}: {eloQuebrado.nomeClasse}",
+                $"O fantasma bateu em você e QUEBROU a conexão com '{eloQuebrado.nomeClasse}'! Volte ao corredor e coma '{eloQuebrado.nomeClasse}' novamente para reconstruir sua rede!");
+            SemanticHUDManager.Instancia.AdicionarLinhaLog(
+                $"<color=#FF4455>[💥 LINHA QUEBRADA]</color> {nomeFantasma} rompeu o elo '{eloQuebrado.nomeClasse}'. Volte para comer novamente!");
+        }
+
+        Debug.LogWarning($"<color=#FF3344><b>[Rede Neural Quebrada]</b></color> {nomeFantasma} quebrou o elo #{eloQuebrado.indiceOrdem} ('{eloQuebrado.nomeClasse}'). O item reapareceu em {eloQuebrado.posicaoMundo} para reconexão!");
+        return true;
+    }
+
+    public static string ClassificarTipoElementoOntologico(string nomeClasse, string expressaoDL)
+    {
+        string c = (nomeClasse ?? "").ToLowerInvariant();
+        string dl = (expressaoDL ?? "").ToLowerInvariant();
+
+        if (c.Contains("parasite") && !c.Contains("specimen") || c == "host" || c.Contains("super"))
+            return "Superclasse";
+        if (c.Contains("nematod") || c.Contains("platyhelmint") || c.Contains("cestod") || c.Contains("trematod") || c.Contains("protozo"))
+            return "Subclasse";
+        if (c.Contains("ascaris") || c.Contains("taenia") || c.Contains("enterobius") || c.Contains("schistosoma") || dl.Contains("individu"))
+            return "Instância";
+        if (c.Contains("human") || c.Contains("pig") || c.Contains("intestine") || c.Contains("fecal"))
+            return "Subclasse/Propriedade";
+        return "Classe OWL";
+    }
+
+    private string DeterminarRelacaoComEloAnterior(EloRedeNeuralOntologica anterior, string novoNome, string novoTipo)
+    {
+        if (anterior == null) return "owl:Thing";
+        if (novoTipo == "Subclasse") return "rdfs:subClassOf";
+        if (novoTipo == "Instância") return "rdf:type (instanceOf)";
+        string nLower = (novoNome ?? "").ToLowerInvariant();
+        if (nLower.Contains("human") || nLower.Contains("pig") || nLower.Contains("host")) return "has_host";
+        if (nLower.Contains("intestin")) return "has_habitat";
+        if (nLower.Contains("fecal") || nLower.Contains("pork")) return "has_transmission";
+        return propriedadeAtiva;
+    }
+
+    /// <summary>
+    /// Cria ou atualiza o rótulo 3D flutuante (Billboard) acima de uma gema/nodo no labirinto.
+    /// </summary>
+    public static void AtualizarRotulo3DNodoNoMapa(GameObject objNodo, string textoRico)
+    {
+        if (objNodo == null) return;
+
+        Transform trLabel = objNodo.transform.Find("Rotulo_3D_Item_Ontologico");
+        GameObject labelObj;
+        if (trLabel != null)
+        {
+            labelObj = trLabel.gameObject;
         }
         else
         {
-            // Se clicar no mesmo nodo de origem novamente, cancela e oculta a linha
-            if (string.Equals(nodoOrigemId, nodeId, StringComparison.OrdinalIgnoreCase))
-            {
-                CancelarModoConexao(silencioso: false);
-                return;
-            }
+            labelObj = new GameObject("Rotulo_3D_Item_Ontologico", typeof(RectTransform));
+            labelObj.transform.SetParent(objNodo.transform, false);
+            labelObj.transform.localPosition = new Vector3(0f, 0.92f, 0f);
+        }
 
-            FinalizarConexao(nodeId, nodeClass, nodePos, ehValido);
+        TextMeshPro tmp = labelObj.GetComponent<TextMeshPro>();
+        if (tmp == null) tmp = labelObj.AddComponent<TextMeshPro>();
+
+        tmp.text = textoRico;
+        tmp.richText = true;
+        tmp.fontSize = 2.15f;
+        tmp.fontStyle = FontStyles.Bold;
+        tmp.color = Color.white;
+        tmp.outlineColor = new Color32(0, 0, 0, 255);
+        tmp.outlineWidth = 0.25f;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
+
+        RectTransform rt = labelObj.GetComponent<RectTransform>();
+        if (rt != null)
+        {
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(4.5f, 1.1f);
+        }
+
+        if (labelObj.GetComponent<BillboardOlharCamera>() == null)
+        {
+            labelObj.AddComponent<BillboardOlharCamera>();
         }
     }
 
-    public void IniciarModoConexao(string sourceId, string sourceClass, Vector3 sourcePos)
+    // Compatibilidade com chamadas diretas
+    public void RegistrarInteracaoNodo(string nodeId, string nodeClass, Vector3 nodePos, bool ehValido = true)
     {
-        emModoConexao = true;
-        nodoOrigemId = sourceId;
-        nodoOrigemClasse = sourceClass;
-        nodoOrigemPosicao = sourcePos;
-
-        if (m_LinhaAtiva == null)
-        {
-            GameObject lineObj = new GameObject($"Linha_Conexao_Ativa_{sourceId}", typeof(LineRenderer));
-            m_LinhaAtiva = ConfigurarLineRenderer(lineObj, corLinhaEmConstrucao);
-        }
-
-        m_LinhaAtiva.gameObject.name = $"Linha_Conexao_Ativa_{sourceId}";
-        m_LinhaAtiva.gameObject.SetActive(true);
-        m_LinhaAtiva.enabled = true;
-        m_LinhaAtiva.positionCount = 2;
-        m_LinhaAtiva.SetPosition(0, nodoOrigemPosicao);
-        m_LinhaAtiva.SetPosition(1, ObterPosicaoPontaConexao());
-
-        if (SemanticHUDManager.Instancia != null)
-        {
-            SemanticHUDManager.Instancia.AdicionarLinhaLog($"[CONEXÃO OWL] Origem '{sourceClass}' selecionada. Clique no 2º Nodo para '{propriedadeAtiva}' (Botão Direito cancela).");
-        }
-
-        Debug.Log($"<color=#00E5FF><b>[RelationBuilder]</b></color> Modo de Conexão ATIVO: Origem '{sourceClass}' ({sourceId}) -> aguardando clique no Nodo B para propriedade '{propriedadeAtiva}'...");
-    }
-
-    public void CancelarModoConexao(bool silencioso = false)
-    {
-        bool estavaAtivo = emModoConexao;
-        emModoConexao = false;
-        nodoOrigemId = null;
-        nodoOrigemClasse = null;
-
-        OcultarLinhaEmConstrucao();
-
-        if (estavaAtivo && !silencioso && SemanticHUDManager.Instancia != null)
-        {
-            SemanticHUDManager.Instancia.AdicionarLinhaLog("[CONEXÃO OWL] Modo de conexão cancelado.");
-        }
-    }
-
-    private void OcultarLinhaEmConstrucao()
-    {
-        if (m_LinhaAtiva != null)
-        {
-            m_LinhaAtiva.enabled = false;
-            if (m_LinhaAtiva.gameObject.activeSelf)
-            {
-                m_LinhaAtiva.gameObject.SetActive(false);
-            }
-        }
-    }
-
-    public void FinalizarConexao(string targetId, string targetClass, Vector3 targetPos, bool consistente = true)
-    {
-        if (!emModoConexao) return;
-
-        emModoConexao = false;
-
-        // 1. Cria um novo objeto dedicado para a linha fixada e oculta o LineRenderer de construção
-        OcultarLinhaEmConstrucao();
-
-        GameObject linhaFixaObj = new GameObject($"ObjectProperty_{nodoOrigemId}_{propriedadeAtiva}_{targetId}", typeof(LineRenderer));
-        LineRenderer lrFixo = ConfigurarLineRenderer(linhaFixaObj, corLinhaFixada);
-        lrFixo.enabled = true;
-
-        Color corFinal = consistente ? corLinhaFixada : new Color(1.0f, 0.15f, 0.25f, 0.95f);
-        lrFixo.startColor = corFinal;
-        lrFixo.endColor = corFinal;
-        if (lrFixo.material != null && lrFixo.material.HasProperty("_BaseColor"))
-        {
-            lrFixo.material.SetColor("_BaseColor", corFinal);
-        }
-        if (lrFixo.material != null && lrFixo.material.HasProperty("_Color"))
-        {
-            lrFixo.material.SetColor("_Color", corFinal);
-        }
-
-        lrFixo.positionCount = 2;
-        lrFixo.SetPosition(0, nodoOrigemPosicao);
-        lrFixo.SetPosition(1, targetPos);
-
-        // 2. Instancia um TextMeshPro flutuante no meio exato da linha com o rótulo da propriedade (ex: has_host)
-        Vector3 pontoMedio = (nodoOrigemPosicao + targetPos) * 0.5f + Vector3.up * 0.32f;
-        GameObject labelObj = InstanciarRotuloFlutuanteTMP(linhaFixaObj.transform, pontoMedio, propriedadeAtiva, corFinal);
-
-        m_RelacoesFixadas.Add(new RelacaoCriada
-        {
-            sourceId = nodoOrigemId,
-            sourceClass = nodoOrigemClasse,
-            propertyName = propriedadeAtiva,
-            targetId = targetId,
-            targetClass = targetClass,
-            lineObject = linhaFixaObj,
-            labelObject = labelObj
-        });
-
-        // 3. Envia a tripla (Nodo A -> has_host -> Nodo B) via WebSocket (porta 8085)
-        var ws = ProtegeWebSocketBridge.Instance ?? FindFirstObjectByType<ProtegeWebSocketBridge>();
-        if (ws != null)
-        {
-            ws.EnviarRelacaoObjectProperty(nodoOrigemId, nodoOrigemClasse, propriedadeAtiva, targetId, targetClass, consistente);
-        }
-        else if (SemanticHUDManager.Instancia != null)
-        {
-            SemanticHUDManager.Instancia.DefinirAxiomasInseridos(SemanticHUDManager.Instancia.axiomasInseridos + 1);
-            SemanticHUDManager.Instancia.AdicionarLinhaLog($"[+] Tripla OWL: {nodoOrigemClasse} -> {propriedadeAtiva} -> {targetClass}");
-        }
-
-        // 4. Registra também a aresta no Grafo Ontológico em memória
+        if (!ehValido) return;
         var ger = FindFirstObjectByType<GerenciadorCenarioSemantico>();
-        if (ger != null && ger.GrafoOntologico != null)
+        IInstanciaSemantica inst = ger != null ? ger.ObterInstanciaPorId(nodeId) : null;
+        if (inst != null)
         {
-            string edgeId = $"edge_{nodoOrigemId}_{propriedadeAtiva}_{targetId}_{Time.frameCount}";
-            ger.GrafoOntologico.AddEdge(new VirtOnto.Model.Edge(edgeId, nodoOrigemId, targetId, propriedadeAtiva));
+            GameObject obj = (inst is Component c && c != null) ? c.gameObject : null;
+            AdicionarItemComidoNaRedeNeural(inst, obj);
         }
-
-        Debug.Log($"<color=#A855F7><b>[RelationBuilder - Tripla OWL Fixada]</b></color> ({nodoOrigemClasse} [{nodoOrigemId}]) --[{propriedadeAtiva}]--> ({targetClass} [{targetId}]) enviada via WebSocket!");
     }
 
-    private LineRenderer ConfigurarLineRenderer(GameObject host, Color cor)
+    private LineRenderer ConfigurarLineRenderer(GameObject host, Color cor, float largura)
     {
         LineRenderer lr = host.GetComponent<LineRenderer>();
         if (lr == null)
@@ -418,11 +489,10 @@ public class RelationBuilder : MonoBehaviour
             lr = host.AddComponent<LineRenderer>();
         }
         lr.useWorldSpace = true;
-        lr.startWidth = larguraLinha;
-        lr.endWidth = larguraLinha;
+        lr.startWidth = largura;
+        lr.endWidth = largura;
         lr.numCapVertices = 4;
         lr.positionCount = 2;
-        lr.enabled = false;
 
         PrepararMaterialLinha();
         Material matInst = new Material(m_MaterialLinha);
@@ -431,7 +501,7 @@ public class RelationBuilder : MonoBehaviour
         if (matInst.HasProperty("_EmissionColor"))
         {
             matInst.EnableKeyword("_EMISSION");
-            matInst.SetColor("_EmissionColor", cor * 1.4f);
+            matInst.SetColor("_EmissionColor", cor * 1.35f);
         }
 
         lr.material = matInst;
@@ -442,34 +512,31 @@ public class RelationBuilder : MonoBehaviour
 
     private GameObject InstanciarRotuloFlutuanteTMP(Transform pai, Vector3 posicaoMundo, string textoPropriedade, Color corDestaque)
     {
-        GameObject labelObj = new GameObject($"TMP_Label_{textoPropriedade}", typeof(RectTransform));
+        GameObject labelObj = new GameObject($"TMP_Label_Rede", typeof(RectTransform));
         labelObj.transform.SetParent(pai, true);
         labelObj.transform.position = posicaoMundo;
 
         TextMeshPro tmp = labelObj.AddComponent<TextMeshPro>();
         tmp.text = textoPropriedade;
-        tmp.fontSize = 2.6f;
+        tmp.richText = true;
+        tmp.fontSize = 2.0f;
         tmp.fontStyle = FontStyles.Bold;
         tmp.color = Color.white;
         tmp.outlineColor = new Color32(0, 0, 0, 255);
-        tmp.outlineWidth = 0.20f;
+        tmp.outlineWidth = 0.24f;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.textWrappingMode = TextWrappingModes.NoWrap;
-
-        if (tmp.fontSharedMaterial != null)
-        {
-            Material matTexto = new Material(tmp.fontSharedMaterial);
-            if (matTexto.HasProperty("_FaceColor")) matTexto.SetColor("_FaceColor", Color.white);
-            if (matTexto.HasProperty("_OutlineColor")) matTexto.SetColor("_OutlineColor", Color.black);
-            if (matTexto.HasProperty("_OutlineWidth")) matTexto.SetFloat("_OutlineWidth", 0.20f);
-            tmp.fontMaterial = matTexto;
-        }
 
         RectTransform rt = labelObj.GetComponent<RectTransform>();
         if (rt != null)
         {
             rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(3.5f, 0.8f);
+            rt.sizeDelta = new Vector2(4.2f, 1.0f);
+        }
+
+        if (labelObj.GetComponent<BillboardOlharCamera>() == null)
+        {
+            labelObj.AddComponent<BillboardOlharCamera>();
         }
 
         return labelObj;
@@ -477,11 +544,6 @@ public class RelationBuilder : MonoBehaviour
 
     private int m_ContadorNodosCriadosInGame = 0;
 
-    /// <summary>
-    /// Seção 2 da Especificação Mestra: Modo Criação (Do Zero In-Game).
-    /// Permite ao usuário soltar um novo Nodo Ontológico (Classe/Indivíduo) no espaço à sua frente.
-    /// A linha de conexão só será ativada quando o usuário clicar explicitamente no nodo.
-    /// </summary>
     public GameObject InstanciarNodoCriacaoInGame(string nomeClasseCustom = null)
     {
         m_ContadorNodosCriadosInGame++;
@@ -492,7 +554,7 @@ public class RelationBuilder : MonoBehaviour
         string idNodo = $"node_ingame_{nomeClasse}_{m_ContadorNodosCriadosInGame:D2}";
 
         Vector3 dirFrente = transform.forward.sqrMagnitude > 0.01f ? transform.forward.normalized : Vector3.forward;
-        Vector3 posSpawn = transform.position + dirFrente * 1.6f;
+        Vector3 posSpawn = ObterPosicaoPacManReal() + dirFrente * 1.8f;
         posSpawn.y = 0.45f;
 
         GameObject nodoObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -525,11 +587,7 @@ public class RelationBuilder : MonoBehaviour
             descricaoSemantica = $"Nodo ontológico criado in-game ({nomeClasse})"
         });
 
-        if (SemanticHUDManager.Instancia != null)
-        {
-            SemanticHUDManager.Instancia.AdicionarLinhaLog($"[CRIAÇÃO IN-GAME] Nodo '{nomeClasse}' ({idNodo}) posicionado. Clique nele para conectar.");
-        }
-
+        AtualizarRotulo3DNodoNoMapa(nodoObj, $"<color=#00E5FF>[Subclasse]</color>\n<b>{nomeClasse}</b>");
         return nodoObj;
     }
 
@@ -539,6 +597,23 @@ public class RelationBuilder : MonoBehaviour
         {
             Shader s = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color");
             m_MaterialLinha = new Material(s);
+        }
+    }
+}
+
+/// <summary>
+/// Componente leve para manter rótulos 3D sempre virados para a câmera do jogador.
+/// </summary>
+public class BillboardOlharCamera : MonoBehaviour
+{
+    private void LateUpdate()
+    {
+        Camera cam = Camera.main;
+        if (cam == null) return;
+        Vector3 dir = transform.position - cam.transform.position;
+        if (dir.sqrMagnitude > 0.001f)
+        {
+            transform.rotation = Quaternion.LookRotation(dir);
         }
     }
 }

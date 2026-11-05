@@ -364,13 +364,12 @@ public class AvatarPacManFisico : MonoBehaviour
         {
             controladorXR.ProcessarColisaoEntidade(col);
         }
-        else
+        else if (inst != null)
         {
-            if (inst != null) inst.Interagir(gameObject, false);
-            else
+            inst.Interagir(gameObject, false);
+            if (RelationBuilder.Instance != null)
             {
-                gemaObj.SetActive(false);
-                Destroy(gemaObj);
+                RelationBuilder.Instance.AdicionarItemComidoNaRedeNeural(inst, gemaObj);
             }
         }
     }
@@ -388,6 +387,10 @@ public class AvatarPacManFisico : MonoBehaviour
         }
         else
         {
+            if (RelationBuilder.Instance != null)
+            {
+                RelationBuilder.Instance.QuebrarUltimoPedacoDaRedePorFantasma(fantasmaObj != null ? fantasmaObj.name : "Fantasma");
+            }
             var web = FindFirstObjectByType<PacMan.Web.ControladorDemoWeb>();
             if (web != null) web.ExecutarResetColisao(0.5f);
         }

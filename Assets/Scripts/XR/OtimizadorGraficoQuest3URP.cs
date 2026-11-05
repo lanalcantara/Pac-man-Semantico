@@ -212,3 +212,4 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
         RenderSettings.subtractiveShadowColor = new Color(0.01f, 0.02f, 0.04f, 1.0f);
     }
 }
+

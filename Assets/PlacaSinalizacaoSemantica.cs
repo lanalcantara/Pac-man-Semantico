@@ -26,6 +26,27 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
     public Renderer rendererMolduraNeon;
     public Renderer rendererPosteBase;
 
+    // Aliases de compatibilidade direta com GerenciadorCenarioSemantico e GeradorPrefabsEditor
+    public TMP_Text textoFrontal
+    {
+        get => textoFrontalTMP;
+        set => textoFrontalTMP = value;
+    }
+
+    public TMP_Text textoTraseiro
+    {
+        get => textoTraseiroTMP;
+        set => textoTraseiroTMP = value;
+    }
+
+    public Renderer rendererPainelFundo
+    {
+        get => rendererPainelHolografico;
+        set => rendererPainelHolografico = value;
+    }
+
+    public Renderer[] renderersEmissivos;
+
     [Header("Estética Cibernética HDR (Quest 3 Bloom)")]
     public Color corNeon = new Color(0.65f, 0.20f, 1.0f, 1.0f);
     [Range(1.0f, 5.0f)]
@@ -111,6 +132,26 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
             rendererMolduraNeon.material = matMoldura;
         }
 
+        if (renderersEmissivos != null && shaderLit != null)
+        {
+            Material matEmissivo = new Material(shaderLit);
+            matEmissivo.name = $"Mat_EmissivoWayfinding_{nomeClasseExibida}";
+            if (matEmissivo.HasProperty("_BaseColor")) matEmissivo.SetColor("_BaseColor", corBase);
+            if (matEmissivo.HasProperty("_Color")) matEmissivo.SetColor("_Color", corBase);
+            if (matEmissivo.HasProperty("_EmissionColor"))
+            {
+                matEmissivo.EnableKeyword("_EMISSION");
+                matEmissivo.SetColor("_EmissionColor", corEmissaoHDR);
+            }
+            for (int i = 0; i < renderersEmissivos.Length; i++)
+            {
+                if (renderersEmissivos[i] != null)
+                {
+                    renderersEmissivos[i].material = matEmissivo;
+                }
+            }
+        }
+
         if (rendererPainelHolografico != null && shaderLit != null)
         {
             Material matPainel = new Material(shaderLit);
@@ -128,3 +169,4 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
         }
     }
 }
+

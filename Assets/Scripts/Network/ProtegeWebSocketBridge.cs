@@ -43,7 +43,7 @@ namespace PacMan.Network
         public event Action<bool, string> OnReasonerStatusChanged;
         public event Action<int> OnAxiomCountChanged;
         public event Action<string> OnRawMessageReceived;
-        public event Action<string[], string[]> OnTaxonomyReceived;
+        public static event Action<string[], string[]> OnTaxonomyReceived;
 
         private ClientWebSocket m_WebSocket;
         private CancellationTokenSource m_Cts;

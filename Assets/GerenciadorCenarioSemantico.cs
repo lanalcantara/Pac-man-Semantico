@@ -285,6 +285,10 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
     private void Start()
     {
+        if (Application.isPlaying)
+        {
+            SemanticHUDManager.GarantirHUDAtivoNaCena();
+        }
         GerarInstanciasOntologicas();
     }
 

@@ -102,29 +102,22 @@ namespace PacMan.Web
 
             LocalizarElementosCena();
             ConfigurarVisualEPerspectivaCamera();
-            GarantirCanvasArcade();
+            GarantirSemanticHUD();
 
-            estadoAtual = EstadoJogoDemo.MenuInicial;
-            PausarEntidadesParaMenu(true);
-            Time.timeScale = 0f;
+            estadoAtual = EstadoJogoDemo.Jogando;
+            PausarEntidadesParaMenu(false);
+            Time.timeScale = 1.0f;
 
-            Debug.Log("<color=#00FFFF><b>[Demo WebGL]</b></color> Pac-Man Semântico pronto em perspectiva Pinball 3D. Clique em PLAY para iniciar!");
+            Debug.Log("<color=#00E5FF><b>[Interface Espacial OWL]</b></color> SemanticHUDManager ativo e sessão iniciada.");
         }
 
-        
-        private void GarantirCanvasArcade()
+        private void GarantirSemanticHUD()
         {
-            SemanticHUDManager.GarantirEventSystem();
-            SemanticHUDManager hud = FindFirstObjectByType<SemanticHUDManager>();
-            if (hud == null)
+            SemanticHUDManager.GarantirHUDAtivoNaCena();
+            if (SemanticHUDManager.Instancia != null)
             {
-                GameObject canvasObj = new GameObject("Semantic_HUD_Canvas");
-                hud = canvasObj.AddComponent<SemanticHUDManager>();
-            }
-            if (hud != null)
-            {
-                hud.DefinirModalPlayVisivel(estadoAtual == EstadoJogoDemo.MenuInicial);
-                hud.DefinirPainelVisivel(estadoAtual == EstadoJogoDemo.Jogando && !hudMinimizado);
+                SemanticHUDManager.Instancia.DefinirModalPlayVisivel(false);
+                SemanticHUDManager.Instancia.DefinirPainelVisivel(!hudMinimizado);
             }
         }
 
@@ -466,169 +459,12 @@ namespace PacMan.Web
         }
 
         // =========================================================================
-        // INTERFACE CANÔNICA, LIMPA E ESCALADA (1920x1080)
-        // MANTÉM APENAS: Botão PLAY, Pontuação, Vidas e Entidade Ativa.
-        // Botão [ X ] para fechar/minimizar.
+        // A renderização de interface agora é 100% gerenciada pelo SemanticHUDManager
+        // (TextMeshPro + ScrollRect). O OnGUI legado do Arcade foi desativado.
         // =========================================================================
         private void OnGUI()
         {
-            if (!exibirGuiWebGL) return;
-
-            // Se o SemanticHUDManager (TextMeshPro + ScrollRect) estiver ativo na cena, delega a renderização ao Canvas UI
-            if (SemanticHUDManager.Instancia != null && estadoAtual != EstadoJogoDemo.GameOver)
-            {
-                return;
-            }
-
-            // Escala proporcional com resolução de referência 1920x1080 (Scale With Screen Size)
-            float refWidth = 1920f;
-            float refHeight = 1080f;
-            Vector3 escalaGUI = new Vector3(Screen.width / refWidth, Screen.height / refHeight, 1.0f);
-            Matrix4x4 matrizOriginal = GUI.matrix;
-            GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, escalaGUI);
-
-            Color corFundoOriginal = GUI.backgroundColor;
-            Color corTextoOriginal = GUI.color;
-
-            if (estadoAtual == EstadoJogoDemo.MenuInicial)
-            {
-                DesenharMenuInicialPlay();
-            }
-            else if (estadoAtual == EstadoJogoDemo.GameOver)
-            {
-                DesenharGameOver();
-            }
-            else if (estadoAtual == EstadoJogoDemo.Jogando)
-            {
-                if (!hudMinimizado)
-                {
-                    DesenharHUDCanonica();
-                }
-                else
-                {
-                    DesenharBotaoReabrirHUD();
-                }
-            }
-
-            GUI.backgroundColor = corFundoOriginal;
-            GUI.color = corTextoOriginal;
-            GUI.matrix = matrizOriginal;
-        }
-
-        private void DesenharMenuInicialPlay()
-        {
-            float w = 850f;
-            float h = 480f;
-            Rect modalRect = new Rect((1920f - w) / 2f, (1080f - h) / 2f, w, h);
-
-            GUI.backgroundColor = new Color(0.02f, 0.05f, 0.16f, 0.96f);
-            GUI.Box(modalRect, GUIContent.none);
-
-            GUILayout.BeginArea(new Rect(modalRect.x + 36f, modalRect.y + 32f, w - 72f, h - 64f));
-
-            GUILayout.Label("<size=28><b><color=#00E5FF>INTERFACE ESPACIAL BIDIRECIONAL OWL (CIn-UFPE)</color></b></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-            GUILayout.Space(8f);
-            GUILayout.Label("<size=18><color=#38BDF8>Protégé OSGi WebSocket (8085) • HermiT Reasoner • ALCQ(D)</color></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-
-            GUILayout.Space(26f);
-            GUILayout.Label("<size=16><color=#F1F5F9>• Interaja com os <b>Nodos de Dados</b> para instanciar indivíduos na ABox.</color></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-            GUILayout.Label("<size=16><color=#F1F5F9>• Conecte Nodos A e B para criar <b>Object Properties (has_host)</b>.</color></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-            GUILayout.Label("<size=16><color=#F1F5F9>• Monitore o <b>Status do Reasoner</b> e o Terminal de Axiomas OWL.</color></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-
-            GUILayout.Space(36f);
-
-            GUI.backgroundColor = new Color(0.05f, 0.65f, 0.55f, 1f);
-            if (GUILayout.Button("<size=22><b>INICIAR AMBIENTE DE ENGENHARIA OWL</b></size>", GUILayout.Height(70f)))
-            {
-                IniciarJogoPlay();
-            }
-
-            GUILayout.EndArea();
-        }
-
-        private void DesenharHUDCanonica()
-        {
-            float largura = 380f;
-            float altura = 145f;
-            Rect painel = new Rect(35f, 35f, largura, altura);
-
-            GUI.backgroundColor = new Color(0.02f, 0.05f, 0.14f, 0.90f);
-            GUI.Box(painel, "Engenharia de Ontologias OWL");
-
-            Rect rectFechar = new Rect(painel.x + largura - 30f, painel.y + 5f, 24f, 20f);
-            GUI.backgroundColor = new Color(0.85f, 0.2f, 0.2f, 0.95f);
-            if (GUI.Button(rectFechar, "<b>✕</b>"))
-            {
-                hudMinimizado = true;
-            }
-            GUI.backgroundColor = new Color(0.02f, 0.05f, 0.14f, 0.90f);
-
-            GUILayout.BeginArea(new Rect(painel.x + 16f, painel.y + 32f, largura - 32f, altura - 40f));
-
-            // 1. Status do Reasoner
-            bool consistente = ultimoItemValido && vidasRestantes > 0;
-            string statusReasoner = consistente
-                ? "<color=#00FF88><b>CONSISTENTE</b></color>"
-                : "<color=#FF2233><b>⚠ INCONSISTENTE</b></color>";
-            GUILayout.Label($"<size=13><b>Status do Reasoner:</b> {statusReasoner}</size>");
-
-            // 2. Axiomas Inseridos / Tamanho da ABox
-            GUILayout.Label($"<size=13><b>Axiomas Inseridos (ABox):</b> <color=#00E5FF><b>{totalItensCapturados}</b></color></size>");
-
-            // 3. Foco Atual
-            string focoExibido = !string.IsNullOrEmpty(ultimaClasseCapturada) ? ultimaClasseCapturada : "Nenhuma classe em foco";
-            GUILayout.Label($"<size=12><b>Foco Atual:</b> <color=#38BDF8><b>{focoExibido}</b></color></size>");
-
-            GUILayout.EndArea();
-        }
-
-        /// <summary>
-        /// Botão discreto para reabrir a janela de informações quando minimizada.
-        /// </summary>
-        private void DesenharBotaoReabrirHUD()
-        {
-            float w = 220f;
-            float h = 32f;
-            Rect miniRect = new Rect(35f, 35f, w, h);
-
-            GUI.backgroundColor = new Color(0.02f, 0.05f, 0.14f, 0.92f);
-
-            string iconesVidas = "";
-            for (int v = 0; v < vidasRestantes; v++) iconesVidas += "ᗧ ";
-            if (vidasRestantes <= 0) iconesVidas = "ZERO";
-
-            if (GUI.Button(miniRect, $"<size=12><b>🕹️ Vidas: {vidasRestantes} {iconesVidas} [ + ]</b></size>"))
-            {
-                hudMinimizado = false;
-            }
-        }
-
-        /// <summary>
-        /// Tela de Game Over.
-        /// </summary>
-        private void DesenharGameOver()
-        {
-            float w = 400f;
-            float h = 180f;
-            Rect modalRect = new Rect((1920f - w) / 2f, (1080f - h) / 2f, w, h);
-
-            GUI.backgroundColor = new Color(0.18f, 0.02f, 0.02f, 0.96f);
-            GUI.Box(modalRect, GUIContent.none);
-
-            GUILayout.BeginArea(new Rect(modalRect.x + 20f, modalRect.y + 16f, w - 40f, h - 32f));
-
-            GUILayout.Label("<size=20><b><color=#FF3333>💀 G A M E   O V E R 💀</color></b></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-            GUILayout.Space(10f);
-            GUILayout.Label($"<size=14><b>Pontuação Final:</b> <color=#FFFF00>{pontuacaoAcumulada:D5} pts</color></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-            GUILayout.Space(16f);
-
-            GUI.backgroundColor = new Color(0.15f, 0.65f, 1f, 1f);
-            if (GUILayout.Button("<size=14><b>🔄  J O G A R   N O V A M E N T E</b></size>", GUILayout.Height(42f)))
-            {
-                ReiniciarJogoPartida();
-            }
-
-            GUILayout.EndArea();
+            // Desativado para garantir que apenas o Canvas do SemanticHUDManager apareça na tela.
         }
     }
 }

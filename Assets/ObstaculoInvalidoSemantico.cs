@@ -22,10 +22,15 @@ public class ObstaculoInvalidoSemantico : InstanciaSemanticaBase
     [Tooltip("Habilita a perseguição dinâmica ao Pac-Man via malha NavMesh.")]
     public bool habilitarIA = true;
 
+    [Header("Estado do Reasoner Agent (FSM NavMesh)")]
+    [Tooltip("Quando o Reasoner está CONSISTENTE (Patrol), o agente vaga proceduralmente e ignora o jogador. Quando INCONSISTENTE (Chase), persegue o jogador.")]
+    public bool emModoChaseInconsistente = false;
+
     private float m_TimerCooldown = 0f;
     private UnityEngine.AI.NavMeshAgent m_NavAgent;
     private Transform m_AlvoPacMan;
     private float m_TimerAtualizacaoIA = 0f;
+    private Vector3 m_AlvoPatrulhaProcedural = Vector3.zero;
 
     protected override void Awake()
     {
@@ -82,19 +87,52 @@ public class ObstaculoInvalidoSemantico : InstanciaSemanticaBase
 
         if (m_NavAgent == null || !m_NavAgent.isOnNavMesh) return;
 
+        // Sincroniza estado com o MotorRaciocinioSemantico e ProtegeWebSocketBridge
+        var ws = PacMan.Network.ProtegeWebSocketBridge.Instance;
+        var motor = FindFirstObjectByType<PacMan.Semantics.MotorRaciocinioSemantico>();
+        bool consistente = (ws != null) ? ws.ReasonerConsistent : (motor == null || motor.reasonerConsistente);
+        emModoChaseInconsistente = !consistente;
+
+        // Se o MotorRaciocinioSemantico estiver gerenciando a navegação centralmente, delega a ele
+        if (motor != null && motor.moverFantasmasDinamicamente) return;
+
         m_TimerAtualizacaoIA -= Time.deltaTime;
         if (m_TimerAtualizacaoIA <= 0f)
         {
-            m_TimerAtualizacaoIA = 0.25f;
-            if (m_AlvoPacMan == null)
-            {
-                GameObject pac = GameObject.Find("Visual_PacMan") ?? GameObject.FindWithTag("Player");
-                if (pac != null) m_AlvoPacMan = pac.transform;
-            }
+            m_TimerAtualizacaoIA = 0.45f;
 
-            if (m_AlvoPacMan != null)
+            if (emModoChaseInconsistente)
             {
-                m_NavAgent.SetDestination(m_AlvoPacMan.position);
+                // CHASE (INCONSISTENTE): Persegue o jogador
+                if (m_AlvoPacMan == null)
+                {
+                    GameObject pac = GameObject.Find("Visual_PacMan") ?? GameObject.FindWithTag("Player");
+                    if (pac != null) m_AlvoPacMan = pac.transform;
+                }
+
+                if (m_AlvoPacMan != null)
+                {
+                    m_NavAgent.speed = 2.6f;
+                    m_NavAgent.SetDestination(m_AlvoPacMan.position);
+                }
+            }
+            else
+            {
+                // PATROL (CONSISTENTE): Ignora o jogador e vaga proceduralmente pelo NavMesh
+                m_NavAgent.speed = 1.9f;
+                if (m_AlvoPatrulhaProcedural == Vector3.zero || Vector3.Distance(transform.position, m_AlvoPatrulhaProcedural) < 1.8f)
+                {
+                    Vector2 rand = Random.insideUnitCircle * 9.5f;
+                    Vector3 candidato = new Vector3(rand.x, transform.position.y, rand.y);
+                    if (UnityEngine.AI.NavMesh.SamplePosition(candidato, out UnityEngine.AI.NavMeshHit hit, 4.0f, UnityEngine.AI.NavMesh.AllAreas))
+                    {
+                        m_AlvoPatrulhaProcedural = hit.position;
+                    }
+                }
+                if (m_AlvoPatrulhaProcedural != Vector3.zero)
+                {
+                    m_NavAgent.SetDestination(m_AlvoPatrulhaProcedural);
+                }
             }
         }
     }
@@ -133,7 +171,15 @@ public class ObstaculoInvalidoSemantico : InstanciaSemanticaBase
 
         m_TimerCooldown = tempoCooldownPenalidade;
 
-        pontuacaoLogica += m_ValorPontuacao;
+        // Ao tocar em um nodo/agente que representa inconsistência lógica, aciona o estado INCONSISTENTE no Reasoner
+        // (Os Reasoner Agents entram em modo Chase - Material Vermelho Sólido - até que o jogador desfaça a ação com Z/U)
+        RegistrarConsumoOntologico(m_Id, m_NomeClasse, false, m_ExpressaoDL);
+
+        var motor = FindFirstObjectByType<PacMan.Semantics.MotorRaciocinioSemantico>();
+        if (motor != null)
+        {
+            motor.reasonerConsistente = false;
+        }
 
         string nomeClasseFormatado = FormatarNomeClasse(m_NomeClasse);
 

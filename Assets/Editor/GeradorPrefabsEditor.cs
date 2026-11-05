@@ -284,60 +284,61 @@ public static class GeradorPrefabsEditor
     }
 
     // =========================================================================
-    // 1. MODELO 3D DA PÍLULA / PAC-DOT (GEMA VÁLIDA)
+    // 1. MODELO 3D DO NODO DE DADOS (CUBO/PRISMA TRANSLÚCIDO OWL)
     // =========================================================================
     private static void CriarPrefabPilulaPacDot()
     {
-        GameObject pilulaRaiz = new GameObject("GemaValida");
+        GameObject nodoRaiz = new GameObject("GemaValida");
 
-        // Núcleo Esférico Dourado/Esmeralda
-        GameObject esfera = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        esfera.name = "Nucleo_PacDot";
-        esfera.transform.SetParent(pilulaRaiz.transform, false);
-        esfera.transform.localScale = new Vector3(0.55f, 0.55f, 0.55f);
-        Object.DestroyImmediate(esfera.GetComponent<Collider>());
+        // Núcleo Cúbico/Prismático Translúcido (Nodo de Dados OWL)
+        GameObject cuboPrisma = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        cuboPrisma.name = "Nucleo_PacDot";
+        cuboPrisma.transform.SetParent(nodoRaiz.transform, false);
+        cuboPrisma.transform.localScale = new Vector3(0.36f, 0.48f, 0.36f);
+        cuboPrisma.transform.localRotation = Quaternion.Euler(35f, 45f, 0f);
+        Object.DestroyImmediate(cuboPrisma.GetComponent<Collider>());
 
-        Color corOuroNeon = new Color(1f, 0.88f, 0.2f);
-        Color emissaoOuro = new Color(0.85f, 0.65f, 0.1f);
-        Material matPilula = CriarOuObterMaterial("Mat_PacDot_Glow", corOuroNeon, emissaoOuro, 0.95f);
+        Color corCianoTranslucido = new Color(0.0f, 0.90f, 1.0f, 0.58f);
+        Color emissaoCiano = new Color(0.0f, 0.70f, 0.95f);
+        Material matNodo = CriarOuObterMaterial("Mat_PacDot_Glow", corCianoTranslucido, emissaoCiano, 0.92f);
 
-        Renderer rend = esfera.GetComponent<Renderer>();
-        if (rend != null && matPilula != null)
+        Renderer rend = cuboPrisma.GetComponent<Renderer>();
+        if (rend != null && matNodo != null)
         {
-            rend.sharedMaterial = matPilula;
+            rend.sharedMaterial = matNodo;
         }
 
-        // Anel / Halo decorativo
+        // Anel / Halo cibernético de base
         GameObject halo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         halo.name = "Halo_Aura";
-        halo.transform.SetParent(pilulaRaiz.transform, false);
-        halo.transform.localScale = new Vector3(0.7f, 0.02f, 0.7f);
+        halo.transform.SetParent(nodoRaiz.transform, false);
+        halo.transform.localScale = new Vector3(0.55f, 0.015f, 0.55f);
         Object.DestroyImmediate(halo.GetComponent<Collider>());
         Renderer rendHalo = halo.GetComponent<Renderer>();
-        if (rendHalo != null && matPilula != null)
+        if (rendHalo != null && matNodo != null)
         {
-            rendHalo.sharedMaterial = matPilula;
+            rendHalo.sharedMaterial = matNodo;
         }
 
         // Colisor Trigger
-        SphereCollider col = pilulaRaiz.AddComponent<SphereCollider>();
+        SphereCollider col = nodoRaiz.AddComponent<SphereCollider>();
         col.isTrigger = true;
-        col.radius = 0.4f;
+        col.radius = 0.45f;
 
         // Scripts Semânticos e de Animação
-        pilulaRaiz.AddComponent<RotacaoFlutuante>();
-        GerenciadorInstancia ger = pilulaRaiz.AddComponent<GerenciadorInstancia>();
+        nodoRaiz.AddComponent<RotacaoFlutuante>();
+        GerenciadorInstancia ger = nodoRaiz.AddComponent<GerenciadorInstancia>();
         ger.ehValida = true;
         ger.valorPontuacao = 10;
-        ger.classeOntologica = "PacDot_GemaValida";
-        ger.expressaoDL = "PacDot ⊑ EntidadeConsistente ⊓ ∃temEnergia.Valida";
-        ger.descricaoSemantica = "Pílula Pac-Dot Válida. Satisfaz a axiomatização ontológica!";
+        ger.classeOntologica = "AscarisLumbricoides";
+        ger.expressaoDL = "Nematoda ⊓ ∃has_host.Human";
+        ger.descricaoSemantica = "Nodo de Dados OWL. Ao interagir, instancia o indivíduo na ABox via WebSocket (8085).";
 
-        PrefabUtility.SaveAsPrefabAsset(pilulaRaiz, CaminhoGemaValida);
-        PrefabUtility.SaveAsPrefabAsset(pilulaRaiz, CaminhoGemaResources);
-        Object.DestroyImmediate(pilulaRaiz);
+        PrefabUtility.SaveAsPrefabAsset(nodoRaiz, CaminhoGemaValida);
+        PrefabUtility.SaveAsPrefabAsset(nodoRaiz, CaminhoGemaResources);
+        Object.DestroyImmediate(nodoRaiz);
 
-        Debug.Log($"<color=#00FF99><b>[Pac-Man Semântico]</b></color> Prefab Pac-Dot estilizado criado em: {CaminhoGemaValida}");
+        Debug.Log($"<color=#00FF99><b>[Interface OWL]</b></color> Prefab de Nodo de Dados (Cubo/Prisma Translúcido) criado em: {CaminhoGemaValida}");
     }
 
     // =========================================================================

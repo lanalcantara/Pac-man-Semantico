@@ -474,6 +474,12 @@ namespace PacMan.Web
         {
             if (!exibirGuiWebGL) return;
 
+            // Se o HUDCanvasArcade (TextMeshPro + ScrollRect) estiver ativo na cena, delega a renderização ao Canvas UI
+            if (HUDCanvasArcade.Instancia != null && estadoAtual != EstadoJogoDemo.GameOver)
+            {
+                return;
+            }
+
             // Escala proporcional com resolução de referência 1920x1080 (Scale With Screen Size)
             float refWidth = 1920f;
             float refHeight = 1080f;
@@ -484,22 +490,14 @@ namespace PacMan.Web
             Color corFundoOriginal = GUI.backgroundColor;
             Color corTextoOriginal = GUI.color;
 
-            // 1. TELA INICIAL (APENAS BOTÃO PLAY E TÍTULO LIMPO)
-            // Sem textos de instruções longos, sem debug e SEM sobreposição com o HUD!
-            if (HUDCanvasArcade.Instancia != null && HUDCanvasArcade.Instancia.TemModalPlayAtivo())
-            {
-                // O Modal amplo em Canvas UI já está sendo renderizado e gerenciado pelo HUDCanvasArcade
-            }
-            else if (estadoAtual == EstadoJogoDemo.MenuInicial)
+            if (estadoAtual == EstadoJogoDemo.MenuInicial)
             {
                 DesenharMenuInicialPlay();
             }
-            // 2. TELA DE GAME OVER
             else if (estadoAtual == EstadoJogoDemo.GameOver)
             {
                 DesenharGameOver();
             }
-            // 3. HUD DURANTE O JOGO (APENAS VIDAS, PONTUAÇÃO E ENTIDADE ATIVA)
             else if (estadoAtual == EstadoJogoDemo.Jogando)
             {
                 if (!hudMinimizado)
@@ -517,9 +515,6 @@ namespace PacMan.Web
             GUI.matrix = matrizOriginal;
         }
 
-        /// <summary>
-        /// Menu Inicial Limpo: Contém estritamente o título e o Botão PLAY.
-        /// </summary>
         private void DesenharMenuInicialPlay()
         {
             float w = 850f;
@@ -531,19 +526,19 @@ namespace PacMan.Web
 
             GUILayout.BeginArea(new Rect(modalRect.x + 36f, modalRect.y + 32f, w - 72f, h - 64f));
 
-            GUILayout.Label("<size=32><b><color=#FFFF00>🕹️  PAC-MAN SEMÂNTICO (CIn-UFPE)</color></b></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
+            GUILayout.Label("<size=28><b><color=#00E5FF>INTERFACE ESPACIAL BIDIRECIONAL OWL (CIn-UFPE)</color></b></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
             GUILayout.Space(8f);
-            GUILayout.Label("<size=20><color=#38BDF8>Ontologia Parasitologia • Raciocínio DL (Protégé / OWL)</color></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
+            GUILayout.Label("<size=18><color=#38BDF8>Protégé OSGi WebSocket (8085) • HermiT Reasoner • ALCQ(D)</color></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
 
             GUILayout.Space(26f);
-            GUILayout.Label("<size=17><color=#F1F5F9>• Devore as <b>Gemas Ontológicas (Classes)</b> pelo labirinto.</color></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-            GUILayout.Label("<size=17><color=#F1F5F9>• Cuidado com os <b>4 Fantasmas</b> que partem da gaiola central!</color></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
-            GUILayout.Label("<size=17><color=#F1F5F9>• Colete as <b>Cerejas</b> e <b>Power Pellets</b> para virar o jogo.</color></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
+            GUILayout.Label("<size=16><color=#F1F5F9>• Interaja com os <b>Nodos de Dados</b> para instanciar indivíduos na ABox.</color></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
+            GUILayout.Label("<size=16><color=#F1F5F9>• Conecte Nodos A e B para criar <b>Object Properties (has_host)</b>.</color></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
+            GUILayout.Label("<size=16><color=#F1F5F9>• Monitore o <b>Status do Reasoner</b> e o Terminal de Axiomas OWL.</color></size>", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
 
             GUILayout.Space(36f);
 
-            GUI.backgroundColor = new Color(0.06f, 0.73f, 0.51f, 1f);
-            if (GUILayout.Button("<size=24><b>▶   I N I C I A R   J O G O   ( P L A Y )</b></size>", GUILayout.Height(75f)))
+            GUI.backgroundColor = new Color(0.05f, 0.65f, 0.55f, 1f);
+            if (GUILayout.Button("<size=22><b>INICIAR AMBIENTE DE ENGENHARIA OWL</b></size>", GUILayout.Height(70f)))
             {
                 IniciarJogoPlay();
             }
@@ -551,20 +546,15 @@ namespace PacMan.Web
             GUILayout.EndArea();
         }
 
-        /// <summary>
-        /// HUD Canônica Limpa: Mantém APENAS Vidas, Pontuação e Entidade Ativa.
-        /// Botão [ X ] vermelho no canto superior direito para fechar/minimizar.
-        /// </summary>
         private void DesenharHUDCanonica()
         {
-            float largura = 320f;
+            float largura = 380f;
             float altura = 145f;
             Rect painel = new Rect(35f, 35f, largura, altura);
 
             GUI.backgroundColor = new Color(0.02f, 0.05f, 0.14f, 0.90f);
-            GUI.Box(painel, "🕹️ Pac-Man Semântico");
+            GUI.Box(painel, "Engenharia de Ontologias OWL");
 
-            // Botão [ X ] vermelho para fechar/minimizar
             Rect rectFechar = new Rect(painel.x + largura - 30f, painel.y + 5f, 24f, 20f);
             GUI.backgroundColor = new Color(0.85f, 0.2f, 0.2f, 0.95f);
             if (GUI.Button(rectFechar, "<b>✕</b>"))
@@ -575,26 +565,19 @@ namespace PacMan.Web
 
             GUILayout.BeginArea(new Rect(painel.x + 16f, painel.y + 32f, largura - 32f, altura - 40f));
 
-            // 1. Vidas
-            string iconesVidas = "";
-            for (int v = 0; v < vidasRestantes; v++) iconesVidas += "ᗧ ";
-            if (vidasRestantes <= 0) iconesVidas = "ZERO";
-            GUILayout.Label($"<size=13><b>Vidas:</b> <color=#00FF99><b>{vidasRestantes}  {iconesVidas}</b></color></size>");
+            // 1. Status do Reasoner
+            bool consistente = ultimoItemValido && vidasRestantes > 0;
+            string statusReasoner = consistente
+                ? "<color=#00FF88><b>CONSISTENTE</b></color>"
+                : "<color=#FF2233><b>⚠ INCONSISTENTE</b></color>";
+            GUILayout.Label($"<size=13><b>Status do Reasoner:</b> {statusReasoner}</size>");
 
-            // 2. Pontuação
-            GUILayout.Label($"<size=13><b>Pontuação:</b> <color=#FFFF00><b>{pontuacaoAcumulada:D5} pts</b></color></size>");
+            // 2. Axiomas Inseridos / Tamanho da ABox
+            GUILayout.Label($"<size=13><b>Axiomas Inseridos (ABox):</b> <color=#00E5FF><b>{totalItensCapturados}</b></color></size>");
 
-            // 3. Entidade Ativa
-            string entidadeExibida = !string.IsNullOrEmpty(ultimaClasseCapturada) ? ultimaClasseCapturada : "Iniciando...";
-            GUILayout.Label($"<size=12><b>Entidade Ativa:</b> <color=#38BDF8><b>{entidadeExibida}</b></color></size>");
-
-            if (temporizadorAvisoColisao > 0f && !string.IsNullOrEmpty(mensagemAvisoColisao))
-            {
-                GUILayout.Space(2f);
-                GUI.color = Color.yellow;
-                GUILayout.Label($"<size=11>⚠️ {mensagemAvisoColisao}</size>");
-                GUI.color = Color.white;
-            }
+            // 3. Foco Atual
+            string focoExibido = !string.IsNullOrEmpty(ultimaClasseCapturada) ? ultimaClasseCapturada : "Nenhuma classe em foco";
+            GUILayout.Label($"<size=12><b>Foco Atual:</b> <color=#38BDF8><b>{focoExibido}</b></color></size>");
 
             GUILayout.EndArea();
         }

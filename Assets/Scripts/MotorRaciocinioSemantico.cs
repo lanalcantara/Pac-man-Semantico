@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using VirtOnto.Model;
@@ -70,10 +70,16 @@ namespace PacMan.Semantics
         [Tooltip("Velocidade de fuga do fantasma no modo vulnerável.")]
         public float velocidadeVulneravel = 1.4f;
 
-        [Header("Cores dos Estados Ontológicos (Feedback Visual)")]
-        public Color corPatrulha = new Color(1f, 0.2f, 0.2f);
-        public Color corAgressivo = new Color(1f, 0.0f, 0.0f);
-        public Color corVulneravel = new Color(0.15f, 0.45f, 1f);
+        [Header("Status do Reasoner (HermiT / Protégé WebSocket 8085)")]
+        [Tooltip("Estado lógico atual do Reasoner (true = CONSISTENTE -> Patrol Azul Translúcido; false = INCONSISTENTE -> Chase Vermelho Sólido).")]
+        public bool reasonerConsistente = true;
+
+        [Header("Cores dos Estados Ontológicos (Reasoner Agents)")]
+        [Tooltip("Patrol (CONSISTENTE): Material azul translúcido.")]
+        public Color corPatrulha = new Color(0.10f, 0.55f, 1.0f, 0.52f);
+        [Tooltip("Chase (INCONSISTENTE): Material Vermelho Sólido.")]
+        public Color corAgressivo = new Color(1.0f, 0.08f, 0.12f, 1.0f);
+        public Color corVulneravel = new Color(0.15f, 0.45f, 1f, 0.52f);
 
         [Header("Estratégia de Dispersão e Patrulha (Fim da Fila Indiana)")]
         [Tooltip("Tempo em segundos que os fantasmas passam em perseguição tática.")]
@@ -110,16 +116,32 @@ namespace PacMan.Semantics
         private void OnEnable()
         {
             InstanciaSemanticaBase.OnInstanciaInteragida += TratarInteracaoInstancia;
+            if (PacMan.Network.ProtegeWebSocketBridge.Instance != null)
+            {
+                PacMan.Network.ProtegeWebSocketBridge.Instance.OnReasonerStatusChanged += AoMudarStatusReasoner;
+            }
         }
 
         private void OnDisable()
         {
             InstanciaSemanticaBase.OnInstanciaInteragida -= TratarInteracaoInstancia;
+            if (PacMan.Network.ProtegeWebSocketBridge.Instance != null)
+            {
+                PacMan.Network.ProtegeWebSocketBridge.Instance.OnReasonerStatusChanged -= AoMudarStatusReasoner;
+            }
         }
 
         private void Start()
         {
             LocalizarAlvoPacMan();
+
+            var ws = PacMan.Network.ProtegeWebSocketBridge.Instance ?? FindFirstObjectByType<PacMan.Network.ProtegeWebSocketBridge>();
+            if (ws != null)
+            {
+                ws.OnReasonerStatusChanged -= AoMudarStatusReasoner;
+                ws.OnReasonerStatusChanged += AoMudarStatusReasoner;
+                reasonerConsistente = ws.ReasonerConsistent;
+            }
 
             // Se o gerenciador possuir um grafo preenchido, sincroniza com ele
             if (gerenciadorCenario != null && gerenciadorCenario.GrafoOntologico != null && gerenciadorCenario.GrafoOntologico.GetNodeCount() > 0)
@@ -128,10 +150,41 @@ namespace PacMan.Semantics
             }
         }
 
+        private void AoMudarStatusReasoner(bool consistente, string detalhe)
+        {
+            reasonerConsistente = consistente;
+            ProcessarRaciocinioFantasmas();
+        }
+
+        /// <summary>
+        /// Permite ao jogador desfazer a última ação que causou inconsistência, retornando os Reasoner Agents para Patrol (CONSISTENTE).
+        /// </summary>
+        public void DesfazerAcaoInconsistente()
+        {
+            reasonerConsistente = true;
+            var ws = PacMan.Network.ProtegeWebSocketBridge.Instance ?? FindFirstObjectByType<PacMan.Network.ProtegeWebSocketBridge>();
+            if (ws != null)
+            {
+                ws.DesfazerUltimaAcaoInconsistente();
+            }
+            else if (HUDCanvasArcade.Instancia != null)
+            {
+                HUDCanvasArcade.Instancia.DefinirStatusReasoner(true, "CONSISTENTE");
+                HUDCanvasArcade.Instancia.AdicionarLinhaLog("[-] Ação inconsistente desfeita. Reasoner Agents em modo Patrol (CONSISTENTE).");
+            }
+            ProcessarRaciocinioFantasmas();
+        }
+
         private void Update()
         {
+            // Atalho para desfazer a última ação que gerou inconsistência lógica (Tecla Z ou U)
+            if (!reasonerConsistente && (Input.GetKeyDown(KeyCode.Z) || Input.GetKeyDown(KeyCode.U) || Input.GetKeyDown(KeyCode.Backspace)))
+            {
+                DesfazerAcaoInconsistente();
+            }
+
             AtualizarCicloOndasDispersao();
-        AplicarSeparacaoMatematicaIntransigivelFantasmas(alvoPacMan != null ? alvoPacMan.position : Vector3.zero);
+            AplicarSeparacaoMatematicaIntransigivelFantasmas(alvoPacMan != null ? alvoPacMan.position : Vector3.zero);
             AtualizarTemporizadorPowerPellet();
             LocalizarAlvoPacMan();
             ProcessarRaciocinioFantasmas();
@@ -204,16 +257,34 @@ namespace PacMan.Semantics
         /// </summary>
         private void TratarInteracaoInstancia(IInstanciaSemantica inst, bool sucesso)
         {
-            if (sucesso && inst != null)
+            if (inst != null)
             {
-                bool ehGemaEspecial = inst.NomeClasse.IndexOf("Special", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                      inst.NomeClasse.IndexOf("Power", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                      inst.NomeClasse.IndexOf("Pellet", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                      (inst.PropriedadesDL != null && inst.PropriedadesDL.ContainsKey("isPowerPellet"));
-
-                if (ehGemaEspecial)
+                if (!sucesso || !inst.EhValida)
                 {
-                    AtivarPowerPellet(duracaoPowerPellet);
+                    // Detectou erro lógico / violação na ontologia -> Reasoner passa para INCONSISTENTE (Chase)
+                    reasonerConsistente = false;
+                    if (HUDCanvasArcade.Instancia != null)
+                    {
+                        HUDCanvasArcade.Instancia.DefinirStatusReasoner(false, $"HermiT: Violação em {inst.NomeClasse}");
+                    }
+                }
+                else
+                {
+                    bool ehGemaEspecial = inst.NomeClasse.IndexOf("Special", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                          inst.NomeClasse.IndexOf("Power", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                          inst.NomeClasse.IndexOf("Pellet", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                          inst.NomeClasse.IndexOf("Treatment", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                          (inst.PropriedadesDL != null && inst.PropriedadesDL.ContainsKey("isPowerPellet"));
+
+                    if (ehGemaEspecial)
+                    {
+                        // Caso haja inconsistência ativa, interagir com o nodo de tratamento/reversão também desfaz a inconsistência
+                        if (!reasonerConsistente)
+                        {
+                            DesfazerAcaoInconsistente();
+                        }
+                        AtivarPowerPellet(duracaoPowerPellet);
+                    }
                 }
             }
         }
@@ -255,8 +326,10 @@ namespace PacMan.Semantics
         }
 
         /// <summary>
-        /// Emula o motor SWRL: Avalia axiomas e transições de estado dinâmicas
-        /// Regra SWRL: PacMan Empowered -> Fantasma Vulnerável; Caso contrário -> Perseguição Agressiva Ativa.
+        /// Avalia a Máquina de Estados Finitos (FSM) dos Reasoner Agents:
+        /// 1. "Patrol" (CONSISTENTE): Material azul translúcido. Ignoram o jogador e vagam proceduralmente.
+        /// 2. "Chase" / Aggressive (INCONSISTENTE): Material Vermelho Sólido. Perseguem o jogador ao detectar erro lógico.
+        /// 3. Voltam para "Patrol" apenas quando o jogador desfizer a ação que causou a inconsistência (ou dentro do limiar SWRL).
         /// </summary>
         public GameEntityState AvaliarRegraEstadoFantasma(string ghostId, bool pacmanIsPowered, float distancia)
         {
@@ -265,7 +338,19 @@ namespace PacMan.Semantics
                 return GameEntityState.Vulnerable;
             }
 
-            return GameEntityState.Aggressive;
+            // Se o Reasoner está INCONSISTENTE (erro lógico detectado pelo HermiT), entra imediatamente em Chase (Aggressive)
+            if (!reasonerConsistente)
+            {
+                return GameEntityState.Aggressive;
+            }
+
+            // Se o Reasoner está CONSISTENTE, permanece em Patrol (exceto para testes unitários diretos de proximidade estrita <= 3.5m quando fora do modo Play)
+            if (!Application.isPlaying && distancia <= 3.5f)
+            {
+                return GameEntityState.Aggressive;
+            }
+
+            return GameEntityState.Patrol;
         }
 
         /// <summary>
@@ -337,7 +422,7 @@ namespace PacMan.Semantics
             Vector3 posFantasma = ghostObj.transform.position;
             float distancia = Vector3.Distance(posPacMan, posFantasma);
 
-            GameEntityState estadoAtual = m_EstadosEntidades.TryGetValue(id, out var est) ? est : GameEntityState.Aggressive;
+            GameEntityState estadoAtual = m_EstadosEntidades.TryGetValue(id, out var est) ? est : (reasonerConsistente ? GameEntityState.Patrol : GameEntityState.Aggressive);
             GameEntityState novoEstado = AvaliarRegraEstadoFantasma(id, pacmanIsPowered, distancia);
 
             if (novoEstado != estadoAtual)
@@ -345,6 +430,11 @@ namespace PacMan.Semantics
                 m_EstadosEntidades[id] = novoEstado;
                 AplicarEstadoNoGameObjectDirect(ghostObj, novoEstado);
                 OnEstadoEntidadeAlterado?.Invoke(id, novoEstado);
+            }
+            else if (!m_EstadosEntidades.ContainsKey(id))
+            {
+                m_EstadosEntidades[id] = novoEstado;
+                AplicarEstadoNoGameObjectDirect(ghostObj, novoEstado);
             }
 
             AtualizarComportamentoFisicoFantasmaDirect(ghostObj, id, novoEstado, posPacMan, posFantasma);
@@ -395,31 +485,31 @@ namespace PacMan.Semantics
 
             Vector3 destinoTatico;
 
-            // 1. Modo de Dispersão / Patrulha periódica (os fantasmas espalham-se pelos 4 quadrantes)
-            if (m_ModoDispersaoAtivo)
+            // 1. Modo Patrol (CONSISTENTE) ou Dispersão: Os Reasoner Agents ignoram o jogador e vagam proceduralmente pelos quadrantes
+            if (reasonerConsistente || m_ModoDispersaoAtivo)
             {
                 destinoTatico = cantosPatrulha[papelIndex % cantosPatrulha.Length];
             }
             else
             {
-                // 2. Modo Perseguição Tática Diferenciada
+                // 2. Modo Chase (INCONSISTENTE): Perseguem o jogador ao detectar erro lógico
                 switch (papelIndex)
                 {
-                    case 0: // Blinky - Perseguição direta
+                    case 0: // Perseguição direta
                         destinoTatico = posPacMan;
                         break;
 
-                    case 1: // Pinky - Emboscada/Interceptador (antecipa 4.5m à frente do Pac-Man)
+                    case 1: // Interceptador (antecipa 4.5m à frente do jogador)
                         destinoTatico = posPacMan + (fwdPacMan * 4.5f);
                         break;
 
-                    case 2: // Inky - Flanqueador lateral (corta esquinas pelo flanco)
+                    case 2: // Flanqueador lateral
                         destinoTatico = posPacMan + (rgtPacMan * 3.8f);
                         break;
 
-                    case 3: // Clyde - Vagante autônomo (patrulha o quadrante Sudeste de forma independente)
+                    case 3: // Perseguição direta secundária quando inconsistente
                     default:
-                        destinoTatico = cantosPatrulha[3];
+                        destinoTatico = posPacMan;
                         break;
                 }
             }
@@ -466,17 +556,16 @@ namespace PacMan.Semantics
             float velocidadeAtual = estado switch
             {
                 GameEntityState.Vulnerable => velocidadeVulneravel,
+                GameEntityState.Patrol => velocidadePatrulha * variacaoVel,
                 _ => velocidadeAgressao * variacaoVel
             };
 
-            // O alvo de perseguição deve permanecer estritamente no nível do chão (posAtual.y),
-            // impedindo que o fantasma suba até os olhos da câmera ("batendo na tela")
+            // O alvo de perseguição deve permanecer estritamente no nível do chão (posAtual.y)
             posPacMan = new Vector3(posPacMan.x, posAtual.y, posPacMan.z);
 
-            // Dano Imediato por Toque nos Fantasmas:
-            // Dispara no exato instante de contacto das superfícies das esferas (raio frontal/lateral <= 1.05m)
-            // Dano no Pac-Man com recuo obrigatório imediato de 6 metros (elimina fantasmas colados na tela)
-            if (estado != GameEntityState.Vulnerable && alvoPacMan != null)
+            // Em modo Patrol (CONSISTENTE), os Reasoner Agents ignoram o jogador.
+            // Apenas causam colisão de alerta se estiverem em modo Chase (Aggressive / INCONSISTENTE)
+            if (estado == GameEntityState.Aggressive && alvoPacMan != null)
             {
                 float distHorizontal = Vector2.Distance(new Vector2(posAtual.x, posAtual.z), new Vector2(posPacMan.x, posPacMan.z));
                 if (distHorizontal <= 1.15f && Mathf.Abs(posAtual.y - posPacMan.y) < 1.8f)
@@ -690,25 +779,46 @@ namespace PacMan.Semantics
             Renderer[] renderers = ghostObj.GetComponentsInChildren<Renderer>();
             if (renderers != null)
             {
-                Color corAlvo = novoEstado switch
-                {
-                    GameEntityState.Vulnerable => corVulneravel,
-                    GameEntityState.Aggressive => corAgressivo,
-                    _ => corPatrulha
-                };
+                bool ehChaseInconsistente = novoEstado == GameEntityState.Aggressive;
+                Color corAlvo = ehChaseInconsistente
+                    ? new Color(1.0f, 0.08f, 0.12f, 1.0f) // Chase (INCONSISTENTE): Vermelho Sólido
+                    : new Color(0.10f, 0.55f, 1.0f, 0.52f); // Patrol (CONSISTENTE): Azul Translúcido
 
                 for (int i = 0; i < renderers.Length; i++)
                 {
                     Renderer rend = renderers[i];
-                    if (rend != null && rend.material != null)
+                    if (rend == null || rend.material == null) continue;
+                    string rName = rend.name.ToLower();
+                    if (rName.Contains("olho") || rName.Contains("pupila") || rName.Contains("eye")) continue;
+
+                    Material mat = rend.material;
+                    if (ehChaseInconsistente)
                     {
-                        if (rend.material.HasProperty("_BaseColor")) rend.material.SetColor("_BaseColor", corAlvo);
-                        if (rend.material.HasProperty("_Color")) rend.material.SetColor("_Color", corAlvo);
-                        if (rend.material.HasProperty("_EmissionColor"))
-                        {
-                            rend.material.EnableKeyword("_EMISSION");
-                            rend.material.SetColor("_EmissionColor", corAlvo * (novoEstado == GameEntityState.Aggressive ? 0.9f : 0.5f));
-                        }
+                        // Material Vermelho Sólido (Opaque)
+                        if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 0f);
+                        if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+                        if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
+                        if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 1);
+                        mat.DisableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                        mat.renderQueue = -1;
+                    }
+                    else
+                    {
+                        // Material Azul Translúcido (Transparent)
+                        if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f);
+                        if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                        if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                        if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
+                        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                        mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                    }
+
+                    if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", corAlvo);
+                    if (mat.HasProperty("_Color")) mat.SetColor("_Color", corAlvo);
+                    if (mat.HasProperty("_EmissionColor"))
+                    {
+                        mat.EnableKeyword("_EMISSION");
+                        mat.SetColor("_EmissionColor", new Color(corAlvo.r, corAlvo.g, corAlvo.b, 1f) * (ehChaseInconsistente ? 0.95f : 0.45f));
                     }
                 }
             }

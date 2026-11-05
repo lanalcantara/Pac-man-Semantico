@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using PacMan.Semantics;
 
@@ -98,31 +98,25 @@ namespace PacMan.XR
                     motorSemantico.AtivarPowerPellet(8.0f);
                 }
 
-                // Dispara feedback sonoro se disponível
-                if (somConsumoGema != null && audioSource != null)
-                {
-                    audioSource.PlayOneShot(somConsumoGema);
-                }
-
-                // Registra no sistema ontológico (Grafo)
-                InstanciaSemanticaBase.RegistrarConsumoOntologico(idItem, nomeClasseFormatado);
+                // Envia instanciação via WebSocket (porta 8085) e registra no Grafo Ontológico (SEM som de arcade)
+                InstanciaSemanticaBase.RegistrarConsumoOntologico(idItem, nomeClasseOriginal, true, expressaoDL);
 
                 // Atualiza HUDs em tempo real
                 InstanciaSemanticaBase.AtualizarHUDs(idItem, nomeClasseFormatado, pontos, expressaoDL, descSemantica);
 
-                // Pontuação lógica
+                // Métrica de axiomas
                 InstanciaSemanticaBase.pontuacaoLogica += pontos;
                 InstanciaSemanticaBase.totalColetadas++;
                 InstanciaSemanticaBase.instanciasValidasRestantes = Mathf.Max(0, InstanciaSemanticaBase.instanciasValidasRestantes - 1);
 
-                // Dispara Juice se disponível
+                // Dispara Feedback Visual Cibernético (sem som de arcade)
                 if (GerenciadorEfeitosJuice.Instancia != null)
                 {
-                    Color cor = inst != null ? inst.CorDestaque : new Color(1f, 0.88f, 0.2f);
+                    Color cor = inst != null ? inst.CorDestaque : new Color(0.0f, 0.90f, 1.0f, 0.9f);
                     GerenciadorEfeitosJuice.Instancia.CriarExplosaoBrilhoColeta(alvo.transform.position, cor);
                 }
 
-                // Destrói/desativa a gema imediatamente para anular qualquer contato físico residual
+                // Desativa os colisores do Nodo mantendo sua malha prismática visível para ancorar as arestas do RelationBuilder
                 Collider[] cols = alvo.GetComponentsInChildren<Collider>();
                 if (cols != null)
                 {
@@ -131,8 +125,7 @@ namespace PacMan.XR
                         if (cols[i] != null) cols[i].enabled = false;
                     }
                 }
-                alvo.SetActive(false);
-                Destroy(alvo);
+                alvo.transform.localScale = alvo.transform.localScale * 0.88f;
             }
             // 2. Obstáculo / Fantasma: Ignorado no XR Origin (tela)
             // O dano só pode ocorrer quando o fantasma atinge o Pac-Man físico no chão, NUNCA na tela/câmera!

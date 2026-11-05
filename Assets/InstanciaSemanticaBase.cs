@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -569,8 +569,25 @@ public abstract class InstanciaSemanticaBase : MonoBehaviour, IInstanciaSemantic
         return raw;
     }
 
-    public static void RegistrarConsumoOntologico(string id, string nomeClasse)
+    public static void RegistrarConsumoOntologico(string id, string nomeClasse, bool ehValida = true, string expressaoDL = "")
     {
+        // 1. Envia a mensagem de instanciação via WebSocket (porta 8085) para o Protégé
+        var ws = PacMan.Network.ProtegeWebSocketBridge.Instance ?? UnityEngine.Object.FindFirstObjectByType<PacMan.Network.ProtegeWebSocketBridge>();
+        if (ws != null)
+        {
+            ws.EnviarInstanciacaoIndividuo(id, nomeClasse, ehValida, expressaoDL);
+        }
+        else if (HUDCanvasArcade.Instancia != null)
+        {
+            HUDCanvasArcade.Instancia.DefinirAxiomasInseridos(HUDCanvasArcade.Instancia.axiomasInseridos + 1);
+            HUDCanvasArcade.Instancia.AdicionarLinhaLog($"[+] researcher_01 instanciou {nomeClasse} ({id})");
+            if (!ehValida)
+            {
+                HUDCanvasArcade.Instancia.DefinirStatusReasoner(false, $"HermiT: Exceção em {nomeClasse}");
+            }
+        }
+
+        // 2. Registra no Grafo local
         var motor = UnityEngine.Object.FindFirstObjectByType<PacMan.Semantics.MotorRaciocinioSemantico>();
         VirtOnto.Model.Graph grafo = motor != null ? motor.GetSemanticGraph() : null;
         if (grafo == null)
@@ -585,8 +602,8 @@ public abstract class InstanciaSemanticaBase : MonoBehaviour, IInstanciaSemantic
             {
                 grafo.AddNode(new VirtOnto.Model.Node(id, nomeClasse, VirtOnto.Model.NodeType.Individual));
             }
-            string edgeId = $"edge_consumes_{id}_{Time.frameCount}";
-            grafo.AddEdge(new VirtOnto.Model.Edge(edgeId, "pacman_01", id, "consumes"));
+            string edgeId = $"edge_instantiates_{id}_{Time.frameCount}";
+            grafo.AddEdge(new VirtOnto.Model.Edge(edgeId, "researcher_01", id, "instantiates"));
         }
     }
 

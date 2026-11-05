@@ -49,6 +49,10 @@ public class AvatarPacManFisico : MonoBehaviour
     private void Awake()
     {
         gameObject.tag = "Player";
+        if (GetComponent<RelationBuilder>() == null)
+        {
+            gameObject.AddComponent<RelationBuilder>();
+        }
         LocalizarReferencias();
         GarantirDesvinculacaoDaCamera();
         GarantirVisibilidadeEMeshes();

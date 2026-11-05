@@ -95,33 +95,34 @@ public class GerenciadorEfeitosJuice : MonoBehaviour
         GameObject burstObj = new GameObject("Burst_PacDot");
         burstObj.transform.position = posicao;
 
-        // 1. Sistema de Partículas Explosivas
+        // 1. Sistema de Partículas Cibernéticas (Feixe de Dados Holográfico)
         ParticleSystem ps = burstObj.AddComponent<ParticleSystem>();
         ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = ps.main;
         main.playOnAwake = false;
-        main.duration = 0.6f;
+        main.duration = 0.55f;
         main.loop = false;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(0.35f, 0.7f);
-        main.startSpeed = new ParticleSystem.MinMaxCurve(2.5f, 5.5f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.22f);
-        main.startColor = cor != Color.clear ? cor : new Color(1f, 0.9f, 0.2f);
-        main.gravityModifier = -0.3f; // Partículas flutuam levemente para cima
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.30f, 0.65f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(1.8f, 4.2f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.06f, 0.18f);
+        Color corCyber = cor != Color.clear ? new Color(cor.r, cor.g, cor.b, 0.9f) : new Color(0.0f, 0.90f, 1.0f, 0.9f);
+        main.startColor = corCyber;
+        main.gravityModifier = -0.45f; // Partículas de dados ascendem como telemetria espacial
         main.stopAction = ParticleSystemStopAction.Destroy;
 
         var emission = ps.emission;
-        emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, 28) });
+        emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, 24) });
 
         var shape = ps.shape;
-        shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 0.15f;
+        shape.shapeType = ParticleSystemShapeType.Box;
+        shape.scale = new Vector3(0.35f, 0.35f, 0.35f);
 
         var colorOverLifetime = ps.colorOverLifetime;
         colorOverLifetime.enabled = true;
         Gradient grad = new Gradient();
         grad.SetKeys(
-            new GradientColorKey[] { new GradientColorKey(main.startColor.color, 0f), new GradientColorKey(Color.white, 0.3f), new GradientColorKey(main.startColor.color, 1f) },
-            new GradientAlphaKey[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 0.5f), new GradientAlphaKey(0f, 1f) }
+            new GradientColorKey[] { new GradientColorKey(corCyber, 0f), new GradientColorKey(new Color(0.0f, 0.95f, 1.0f), 0.4f), new GradientColorKey(corCyber, 1f) },
+            new GradientAlphaKey[] { new GradientAlphaKey(0.95f, 0f), new GradientAlphaKey(0.8f, 0.5f), new GradientAlphaKey(0f, 1f) }
         );
         colorOverLifetime.color = grad;
 
@@ -131,22 +132,15 @@ public class GerenciadorEfeitosJuice : MonoBehaviour
             renderer.material = materialParticulaGlow;
         }
 
-        // 2. Pulso de Luz
-        GameObject luzObj = new GameObject("Luz_Flash");
+        // 2. Pulso de Luz Cibernético (Sem som de arcade!)
+        GameObject luzObj = new GameObject("Luz_Flash_Cyber");
         luzObj.transform.position = posicao;
         Light luz = luzObj.AddComponent<Light>();
         luz.type = LightType.Point;
-        luz.color = main.startColor.color;
-        luz.range = 3.5f;
-        luz.intensity = 5.0f;
-        Destroy(luzObj, 0.25f);
-
-        // 3. Efeito Sonoro de Sucesso
-        if (m_AudioSource != null && m_SomColetaValida != null)
-        {
-            m_AudioSource.pitch = Random.Range(1.0f, 1.25f);
-            m_AudioSource.PlayOneShot(m_SomColetaValida, 0.7f);
-        }
+        luz.color = new Color(0.0f, 0.92f, 1.0f);
+        luz.range = 4.0f;
+        luz.intensity = 4.5f;
+        Destroy(luzObj, 0.28f);
 
         ps.Play();
         Destroy(burstObj, 1.0f);
@@ -189,8 +183,8 @@ public class GerenciadorEfeitosJuice : MonoBehaviour
         ps.Play();
         Destroy(stunObj, 0.8f);
 
-        // 2. Flash de Luz Vermelha de Alerta
-        GameObject luzObj = new GameObject("Luz_Alerta");
+        // 2. Flash de Luz Vermelha de Exceção do Reasoner (Sem som de arcade!)
+        GameObject luzObj = new GameObject("Luz_Alerta_Reasoner");
         luzObj.transform.position = posicao;
         Light luz = luzObj.AddComponent<Light>();
         luz.type = LightType.Point;
@@ -199,14 +193,7 @@ public class GerenciadorEfeitosJuice : MonoBehaviour
         luz.intensity = 7.0f;
         Destroy(luzObj, 0.3f);
 
-        // 3. Som de Alerta/Perigo
-        if (m_AudioSource != null && m_SomAlertaFantasma != null)
-        {
-            m_AudioSource.pitch = Random.Range(0.85f, 1.05f);
-            m_AudioSource.PlayOneShot(m_SomAlertaFantasma, 0.9f);
-        }
-
-        // 4. Tremor de Câmera (Screen Shake)
+        // 3. Tremor de Câmera (Screen Shake)
         if (Camera.main != null)
         {
             StartCoroutine(ExecutarTremorCamera(Camera.main.transform, forcaTremerCamera, duracaoTremerCamera));

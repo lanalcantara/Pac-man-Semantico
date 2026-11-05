@@ -119,15 +119,26 @@ public class GerenciadorInstancia : InstanciaSemanticaBase
         pontuacaoLogica += valorPontuacao;
         instanciasValidasRestantes = Mathf.Max(0, instanciasValidasRestantes - 1);
 
-        Debug.Log($"<color=#00FF66><b>[Pac-Man Semântico - GEMA VÁLIDA]</b></color> '{classeOntologica}' ({m_Id}) coletada com sucesso! " +
-                  $"Axioma DL: [{expressaoDL}]. +{valorPontuacao} pts. Total: <b>{pontuacaoLogica}</b> " +
-                  $"[Método: {(ehRaycast ? "Raycast Espacial" : "Toque Proximidade XR")}]");
+        Debug.Log($"<color=#00E5FF><b>[Interface OWL - NODO DE DADOS]</b></color> '{classeOntologica}' ({m_Id}) instanciado com sucesso via WebSocket! " +
+                  $"Axioma DL: [{expressaoDL}].");
 
-        EmitirFeedbackHaptico(interator, 0.45f, 0.15f);
+        RegistrarConsumoOntologico(m_Id, classeOntologica, ehValida, expressaoDL);
+        AtualizarHUDs(m_Id, FormatarNomeClasse(classeOntologica), valorPontuacao, expressaoDL, descricaoSemantica);
+
+        EmitirFeedbackHaptico(interator, 0.35f, 0.12f);
         NotificarInteracao(sucesso: true);
         CriarEfeitoVisual(sucesso: true);
 
-        Destroy(gameObject, 0.05f);
+        // Mantém o Nodo ancorado no espaço com colisor desativado para sustentar visualmente as arestas (LineRenderer)
+        Collider[] cols = GetComponentsInChildren<Collider>();
+        if (cols != null)
+        {
+            for (int i = 0; i < cols.Length; i++)
+            {
+                if (cols[i] != null) cols[i].enabled = false;
+            }
+        }
+        transform.localScale = transform.localScale * 0.88f;
     }
 
     protected override void AoDetectarViolacao(GameObject interator, bool ehRaycast)
@@ -137,10 +148,12 @@ public class GerenciadorInstancia : InstanciaSemanticaBase
 
         pontuacaoLogica += valorPontuacao;
 
-        Debug.LogWarning($"<color=#FF3344><b>[Pac-Man Semântico - OBSTÁCULO INVÁLIDO]</b></color> '{classeOntologica}' ({m_Id}) detectado! " +
-                         $"Violação DL: [{expressaoDL}]. Penalidade: {valorPontuacao} pts. Total: <b>{pontuacaoLogica}</b>.");
+        Debug.LogWarning($"<color=#FF3344><b>[Interface OWL - INCONSISTÊNCIA HERMIT]</b></color> '{classeOntologica}' ({m_Id}) detectada! " +
+                         $"Violação DL: [{expressaoDL}].");
 
-        EmitirFeedbackHaptico(interator, 0.85f, 0.35f);
+        RegistrarConsumoOntologico(m_Id, classeOntologica, false, expressaoDL);
+
+        EmitirFeedbackHaptico(interator, 0.75f, 0.25f);
         NotificarInteracao(sucesso: false);
         CriarEfeitoVisual(sucesso: false);
     }

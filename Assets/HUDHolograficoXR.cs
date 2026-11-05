@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -275,22 +275,20 @@ public class HUDHolograficoXR : MonoBehaviour
     }
 
     /// <summary>
-    /// Atualiza as métricas ontológicas, vidas e pontuação lógica no HUD.
+    /// Atualiza as métricas ontológicas (Axiomas Inseridos, Tamanho da ABox e Status do Reasoner) no HUD XR.
     /// </summary>
     public void AtualizarTextosHUD()
     {
-        int vidas = 3;
-        var ctrlJogador = FindFirstObjectByType<PacMan.Player.ControladorJogador>();
-        if (ctrlJogador != null) vidas = ctrlJogador.vidasRestantes;
-        else
-        {
-            var ctrlXR = FindFirstObjectByType<ControladorXRJogador>();
-            if (ctrlXR != null) vidas = ctrlXR.vidasRestantes;
-        }
+        var ws = PacMan.Network.ProtegeWebSocketBridge.Instance;
+        int axiomas = ws != null ? ws.AxiomsInsertedCount : InstanciaSemanticaBase.pontuacaoLogica;
+        bool consistente = ws == null || ws.ReasonerConsistent;
 
-        string coracoes = vidas > 0 ? new string('♥', vidas) : "0";
-        string scoreStr = $"Score: {InstanciaSemanticaBase.pontuacaoLogica} | Vidas: {coracoes}";
-        string restantesStr = $"Gemas Válidas: {InstanciaSemanticaBase.instanciasValidasRestantes}";
+        string statusReasoner = consistente
+            ? "<color=#00FF88>CONSISTENTE</color>"
+            : "<color=#FF2233>INCONSISTENTE</color>";
+
+        string scoreStr = $"Axiomas Inseridos: {axiomas} | Status do Reasoner: {statusReasoner}";
+        string restantesStr = $"Tamanho da ABox: {axiomas} (Restantes: {InstanciaSemanticaBase.instanciasValidasRestantes})";
 
         if (textoPontuacao != null) textoPontuacao.text = scoreStr;
         if (textoPontuacaoTMP != null) textoPontuacaoTMP.text = scoreStr;
@@ -302,15 +300,15 @@ public class HUDHolograficoXR : MonoBehaviour
     /// <summary>
     /// Exibe os axiomas formais e propriedades ontológicas da entidade focada pelo laser do VR.
     /// </summary>
-        public void AoFocarInstancia(IInstanciaSemantica inst)
+    public void AoFocarInstancia(IInstanciaSemantica inst)
     {
         if (inst == null) return;
 
-        string statusCor = inst.EhValida ? "<color=#00FF88>VÁLIDA (+10)</color>" : "<color=#FF3344>INVÁLIDA (-5)</color>";
+        string statusCor = inst.EhValida ? "<color=#00FF88>CONSISTENTE</color>" : "<color=#FF3344>INCONSISTENTE</color>";
         string nomeFormatado = InstanciaSemanticaBase.FormatarNomeClasse(inst.NomeClasse);
-        string classe = $"🔬 {nomeFormatado} [{statusCor}]";
+        string classe = $"Foco Atual: {nomeFormatado} [{statusCor}]";
         string formula = $"DL: {inst.ExpressaoDL}";
-        string desc = string.IsNullOrEmpty(inst.DescricaoSemantica) ? "Espécime ontológico em análise..." : inst.DescricaoSemantica;
+        string desc = string.IsNullOrEmpty(inst.DescricaoSemantica) ? "Entidade ontológica OWL em inspeção..." : inst.DescricaoSemantica;
 
         if (textoClasseFocada != null) textoClasseFocada.text = classe;
         if (textoClasseFocadaTMP != null) textoClasseFocadaTMP.text = classe;
@@ -324,7 +322,7 @@ public class HUDHolograficoXR : MonoBehaviour
 
     public void AoDesfocarInstancia(IInstanciaSemantica inst)
     {
-        string padrao = "🔬 Aponte o laser do comando para inspecionar parasitas";
+        string padrao = "Foco Atual: Aponte para inspecionar Nodos OWL";
         if (textoClasseFocada != null) textoClasseFocada.text = padrao;
         if (textoClasseFocadaTMP != null) textoClasseFocadaTMP.text = padrao;
         if (textoFormulaDL != null) textoFormulaDL.text = "";
@@ -337,9 +335,9 @@ public class HUDHolograficoXR : MonoBehaviour
     {
         if (inst != null)
         {
-            string status = sucesso ? $"<color=#00FF88>COLETADA (+{inst.ValorPontuacao})</color>" : $"<color=#FF3344>VIOLAÇÃO ({inst.ValorPontuacao})</color>";
+            string status = sucesso ? "<color=#00FF88>INSTANCIADO</color>" : "<color=#FF3344>EXCEÇÃO HERMIT</color>";
             string nomeFormatado = InstanciaSemanticaBase.FormatarNomeClasse(inst.NomeClasse);
-            string infoCaptura = $"Captura: {inst.Id} | {nomeFormatado} [{status}]";
+            string infoCaptura = $"Foco Atual: {nomeFormatado} ({inst.Id}) [{status}]";
             if (textoClasseFocada != null) textoClasseFocada.text = infoCaptura;
             if (textoClasseFocadaTMP != null) textoClasseFocadaTMP.text = infoCaptura;
             if (textoFormulaDL != null) textoFormulaDL.text = $"DL: {inst.ExpressaoDL}";

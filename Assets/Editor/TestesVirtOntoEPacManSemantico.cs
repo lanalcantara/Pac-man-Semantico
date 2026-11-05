@@ -205,17 +205,20 @@ public static class TestesVirtOntoEPacManSemantico
             Debug.Assert(grafo.GetNode("pacman_01") != null, "Nó pacman_01 não encontrado.");
             Debug.Assert(grafo.GetNode("ghost_blinky") != null, "Nó ghost_blinky não encontrado.");
 
-            // 2. Avaliação de regras SWRL: Patrol (distância grande)
+            // 2. Avaliação da FSM Reasoner Agent: Patrol quando CONSISTENTE
+            motor.reasonerConsistente = true;
             var estado1 = motor.AvaliarRegraEstadoFantasma("ghost_blinky", pacmanIsPowered: false, distancia: 5.0f);
-            Debug.Assert(estado1 == PacMan.Semantics.GameEntityState.Patrol, $"Esperado Patrol, obtido {estado1}");
+            Debug.Assert(estado1 == PacMan.Semantics.GameEntityState.Patrol, $"Esperado Patrol quando CONSISTENTE, obtido {estado1}");
 
-            // 3. Avaliação de regras SWRL: Aggressive (proximidade < 2m sem poder)
+            // 3. Avaliação da FSM Reasoner Agent: Aggressive (Chase) quando INCONSISTENTE (erro lógico HermiT)
+            motor.reasonerConsistente = false;
             var estado2 = motor.AvaliarRegraEstadoFantasma("ghost_blinky", pacmanIsPowered: false, distancia: 1.5f);
-            Debug.Assert(estado2 == PacMan.Semantics.GameEntityState.Aggressive, $"Esperado Aggressive, obtido {estado2}");
+            Debug.Assert(estado2 == PacMan.Semantics.GameEntityState.Aggressive, $"Esperado Aggressive quando INCONSISTENTE, obtido {estado2}");
 
-            // 4. Avaliação de regras SWRL: Vulnerable (proximidade < 3m sob efeito de Power Pellet)
-            var estado3 = motor.AvaliarRegraEstadoFantasma("ghost_blinky", pacmanIsPowered: true, distancia: 2.5f);
-            Debug.Assert(estado3 == PacMan.Semantics.GameEntityState.Vulnerable, $"Esperado Vulnerable, obtido {estado3}");
+            // 4. Retorno para Patrol após desfazer a ação inconsistente
+            motor.DesfazerAcaoInconsistente("Teste_Rollback");
+            var estado3 = motor.AvaliarRegraEstadoFantasma("ghost_blinky", pacmanIsPowered: false, distancia: 2.5f);
+            Debug.Assert(estado3 == PacMan.Semantics.GameEntityState.Patrol, $"Esperado Patrol após desfazer inconsistência, obtido {estado3}");
 
             UnityEngine.Object.DestroyImmediate(motorObj);
 
@@ -598,6 +601,11 @@ public static class TestesVirtOntoEPacManSemantico
             Material matLED = gen.CriarMaterialNeonLED(Color.cyan);
             Debug.Assert(matLED != null && matLED.HasProperty("_EmissionColor"), "Material LED deve possuir canal de emissão néon.");
 
+            Color corParasitas = gen.ObterCorTopologiaSuperclasse("Parasitas");
+            Color corHospedeiros = gen.ObterCorTopologiaSuperclasse("Hospedeiros");
+            Debug.Assert(corParasitas.r > 0.4f && corParasitas.b > 0.7f, "Superclasse 'Parasitas' deve possuir cor Roxa.");
+            Debug.Assert(corHospedeiros.b > 0.8f && corHospedeiros.r < 0.3f, "Superclasse 'Hospedeiros' deve possuir cor Azul.");
+
             gen.ConstruirLabirinto3D();
             Transform container = gen.transform.Find("Labirinto_Paredes_3D");
             Debug.Assert(container != null && container.childCount > 0, "Labirinto 3D deve conter paredes instanciadas.");
@@ -708,9 +716,10 @@ public static class TestesVirtOntoEPacManSemantico
             motor.alvoPacMan = playerObj.transform;
             motor.moverFantasmasDinamicamente = true;
             motor.distanciaAgressao = 45.0f;
+            motor.reasonerConsistente = false;
 
             var estadoInicial = motor.AvaliarRegraEstadoFantasma("ghost_01", false, 3.0f);
-            Debug.Assert(estadoInicial == PacMan.Semantics.GameEntityState.Aggressive, "Fantasma a 3m deve entrar em modo Agressivo de perseguição.");
+            Debug.Assert(estadoInicial == PacMan.Semantics.GameEntityState.Aggressive, "Fantasma deve entrar em modo Agressivo (Chase) quando Reasoner está INCONSISTENTE.");
 
             // 2. Valida Fuga Dinâmica e Captura das Gemas
             GameObject gemaObj = new GameObject("Gema_Fuga_Teste");

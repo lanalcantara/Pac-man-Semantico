@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 /// <summary>
 /// ============================================================================
@@ -48,8 +48,11 @@ public class GemaValidaSemantica : InstanciaSemanticaBase
         if (fuga != null) Destroy(fuga);
         if (m_CorDestaque == Color.green || m_CorDestaque == Color.clear)
         {
-            m_CorDestaque = new Color(0.1f, 1f, 0.45f);
+            m_CorDestaque = new Color(0.0f, 0.90f, 1.0f, 0.58f);
         }
+
+        // Garante que o MeshFilter seja um Cubo/Prisma (Nodo de Dados OWL) e material translúcido
+        GarantirGeometriaPrismaTranslucido();
 
         // Garante que TODOS os colisores sejam Triggers (isTrigger = true) para eliminar empurrão físico
         Collider[] todosColisores = GetComponentsInChildren<Collider>();
@@ -126,22 +129,22 @@ public class GemaValidaSemantica : InstanciaSemanticaBase
 
         string nomeClasseFormatado = FormatarNomeClasse(m_NomeClasse);
 
-        Debug.Log($"<color=#00FF66><b>[Pac-Man Semântico - GEMA VÁLIDA]</b></color> '{nomeClasseFormatado}' ({m_Id}) capturada! " +
-                  $"Axioma DL: [{m_ExpressaoDL}]. +{m_ValorPontuacao} pts. Total: <b>{pontuacaoLogica}</b> " +
-                  $"[Método: {(ehRaycast ? "Raycast Espacial" : "Toque Proximidade XR")}]");
+        Debug.Log($"<color=#00E5FF><b>[Interface OWL - NODO DE DADOS]</b></color> '{nomeClasseFormatado}' ({m_Id}) instanciado na ABox! " +
+                  $"Axioma DL: [{m_ExpressaoDL}].");
 
-        // 1. Registra a instância e a classe exata no sistema ontológico (Grafo VirtOnto)
-        RegistrarConsumoOntologico(m_Id, nomeClasseFormatado);
+        // 1. Envia a mensagem de instanciação via WebSocket (porta 8085) e registra no Grafo
+        RegistrarConsumoOntologico(m_Id, m_NomeClasse, m_EhValida, m_ExpressaoDL);
 
-        // 2. Atualiza o HUD em tempo real com a classe correta (ex: Ascaris lumbricoides ou Enterobius vermicularis)
+        // 2. Atualiza o HUD em tempo real com a classe em foco
         AtualizarHUDs(m_Id, nomeClasseFormatado, m_ValorPontuacao, m_ExpressaoDL, m_DescricaoSemantica);
 
-        // 3. Emite impulsos hápticos e efeitos visuais
-        EmitirFeedbackHaptico(interator, 0.45f, 0.15f);
+        // 3. Emite feedback visual cibernético e háptico (SEM som de arcade)
+        EmitirFeedbackHaptico(interator, 0.35f, 0.12f);
         NotificarInteracao(sucesso: true);
         CriarEfeitoVisual(sucesso: true);
 
-        // 4. Desativa e destrói IMEDIATAMENTE a gema, anulando qualquer empurrão físico residual
+        // 4. Em vez de destruir o Nodo como uma gema de arcade, mantém o Nodo ancorado no espaço
+        // com brilho de instância ativa para exibir visualmente as linhas do RelationBuilder (LineRenderer)
         Collider[] cols = GetComponentsInChildren<Collider>();
         if (cols != null)
         {
@@ -150,8 +153,28 @@ public class GemaValidaSemantica : InstanciaSemanticaBase
                 if (cols[i] != null) cols[i].enabled = false;
             }
         }
-        gameObject.SetActive(false);
-        Destroy(gameObject);
+        transform.localScale = transform.localScale * 0.88f;
+    }
+
+    private void GarantirGeometriaPrismaTranslucido()
+    {
+        MeshFilter[] mfs = GetComponentsInChildren<MeshFilter>();
+        if (mfs != null && mfs.Length > 0)
+        {
+            GameObject tempCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Mesh cubeMesh = tempCube.GetComponent<MeshFilter>().sharedMesh;
+            if (Application.isPlaying) Destroy(tempCube);
+            else DestroyImmediate(tempCube);
+
+            foreach (var mf in mfs)
+            {
+                if (mf != null && mf.gameObject.name.Contains("Nucleo"))
+                {
+                    mf.sharedMesh = cubeMesh;
+                    mf.transform.localRotation = Quaternion.Euler(35f, 45f, 0f);
+                }
+            }
+        }
     }
 
     protected override void AoDetectarViolacao(GameObject interator, bool ehRaycast)

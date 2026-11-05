@@ -86,8 +86,15 @@ public class PowerPelletIndividualSemantico : InstanciaSemanticaBase
             GerenciadorEfeitosJuice.Instancia.CriarExplosaoBrilhoColeta(transform.position, Color.cyan);
         }
 
-        gameObject.SetActive(false);
-        Destroy(gameObject);
+        Collider[] cols = GetComponentsInChildren<Collider>();
+        if (cols != null)
+        {
+            for (int i = 0; i < cols.Length; i++)
+            {
+                if (cols[i] != null) cols[i].enabled = false;
+            }
+        }
+        NotificarInteracao(sucesso: true);
     }
 
     protected override void AoDetectarViolacao(GameObject interator, bool ehRaycast) { }

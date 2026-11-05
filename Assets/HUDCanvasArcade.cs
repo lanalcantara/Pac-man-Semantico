@@ -1,16 +1,22 @@
 using System;
+using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using PacMan.Network;
 
 /// <summary>
 /// ============================================================================
-/// PAC-MAN SEMÂNTICO (Semantic Pac-Man) - HUD Arcade Canvas & Modal de PLAY
+/// INTERFACE ESPACIAL BIDIRECIONAL PARA ENGENHARIA DE ONTOLOGIAS OWL (Unity 6)
 /// ============================================================================
-/// 1. Canvas Scaler configurado para Scale With Screen Size (1920x1080).
-/// 2. EventSystem e GraphicRaycaster garantidos para cliques 100% responsivos.
-/// 3. Pausa Real: Time.timeScale = 0f ao iniciar; Time.timeScale = 1f ao clicar em PLAY.
-/// 4. Modal Inicial de PLAY amplo (850x480), tipografia legível e botão de 620x75.
-/// 5. HUD In-Game limpo no topo: Score, Vidas (ᗧ), Entidade Ativa e botão [ ✕ ].
+/// HUD Científico de Engenharia de Ontologias (utilizando TextMeshPro):
+/// 1. Substitui "Score" por "Axiomas Inseridos: [X]" / "Tamanho da ABox: [X]".
+/// 2. Substitui "Vidas" por "Status do Reasoner":
+///    - Padrão: "CONSISTENTE" (Verde #00FF88).
+///    - Erro (exception do HermiT): "INCONSISTENTE" (Vermelho #FF2233, piscando).
+/// 3. Substitui "Última Captura" por "Foco Atual: [Nome da Classe]".
+/// 4. Componente ScrollRect (Log/Terminal de Ações) para exibir feed em tempo real
+///    (ex: "[+] researcher_01 instanciou AscarisLumbricoides").
 /// ============================================================================
 /// </summary>
 public class HUDCanvasArcade : MonoBehaviour
@@ -23,31 +29,69 @@ public class HUDCanvasArcade : MonoBehaviour
     public CanvasScaler canvasScaler;
     public GraphicRaycaster graphicRaycaster;
 
-    [Header("Modal de Início (Play) Canvas")]
+    [Header("Modal de Início (Sessão de Engenharia OWL)")]
     public GameObject modalPlayCanvas;
     public Button botaoIniciarPlay;
-    public Text textoTituloPlay;
-    public Text textoSubtituloPlay;
-    public Text textoDescricaoPlay;
+    public TMP_Text textoTituloPlayTMP;
+    public TMP_Text textoSubtituloPlayTMP;
+    public TMP_Text textoDescricaoPlayTMP;
 
-    [Header("Painel Superior do HUD")]
+    [Header("Painel Superior do HUD (TextMeshPro)")]
     public GameObject painelHUD;
+    [Tooltip("Exibe 'Axiomas Inseridos: [X] | Tamanho da ABox: [X]'")]
+    public TMP_Text textoAxiomasABoxTMP;
+    [Tooltip("Exibe 'Status do Reasoner: CONSISTENTE (Verde)' ou 'INCONSISTENTE (Vermelho piscando)'")]
+    public TMP_Text textoStatusReasonerTMP;
+    [Tooltip("Exibe 'Foco Atual: [Nome da Classe]'")]
+    public TMP_Text textoFocoAtualTMP;
+
+    [Header("Terminal / Log de Ações (ScrollRect + TextMeshPro)")]
+    public GameObject painelTerminalLog;
+    public ScrollRect scrollRectTerminal;
+    public RectTransform conteudoScrollTerminal;
+    public TMP_Text textoLogTerminalTMP;
+
+    [Header("Compatibilidade Legacy UI (Opcional)")]
     public Text textoPontuacao;
     public Text textoVidas;
     public Text textoEntidadeOntologica;
 
-    [Header("Estado Visual")]
-    public int pontuacaoAtual = 0;
-    public int vidasRestantes = 3;
-    public string entidadeAtual = "Aguardando item...";
+    [Header("Estado Semântico e do Reasoner (HermiT)")]
+    public int axiomasInseridos = 0;
+    public bool reasonerConsistente = true;
+    public string detalheErroReasoner = "";
+    public string focoAtualClasse = "Nenhuma classe em foco";
     public bool painelAberto = true;
+
+    // Propriedades de compatibilidade com scripts existentes
+    public int pontuacaoAtual
+    {
+        get => axiomasInseridos;
+        set { axiomasInseridos = value; AtualizarDisplay(); }
+    }
+
+    public int vidasRestantes
+    {
+        get => reasonerConsistente ? 3 : 0;
+        set { /* Substituído pelo Status do Reasoner */ }
+    }
+
+    public string entidadeAtual
+    {
+        get => focoAtualClasse;
+        set { focoAtualClasse = value; AtualizarDisplay(); }
+    }
+
+    private readonly List<string> m_LinhasLog = new List<string>();
+    private const int MAX_LINHAS_LOG = 60;
+    private float m_TimerPiscaInconsistente = 0f;
+    private bool m_EstadoVisivelPisca = true;
 
     private void Awake()
     {
         s_Instancia = this;
         GarantirEventSystem();
         GarantirCanvasEComponentes();
-        // PAUSA REAL: Jogo inicia totalmente paralisado enquanto o modal de Play está aberto
         Time.timeScale = 0f;
     }
 
@@ -55,26 +99,77 @@ public class HUDCanvasArcade : MonoBehaviour
     {
         InstanciaSemanticaBase.OnInstanciaInteragida += AoInteragirInstancia;
         InstanciaSemanticaBase.OnInstanciaFocada += AoFocarInstancia;
-        PacMan.Player.ControladorJogador.OnVidasAlteradas += AoAlterarVidas;
+        InstanciaSemanticaBase.OnInstanciaDesfocada += AoDesfocarInstancia;
+
+        if (ProtegeWebSocketBridge.Instance != null)
+        {
+            InscreverEventosWebSocket(ProtegeWebSocketBridge.Instance);
+        }
     }
 
     private void OnDisable()
     {
         InstanciaSemanticaBase.OnInstanciaInteragida -= AoInteragirInstancia;
         InstanciaSemanticaBase.OnInstanciaFocada -= AoFocarInstancia;
-        PacMan.Player.ControladorJogador.OnVidasAlteradas -= AoAlterarVidas;
+        InstanciaSemanticaBase.OnInstanciaDesfocada -= AoDesfocarInstancia;
+
+        if (ProtegeWebSocketBridge.Instance != null)
+        {
+            DesinscreverEventosWebSocket(ProtegeWebSocketBridge.Instance);
+        }
     }
 
     private void Start()
     {
         Time.timeScale = 0f;
+
+        var ws = ProtegeWebSocketBridge.Instance ?? FindFirstObjectByType<ProtegeWebSocketBridge>();
+        if (ws != null)
+        {
+            DesinscreverEventosWebSocket(ws);
+            InscreverEventosWebSocket(ws);
+        }
+
+        if (m_LinhasLog.Count == 0)
+        {
+            AdicionarLinhaLog("[SYS] Interface Espacial Bidirecional OWL inicializada.");
+            AdicionarLinhaLog("[WS:8085] Aguardando sincronização com plugin Protégé (HermiT Reasoner)...");
+        }
+
         AtualizarDisplay();
     }
 
-    /// <summary>
-    /// Garante que exista um EventSystem na cena com StandaloneInputModule ou InputSystemUIInputModule,
-    /// permitindo que cliques de mouse, touch ou teclado funcionem imediatamente sobre os botões do Canvas.
-    /// </summary>
+    private void Update()
+    {
+        // Efeito de alerta piscante quando o HermiT Reasoner detecta INCONSISTÊNCIA
+        if (!reasonerConsistente && textoStatusReasonerTMP != null)
+        {
+            m_TimerPiscaInconsistente += Time.unscaledDeltaTime * 5.0f;
+            bool visivel = Mathf.Sin(m_TimerPiscaInconsistente * Mathf.PI) >= 0f;
+            if (visivel != m_EstadoVisivelPisca)
+            {
+                m_EstadoVisivelPisca = visivel;
+                textoStatusReasonerTMP.text = m_EstadoVisivelPisca
+                    ? "Status do Reasoner: <color=#FF2233><b>⚠ INCONSISTENTE</b></color>"
+                    : "Status do Reasoner: <color=#660011><b>⚠ INCONSISTENTE</b></color>";
+            }
+        }
+    }
+
+    private void InscreverEventosWebSocket(ProtegeWebSocketBridge ws)
+    {
+        ws.OnActionLogged += AdicionarLinhaLog;
+        ws.OnReasonerStatusChanged += DefinirStatusReasoner;
+        ws.OnAxiomCountChanged += DefinirAxiomasInseridos;
+    }
+
+    private void DesinscreverEventosWebSocket(ProtegeWebSocketBridge ws)
+    {
+        ws.OnActionLogged -= AdicionarLinhaLog;
+        ws.OnReasonerStatusChanged -= DefinirStatusReasoner;
+        ws.OnAxiomCountChanged -= DefinirAxiomasInseridos;
+    }
+
     public static void GarantirEventSystem()
     {
         if (FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
@@ -82,7 +177,6 @@ public class HUDCanvasArcade : MonoBehaviour
             GameObject esObj = new GameObject("EventSystem");
             esObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
 
-            // Suporte compatível tanto para o novo Input System quanto para o Legacy Standalone
             Type inputSystemModule = Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
             if (inputSystemModule != null)
             {
@@ -92,22 +186,19 @@ public class HUDCanvasArcade : MonoBehaviour
             {
                 esObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
             }
-
-            Debug.Log("<color=#00FF99><b>[EventSystem]</b></color> Objeto EventSystem criado dinamicamente na cena.");
         }
-    }
-
-    private void AoAlterarVidas(int novasVidas)
-    {
-        vidasRestantes = Mathf.Max(0, novasVidas);
-        AtualizarDisplay();
     }
 
     private void AoFocarInstancia(IInstanciaSemantica inst)
     {
         if (inst == null) return;
-        string nomeFormatado = InstanciaSemanticaBase.FormatarNomeClasse(inst.NomeClasse);
-        entidadeAtual = $"{nomeFormatado}";
+        focoAtualClasse = InstanciaSemanticaBase.FormatarNomeClasse(inst.NomeClasse);
+        AtualizarDisplay();
+    }
+
+    private void AoDesfocarInstancia(IInstanciaSemantica inst)
+    {
+        // Mantém o último foco ou exibe estado neutro
         AtualizarDisplay();
     }
 
@@ -115,58 +206,100 @@ public class HUDCanvasArcade : MonoBehaviour
     {
         if (inst != null)
         {
-            string nomeFormatado = InstanciaSemanticaBase.FormatarNomeClasse(inst.NomeClasse);
-            entidadeAtual = $"{nomeFormatado}";
-            pontuacaoAtual += inst.ValorPontuacao;
+            string nomeClasse = InstanciaSemanticaBase.FormatarNomeClasse(inst.NomeClasse);
+            focoAtualClasse = nomeClasse;
+
+            // Se o ProtegeWebSocketBridge não estiver ativo na cena para incrementar por evento, atualiza localmente
+            if (ProtegeWebSocketBridge.Instance == null)
+            {
+                axiomasInseridos++;
+                AdicionarLinhaLog($"[+] researcher_01 instanciou {inst.NomeClasse}");
+                if (!inst.EhValida)
+                {
+                    DefinirStatusReasoner(false, $"HermiT: Violação em {inst.NomeClasse}");
+                }
+            }
         }
         AtualizarDisplay();
     }
 
-    public void DefinirPontuacao(int pontos)
+    public void DefinirAxiomasInseridos(int quantidade)
     {
-        pontuacaoAtual = pontos;
+        axiomasInseridos = Mathf.Max(0, quantidade);
         AtualizarDisplay();
     }
 
-    public void DefinirVidas(int vidas)
+    public void DefinirStatusReasoner(bool consistente, string detalhe = "")
     {
-        vidasRestantes = Mathf.Max(0, vidas);
+        reasonerConsistente = consistente;
+        detalheErroReasoner = detalhe;
+        m_TimerPiscaInconsistente = 0f;
+        m_EstadoVisivelPisca = true;
         AtualizarDisplay();
     }
 
-    public void DefinirEntidade(string nomeEntidade)
+    public void DefinirFocoAtual(string nomeClasse)
     {
-        if (!string.IsNullOrEmpty(nomeEntidade))
+        if (!string.IsNullOrEmpty(nomeClasse))
         {
-            entidadeAtual = nomeEntidade;
+            focoAtualClasse = nomeClasse;
             AtualizarDisplay();
         }
     }
 
+    /// <summary>
+    /// Adiciona uma entrada ao ScrollRect (Log/Terminal de Ações) no formato científico OWL.
+    /// Exemplo: "[+] researcher_01 instanciou AscarisLumbricoides"
+    /// </summary>
+    public void AdicionarLinhaLog(string mensagem)
+    {
+        if (string.IsNullOrEmpty(mensagem)) return;
+
+        m_LinhasLog.Add(mensagem);
+        if (m_LinhasLog.Count > MAX_LINHAS_LOG)
+        {
+            m_LinhasLog.RemoveAt(0);
+        }
+
+        if (textoLogTerminalTMP != null)
+        {
+            textoLogTerminalTMP.text = string.Join("\n", m_LinhasLog);
+        }
+
+        if (conteudoScrollTerminal != null)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(conteudoScrollTerminal);
+        }
+
+        if (scrollRectTerminal != null)
+        {
+            Canvas.ForceUpdateCanvases();
+            scrollRectTerminal.verticalNormalizedPosition = 0f;
+        }
+    }
+
+    // Métodos legados de compatibilidade
+    public void DefinirPontuacao(int pontos) => DefinirAxiomasInseridos(pontos);
+    public void DefinirVidas(int vidas) => DefinirStatusReasoner(vidas > 0);
+    public void DefinirEntidade(string nomeEntidade) => DefinirFocoAtual(nomeEntidade);
+
     public void AlternarVisibilidadePainel()
     {
         painelAberto = !painelAberto;
-        if (painelHUD != null)
-        {
-            painelHUD.SetActive(painelAberto);
-        }
+        if (painelHUD != null) painelHUD.SetActive(painelAberto);
+        if (painelTerminalLog != null) painelTerminalLog.SetActive(painelAberto);
     }
 
     public void DefinirModalPlayVisivel(bool visivel)
     {
-        if (modalPlayCanvas != null)
-        {
-            modalPlayCanvas.SetActive(visivel);
-        }
+        if (modalPlayCanvas != null) modalPlayCanvas.SetActive(visivel);
     }
 
     public void DefinirPainelVisivel(bool visivel)
     {
         painelAberto = visivel;
-        if (painelHUD != null)
-        {
-            painelHUD.SetActive(visivel);
-        }
+        if (painelHUD != null) painelHUD.SetActive(visivel);
+        if (painelTerminalLog != null) painelTerminalLog.SetActive(visivel);
     }
 
     public bool TemModalPlayAtivo()
@@ -174,10 +307,6 @@ public class HUDCanvasArcade : MonoBehaviour
         return modalPlayCanvas != null && modalPlayCanvas.activeSelf;
     }
 
-    /// <summary>
-    /// Ação do Clique: O botão verde [ INICIAR JOGO (PLAY) ] desativa o modal inicial
-    /// e devolve o tempo ao normal (Time.timeScale = 1f).
-    /// </summary>
     public void AoClicarIniciarPlay()
     {
         DefinirModalPlayVisivel(false);
@@ -189,43 +318,33 @@ public class HUDCanvasArcade : MonoBehaviour
         {
             ctrl.IniciarJogoPlay();
         }
-        Debug.Log("<color=#00FF99><b>[PLAY]</b></color> Jogo destravado! Time.timeScale = 1.0f.");
+        AdicionarLinhaLog("[+] Sessão de Engenharia Espacial OWL iniciada.");
     }
 
     public void AtualizarDisplay()
     {
-        if (textoPontuacao != null)
-        {
-            textoPontuacao.text = $"SCORE: <color=#FFD700>{pontuacaoAtual:D5}</color>";
-        }
+        string txtAxiomas = $"Axiomas Inseridos: <color=#00E5FF><b>{axiomasInseridos}</b></color> <color=#64748B>|</color> Tamanho da ABox: <color=#00E5FF><b>{axiomasInseridos}</b></color>";
+        string txtReasoner = reasonerConsistente
+            ? "Status do Reasoner: <color=#00FF88><b>CONSISTENTE</b></color>"
+            : "Status do Reasoner: <color=#FF2233><b>⚠ INCONSISTENTE</b></color>";
+        string txtFoco = $"Foco Atual: <color=#38BDF8><b>{focoAtualClasse}</b></color>";
 
-        if (textoVidas != null)
-        {
-            string icones = "";
-            for (int i = 0; i < vidasRestantes; i++)
-            {
-                icones += "<color=#FFEB04>ᗧ</color> ";
-            }
-            if (vidasRestantes <= 0) icones = "<color=#FF3344>ZERO</color>";
-            textoVidas.text = $"VIDAS: {icones}";
-        }
+        if (textoAxiomasABoxTMP != null) textoAxiomasABoxTMP.text = txtAxiomas;
+        if (textoStatusReasonerTMP != null) textoStatusReasonerTMP.text = txtReasoner;
+        if (textoFocoAtualTMP != null) textoFocoAtualTMP.text = txtFoco;
 
-        if (textoEntidadeOntologica != null)
-        {
-            textoEntidadeOntologica.text = $"ENTIDADE ATIVA: <color=#00E5FF>{entidadeAtual}</color>";
-        }
+        // Sincroniza campos legados se existirem
+        if (textoPontuacao != null) textoPontuacao.text = txtAxiomas;
+        if (textoVidas != null) textoVidas.text = txtReasoner;
+        if (textoEntidadeOntologica != null) textoEntidadeOntologica.text = txtFoco;
     }
 
     /// <summary>
-    /// Configura o Canvas com Scale With Screen Size (1920x1080), GraphicRaycaster, Modal de PLAY amplo e HUD limpo.
+    /// Constrói a interface científica usando TextMeshProUGUI e ScrollRect para o Log/Terminal de Ações.
     /// </summary>
     private void GarantirCanvasEComponentes()
     {
-        if (canvasPrincipal == null)
-        {
-            canvasPrincipal = GetComponent<Canvas>();
-        }
-
+        if (canvasPrincipal == null) canvasPrincipal = GetComponent<Canvas>();
         if (canvasPrincipal == null)
         {
             canvasPrincipal = gameObject.AddComponent<Canvas>();
@@ -241,10 +360,8 @@ public class HUDCanvasArcade : MonoBehaviour
         graphicRaycaster = GetComponent<GraphicRaycaster>() ?? gameObject.AddComponent<GraphicRaycaster>();
         graphicRaycaster.enabled = true;
 
-        Font arcadeFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
-
         // =====================================================================
-        // 1. MODAL DE PLAY AMPLO (CENTRALIZADO, 850x480, FONTES GRANDES E BOTÃO CLICÁVEL)
+        // 1. MODAL DE INÍCIO (INTERFACE ESPACIAL BIDIRECIONAL OWL)
         // =====================================================================
         Transform modalTr = transform.Find("Modal_Play_Canvas");
         if (modalTr == null)
@@ -256,71 +373,65 @@ public class HUDCanvasArcade : MonoBehaviour
             rtModal.anchorMax = new Vector2(0.5f, 0.5f);
             rtModal.pivot = new Vector2(0.5f, 0.5f);
             rtModal.anchoredPosition = Vector2.zero;
-            rtModal.sizeDelta = new Vector2(850f, 480f);
+            rtModal.sizeDelta = new Vector2(880f, 480f);
 
             Image imgModal = modalPlayCanvas.AddComponent<Image>();
-            imgModal.color = new Color(0.02f, 0.05f, 0.16f, 0.96f);
+            imgModal.color = new Color(0.03f, 0.06f, 0.14f, 0.96f);
 
-            // Título Principal
-            GameObject tTitleObj = new GameObject("Texto_Titulo");
+            // Título TMP
+            GameObject tTitleObj = new GameObject("Texto_Titulo_TMP");
             tTitleObj.transform.SetParent(modalPlayCanvas.transform, false);
             RectTransform rtTitle = tTitleObj.AddComponent<RectTransform>();
             rtTitle.anchorMin = new Vector2(0.5f, 1f);
             rtTitle.anchorMax = new Vector2(0.5f, 1f);
             rtTitle.pivot = new Vector2(0.5f, 1f);
             rtTitle.anchoredPosition = new Vector2(0f, -32f);
-            rtTitle.sizeDelta = new Vector2(800f, 50f);
+            rtTitle.sizeDelta = new Vector2(820f, 50f);
 
-            textoTituloPlay = tTitleObj.AddComponent<Text>();
-            textoTituloPlay.font = arcadeFont;
-            textoTituloPlay.fontSize = 32;
-            textoTituloPlay.fontStyle = FontStyle.Bold;
-            textoTituloPlay.text = "🕹️  PAC-MAN SEMÂNTICO (CIn-UFPE)";
-            textoTituloPlay.color = new Color(1.0f, 0.88f, 0.0f);
-            textoTituloPlay.alignment = TextAnchor.MiddleCenter;
+            textoTituloPlayTMP = tTitleObj.AddComponent<TextMeshProUGUI>();
+            textoTituloPlayTMP.fontSize = 28;
+            textoTituloPlayTMP.fontStyle = FontStyles.Bold;
+            textoTituloPlayTMP.text = "INTERFACE ESPACIAL BIDIRECIONAL PARA ENGENHARIA OWL";
+            textoTituloPlayTMP.color = new Color(0.0f, 0.90f, 1.0f);
+            textoTituloPlayTMP.alignment = TextAlignmentOptions.Center;
 
-            // Subtítulo
-            GameObject tSubObj = new GameObject("Texto_Subtitulo");
+            // Subtítulo TMP
+            GameObject tSubObj = new GameObject("Texto_Subtitulo_TMP");
             tSubObj.transform.SetParent(modalPlayCanvas.transform, false);
             RectTransform rtSub = tSubObj.AddComponent<RectTransform>();
             rtSub.anchorMin = new Vector2(0.5f, 1f);
             rtSub.anchorMax = new Vector2(0.5f, 1f);
             rtSub.pivot = new Vector2(0.5f, 1f);
             rtSub.anchoredPosition = new Vector2(0f, -86f);
-            rtSub.sizeDelta = new Vector2(800f, 34f);
+            rtSub.sizeDelta = new Vector2(820f, 34f);
 
-            textoSubtituloPlay = tSubObj.AddComponent<Text>();
-            textoSubtituloPlay.font = arcadeFont;
-            textoSubtituloPlay.fontSize = 20;
-            textoSubtituloPlay.fontStyle = FontStyle.Bold;
-            textoSubtituloPlay.text = "Ontologia Parasitologia • Raciocínio DL (Protégé / OWL)";
-            textoSubtituloPlay.color = new Color(0.22f, 0.74f, 0.97f);
-            textoSubtituloPlay.alignment = TextAnchor.MiddleCenter;
+            textoSubtituloPlayTMP = tSubObj.AddComponent<TextMeshProUGUI>();
+            textoSubtituloPlayTMP.fontSize = 18;
+            textoSubtituloPlayTMP.text = "Protégé OSGi WebSocket (Porta 8085) • Reasoner HermiT • ALCQ(D)";
+            textoSubtituloPlayTMP.color = new Color(0.58f, 0.64f, 0.72f);
+            textoSubtituloPlayTMP.alignment = TextAlignmentOptions.Center;
 
-            // Descrição e Instruções
-            GameObject tDescObj = new GameObject("Texto_Descricao");
+            // Descrição TMP
+            GameObject tDescObj = new GameObject("Texto_Descricao_TMP");
             tDescObj.transform.SetParent(modalPlayCanvas.transform, false);
             RectTransform rtDesc = tDescObj.AddComponent<RectTransform>();
             rtDesc.anchorMin = new Vector2(0.5f, 1f);
             rtDesc.anchorMax = new Vector2(0.5f, 1f);
             rtDesc.pivot = new Vector2(0.5f, 1f);
-            rtDesc.anchoredPosition = new Vector2(0f, -145f);
-            rtDesc.sizeDelta = new Vector2(760f, 180f);
+            rtDesc.anchoredPosition = new Vector2(0f, -140f);
+            rtDesc.sizeDelta = new Vector2(780f, 190f);
 
-            textoDescricaoPlay = tDescObj.AddComponent<Text>();
-            textoDescricaoPlay.font = arcadeFont;
-            textoDescricaoPlay.fontSize = 17;
-            textoDescricaoPlay.lineSpacing = 1.35f;
-            textoDescricaoPlay.supportRichText = true;
-            textoDescricaoPlay.text = @"• Devore as <color=#FFFF00><b>Gemas Ontológicas (Classes)</b></color> navegando pelo labirinto.
-• Cuidado com os <color=#FF4444><b>4 Fantasmas</b></color> que partem da gaiola central!
-• Colete as <color=#FF2255><b>Cerejas</b></color> e <color=#FFD700><b>Power Pellets</b></color> para virar o jogo.
+            textoDescricaoPlayTMP = tDescObj.AddComponent<TextMeshProUGUI>();
+            textoDescricaoPlayTMP.fontSize = 16;
+            textoDescricaoPlayTMP.text =
+                "• Interaja com os <color=#00E5FF><b>Nodos de Dados (Cubos/Prismas)</b></color> para instanciar indivíduos na ABox.\n" +
+                "• Conecte Nodos A e B para asserir <color=#A855F7><b>Object Properties (ex: has_host)</b></color> via WebSocket.\n" +
+                "• Monitore o <color=#00FF88><b>Status do Reasoner (HermiT)</b></color> e os Agentes de Inferência.\n\n" +
+                "<color=#94A3B8>Navegação: WASD / Setas • C: Alternar Câmera • H: Alternar HUD • Z: Desfazer Inconsistência</color>";
+            textoDescricaoPlayTMP.color = new Color(0.95f, 0.96f, 0.98f);
+            textoDescricaoPlayTMP.alignment = TextAlignmentOptions.Center;
 
-<color=#94A3B8>Controles: Setas / WASD • C: Alternar Câmera • H: Ocultar HUD</color>";
-            textoDescricaoPlay.color = new Color(0.95f, 0.96f, 0.98f);
-            textoDescricaoPlay.alignment = TextAnchor.MiddleCenter;
-
-            // Botão PLAY
+            // Botão Iniciar Sessão
             GameObject btnPlayObj = new GameObject("Botao_Iniciar_Play");
             btnPlayObj.transform.SetParent(modalPlayCanvas.transform, false);
             RectTransform rtBtn = btnPlayObj.AddComponent<RectTransform>();
@@ -328,33 +439,27 @@ public class HUDCanvasArcade : MonoBehaviour
             rtBtn.anchorMax = new Vector2(0.5f, 0f);
             rtBtn.pivot = new Vector2(0.5f, 0f);
             rtBtn.anchoredPosition = new Vector2(0f, 38f);
-            rtBtn.sizeDelta = new Vector2(620f, 75f);
+            rtBtn.sizeDelta = new Vector2(620f, 70f);
 
             Image imgBtn = btnPlayObj.AddComponent<Image>();
-            imgBtn.color = new Color(0.06f, 0.73f, 0.51f); // Esmeralda vibrante
+            imgBtn.color = new Color(0.05f, 0.65f, 0.55f);
 
             botaoIniciarPlay = btnPlayObj.AddComponent<Button>();
-            ColorBlock cb = botaoIniciarPlay.colors;
-            cb.normalColor = new Color(0.06f, 0.73f, 0.51f);
-            cb.highlightedColor = new Color(0.20f, 0.83f, 0.60f);
-            cb.pressedColor = new Color(0.04f, 0.55f, 0.38f);
-            botaoIniciarPlay.colors = cb;
             botaoIniciarPlay.onClick.AddListener(AoClicarIniciarPlay);
 
-            GameObject txtBtnObj = new GameObject("Text");
+            GameObject txtBtnObj = new GameObject("Text_TMP");
             txtBtnObj.transform.SetParent(btnPlayObj.transform, false);
             RectTransform rtTxtBtn = txtBtnObj.AddComponent<RectTransform>();
             rtTxtBtn.anchorMin = Vector2.zero;
             rtTxtBtn.anchorMax = Vector2.one;
             rtTxtBtn.sizeDelta = Vector2.zero;
 
-            Text txtBtn = txtBtnObj.AddComponent<Text>();
-            txtBtn.font = arcadeFont;
-            txtBtn.fontSize = 24;
-            txtBtn.fontStyle = FontStyle.Bold;
-            txtBtn.text = "▶   I N I C I A R   J O G O   ( P L A Y )";
+            TextMeshProUGUI txtBtn = txtBtnObj.AddComponent<TextMeshProUGUI>();
+            txtBtn.fontSize = 22;
+            txtBtn.fontStyle = FontStyles.Bold;
+            txtBtn.text = "INICIAR AMBIENTE DE ENGENHARIA OWL";
             txtBtn.color = Color.white;
-            txtBtn.alignment = TextAnchor.MiddleCenter;
+            txtBtn.alignment = TextAlignmentOptions.Center;
         }
         else
         {
@@ -362,92 +467,86 @@ public class HUDCanvasArcade : MonoBehaviour
         }
 
         // =====================================================================
-        // 2. PAINEL SUPERIOR COMPACTO (HUD IN-GAME)
+        // 2. BARRA SUPERIOR CIENTÍFICA (AXIOMAS / FOCO ATUAL / STATUS DO REASONER)
         // =====================================================================
-        Transform painelTr = transform.Find("Painel_Arcade_HUD");
+        Transform painelTr = transform.Find("Painel_OWL_HUD");
         if (painelTr == null)
         {
-            painelHUD = new GameObject("Painel_Arcade_HUD");
+            painelHUD = new GameObject("Painel_OWL_HUD");
             painelHUD.transform.SetParent(transform, false);
             RectTransform rt = painelHUD.AddComponent<RectTransform>();
             rt.anchorMin = new Vector2(0f, 1f);
             rt.anchorMax = new Vector2(1f, 1f);
             rt.pivot = new Vector2(0.5f, 1f);
-            rt.anchoredPosition = new Vector2(0f, 0f);
-            rt.sizeDelta = new Vector2(0f, 52f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = new Vector2(0f, 56f);
 
             Image img = painelHUD.AddComponent<Image>();
-            img.color = new Color(0.02f, 0.05f, 0.12f, 0.88f);
+            img.color = new Color(0.02f, 0.05f, 0.12f, 0.92f);
         }
         else
         {
             painelHUD = painelTr.gameObject;
         }
 
-        // Texto de Pontuação (Score) - Superior Esquerdo
-        if (textoPontuacao == null)
+        // 2.1 Esquerda: Axiomas Inseridos / Tamanho da ABox
+        if (textoAxiomasABoxTMP == null)
         {
-            Transform tTr = painelHUD.transform.Find("Texto_Score");
-            GameObject tObj = tTr != null ? tTr.gameObject : new GameObject("Texto_Score");
+            Transform tTr = painelHUD.transform.Find("Texto_AxiomasABox_TMP");
+            GameObject tObj = tTr != null ? tTr.gameObject : new GameObject("Texto_AxiomasABox_TMP");
             tObj.transform.SetParent(painelHUD.transform, false);
             RectTransform rt = tObj.GetComponent<RectTransform>() ?? tObj.AddComponent<RectTransform>();
             rt.anchorMin = new Vector2(0f, 0.5f);
             rt.anchorMax = new Vector2(0f, 0.5f);
             rt.pivot = new Vector2(0f, 0.5f);
-            rt.anchoredPosition = new Vector2(30f, 0f);
-            rt.sizeDelta = new Vector2(240f, 40f);
+            rt.anchoredPosition = new Vector2(28f, 0f);
+            rt.sizeDelta = new Vector2(560f, 44f);
 
-            textoPontuacao = tObj.GetComponent<Text>() ?? tObj.AddComponent<Text>();
-            textoPontuacao.font = arcadeFont;
-            textoPontuacao.fontSize = 15;
-            textoPontuacao.fontStyle = FontStyle.Bold;
-            textoPontuacao.alignment = TextAnchor.MiddleLeft;
-            textoPontuacao.supportRichText = true;
+            textoAxiomasABoxTMP = tObj.GetComponent<TextMeshProUGUI>() ?? tObj.AddComponent<TextMeshProUGUI>();
+            textoAxiomasABoxTMP.fontSize = 18;
+            textoAxiomasABoxTMP.alignment = TextAlignmentOptions.MidlineLeft;
+            textoAxiomasABoxTMP.richText = true;
         }
 
-        // Texto de Entidade Ontológica - Centro
-        if (textoEntidadeOntologica == null)
+        // 2.2 Centro: Foco Atual: [Nome da Classe]
+        if (textoFocoAtualTMP == null)
         {
-            Transform tTr = painelHUD.transform.Find("Texto_EntidadeOntologica");
-            GameObject tObj = tTr != null ? tTr.gameObject : new GameObject("Texto_EntidadeOntologica");
+            Transform tTr = painelHUD.transform.Find("Texto_FocoAtual_TMP");
+            GameObject tObj = tTr != null ? tTr.gameObject : new GameObject("Texto_FocoAtual_TMP");
             tObj.transform.SetParent(painelHUD.transform, false);
             RectTransform rt = tObj.GetComponent<RectTransform>() ?? tObj.AddComponent<RectTransform>();
             rt.anchorMin = new Vector2(0.5f, 0.5f);
             rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.anchoredPosition = new Vector2(0f, 0f);
-            rt.sizeDelta = new Vector2(500f, 40f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = new Vector2(580f, 44f);
 
-            textoEntidadeOntologica = tObj.GetComponent<Text>() ?? tObj.AddComponent<Text>();
-            textoEntidadeOntologica.font = arcadeFont;
-            textoEntidadeOntologica.fontSize = 14;
-            textoEntidadeOntologica.fontStyle = FontStyle.Bold;
-            textoEntidadeOntologica.alignment = TextAnchor.MiddleCenter;
-            textoEntidadeOntologica.supportRichText = true;
+            textoFocoAtualTMP = tObj.GetComponent<TextMeshProUGUI>() ?? tObj.AddComponent<TextMeshProUGUI>();
+            textoFocoAtualTMP.fontSize = 18;
+            textoFocoAtualTMP.alignment = TextAlignmentOptions.Center;
+            textoFocoAtualTMP.richText = true;
         }
 
-        // Texto de Vidas - Direita
-        if (textoVidas == null)
+        // 2.3 Direita: Status do Reasoner (CONSISTENTE / INCONSISTENTE)
+        if (textoStatusReasonerTMP == null)
         {
-            Transform tTr = painelHUD.transform.Find("Texto_Vidas");
-            GameObject tObj = tTr != null ? tTr.gameObject : new GameObject("Texto_Vidas");
+            Transform tTr = painelHUD.transform.Find("Texto_StatusReasoner_TMP");
+            GameObject tObj = tTr != null ? tTr.gameObject : new GameObject("Texto_StatusReasoner_TMP");
             tObj.transform.SetParent(painelHUD.transform, false);
             RectTransform rt = tObj.GetComponent<RectTransform>() ?? tObj.AddComponent<RectTransform>();
             rt.anchorMin = new Vector2(1f, 0.5f);
             rt.anchorMax = new Vector2(1f, 0.5f);
             rt.pivot = new Vector2(1f, 0.5f);
-            rt.anchoredPosition = new Vector2(-75f, 0f);
-            rt.sizeDelta = new Vector2(180f, 40f);
+            rt.anchoredPosition = new Vector2(-65f, 0f);
+            rt.sizeDelta = new Vector2(500f, 44f);
 
-            textoVidas = tObj.GetComponent<Text>() ?? tObj.AddComponent<Text>();
-            textoVidas.font = arcadeFont;
-            textoVidas.fontSize = 15;
-            textoVidas.fontStyle = FontStyle.Bold;
-            textoVidas.alignment = TextAnchor.MiddleRight;
-            textoVidas.supportRichText = true;
+            textoStatusReasonerTMP = tObj.GetComponent<TextMeshProUGUI>() ?? tObj.AddComponent<TextMeshProUGUI>();
+            textoStatusReasonerTMP.fontSize = 18;
+            textoStatusReasonerTMP.alignment = TextAlignmentOptions.MidlineRight;
+            textoStatusReasonerTMP.richText = true;
         }
 
-        // Botão [ X ] de Fechar HUD
+        // Botão [ X ] de Ocultar Painel
         Transform btnTr = painelHUD.transform.Find("Botao_Fechar");
         if (btnTr == null)
         {
@@ -457,8 +556,8 @@ public class HUDCanvasArcade : MonoBehaviour
             rt.anchorMin = new Vector2(1f, 0.5f);
             rt.anchorMax = new Vector2(1f, 0.5f);
             rt.pivot = new Vector2(1f, 0.5f);
-            rt.anchoredPosition = new Vector2(-15f, 0f);
-            rt.sizeDelta = new Vector2(28f, 26f);
+            rt.anchoredPosition = new Vector2(-18f, 0f);
+            rt.sizeDelta = new Vector2(30f, 28f);
 
             Image img = btnObj.AddComponent<Image>();
             img.color = new Color(0.85f, 0.2f, 0.2f, 0.95f);
@@ -466,24 +565,105 @@ public class HUDCanvasArcade : MonoBehaviour
             Button btn = btnObj.AddComponent<Button>();
             btn.onClick.AddListener(AlternarVisibilidadePainel);
 
-            GameObject txtObj = new GameObject("Text");
+            GameObject txtObj = new GameObject("Text_TMP");
             txtObj.transform.SetParent(btnObj.transform, false);
             RectTransform rtTxt = txtObj.AddComponent<RectTransform>();
             rtTxt.anchorMin = Vector2.zero;
             rtTxt.anchorMax = Vector2.one;
             rtTxt.sizeDelta = Vector2.zero;
 
-            Text txt = txtObj.AddComponent<Text>();
-            txt.font = arcadeFont;
-            txt.fontSize = 14;
-            txt.fontStyle = FontStyle.Bold;
+            TextMeshProUGUI txt = txtObj.AddComponent<TextMeshProUGUI>();
+            txt.fontSize = 15;
+            txt.fontStyle = FontStyles.Bold;
             txt.text = "✕";
             txt.color = Color.white;
-            txt.alignment = TextAnchor.MiddleCenter;
+            txt.alignment = TextAlignmentOptions.Center;
         }
 
-        // Estado inicial: Mostra o modal de Play, oculta o HUD superior
+        // =====================================================================
+        // 3. SCROLLRECT - TERMINAL / LOG DE AÇÕES ONTOLÓGICAS (INFERIOR ESQUERDO)
+        // =====================================================================
+        Transform termTr = transform.Find("Painel_Terminal_Log");
+        if (termTr == null)
+        {
+            painelTerminalLog = new GameObject("Painel_Terminal_Log");
+            painelTerminalLog.transform.SetParent(transform, false);
+            RectTransform rtTerm = painelTerminalLog.AddComponent<RectTransform>();
+            rtTerm.anchorMin = new Vector2(0f, 0f);
+            rtTerm.anchorMax = new Vector2(0f, 0f);
+            rtTerm.pivot = new Vector2(0f, 0f);
+            rtTerm.anchoredPosition = new Vector2(24f, 24f);
+            rtTerm.sizeDelta = new Vector2(680f, 185f);
+
+            Image imgTerm = painelTerminalLog.AddComponent<Image>();
+            imgTerm.color = new Color(0.01f, 0.03f, 0.09f, 0.88f);
+
+            // Cabeçalho do Terminal
+            GameObject headerObj = new GameObject("Header_Terminal_TMP");
+            headerObj.transform.SetParent(painelTerminalLog.transform, false);
+            RectTransform rtHeader = headerObj.AddComponent<RectTransform>();
+            rtHeader.anchorMin = new Vector2(0f, 1f);
+            rtHeader.anchorMax = new Vector2(1f, 1f);
+            rtHeader.pivot = new Vector2(0.5f, 1f);
+            rtHeader.anchoredPosition = new Vector2(0f, -4f);
+            rtHeader.sizeDelta = new Vector2(-20f, 24f);
+
+            TextMeshProUGUI txtHeader = headerObj.AddComponent<TextMeshProUGUI>();
+            txtHeader.fontSize = 13;
+            txtHeader.fontStyle = FontStyles.Bold;
+            txtHeader.text = "TERMINAL DE AXIOMAS OWL / PROTÉGÉ WEBSOCKET (8085)";
+            txtHeader.color = new Color(0.0f, 0.85f, 1.0f);
+            txtHeader.alignment = TextAlignmentOptions.MidlineLeft;
+
+            // Viewport do ScrollRect
+            GameObject viewportObj = new GameObject("Viewport");
+            viewportObj.transform.SetParent(painelTerminalLog.transform, false);
+            RectTransform rtVp = viewportObj.AddComponent<RectTransform>();
+            rtVp.anchorMin = new Vector2(0f, 0f);
+            rtVp.anchorMax = new Vector2(1f, 1f);
+            rtVp.offsetMin = new Vector2(10f, 8f);
+            rtVp.offsetMax = new Vector2(-10f, -30f);
+
+            Image imgVp = viewportObj.AddComponent<Image>();
+            imgVp.color = new Color(0f, 0f, 0f, 0.01f);
+            RectMask2D mask = viewportObj.AddComponent<RectMask2D>();
+
+            // Content do ScrollRect
+            GameObject contentObj = new GameObject("Content");
+            contentObj.transform.SetParent(viewportObj.transform, false);
+            conteudoScrollTerminal = contentObj.AddComponent<RectTransform>();
+            conteudoScrollTerminal.anchorMin = new Vector2(0f, 1f);
+            conteudoScrollTerminal.anchorMax = new Vector2(1f, 1f);
+            conteudoScrollTerminal.pivot = new Vector2(0.5f, 1f);
+            conteudoScrollTerminal.anchoredPosition = Vector2.zero;
+            conteudoScrollTerminal.sizeDelta = new Vector2(0f, 140f);
+
+            ContentSizeFitter csf = contentObj.AddComponent<ContentSizeFitter>();
+            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            textoLogTerminalTMP = contentObj.AddComponent<TextMeshProUGUI>();
+            textoLogTerminalTMP.fontSize = 14;
+            textoLogTerminalTMP.color = new Color(0.82f, 0.96f, 0.88f);
+            textoLogTerminalTMP.alignment = TextAlignmentOptions.BottomLeft;
+            textoLogTerminalTMP.richText = true;
+            textoLogTerminalTMP.textWrappingMode = TextWrappingModes.Normal;
+
+            scrollRectTerminal = painelTerminalLog.AddComponent<ScrollRect>();
+            scrollRectTerminal.viewport = rtVp;
+            scrollRectTerminal.content = conteudoScrollTerminal;
+            scrollRectTerminal.horizontal = false;
+            scrollRectTerminal.vertical = true;
+            scrollRectTerminal.movementType = ScrollRect.MovementType.Clamped;
+            scrollRectTerminal.scrollSensitivity = 20f;
+        }
+        else
+        {
+            painelTerminalLog = termTr.gameObject;
+            scrollRectTerminal = painelTerminalLog.GetComponent<ScrollRect>();
+        }
+
         if (modalPlayCanvas != null) modalPlayCanvas.SetActive(true);
         if (painelHUD != null) painelHUD.SetActive(false);
+        if (painelTerminalLog != null) painelTerminalLog.SetActive(false);
     }
 }

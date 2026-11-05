@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.XR;
 using VirtOnto.Model;
@@ -79,6 +79,10 @@ namespace PacMan.Player
         private void Awake()
         {
             GarantirCharacterController();
+            if (GetComponent<RelationBuilder>() == null)
+            {
+                gameObject.AddComponent<RelationBuilder>();
+            }
         }
 
         private void GarantirCharacterController()

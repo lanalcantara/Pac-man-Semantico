@@ -169,8 +169,38 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     [Tooltip("Dimensão total do labirinto em metros (X e Z).")]
     public float tamanhoLabirinto = 28f;
 
-    [Tooltip("Material customizado para as paredes (se nulo, cria material escuro neon polido).")]
+    [Tooltip("Material customizado para as paredes (se nulo, aplica Topologia Semântica por Superclasse).")]
     public Material materialParedes;
+
+    [System.Serializable]
+    public struct MapeamentoCorSuperclasse
+    {
+        public string nomeSuperclasse;
+        public Color corMaterialRegiao;
+
+        public MapeamentoCorSuperclasse(string superclasse, Color cor)
+        {
+            nomeSuperclasse = superclasse;
+            corMaterialRegiao = cor;
+        }
+    }
+
+    [Header("Topologia Semântica (Cores do Labirinto por Superclasse OWL)")]
+    [Tooltip("Associa cores de materiais às paredes/regiões da NavMesh Surface conforme a Superclasse ontológica.")]
+    public bool usarTopologiaSemanticaPorSuperclasse = true;
+
+    [Tooltip("Cor da região da Superclasse 'Parasitas' (Nematoda / Platyhelminthes / Protozoa) -> Roxo.")]
+    public Color corSuperclasseParasitas = new Color(0.55f, 0.16f, 0.90f, 1f);
+
+    [Tooltip("Cor da região da Superclasse 'Hospedeiros' (Host / Human / Vertebrate) -> Azul.")]
+    public Color corSuperclasseHospedeiros = new Color(0.10f, 0.45f, 0.95f, 1f);
+
+    [Tooltip("Tabela extensível de mapeamento Superclasse OWL -> Cor de Material da Região.")]
+    public List<MapeamentoCorSuperclasse> mapeamentoCoresSuperclasse = new List<MapeamentoCorSuperclasse>()
+    {
+        new MapeamentoCorSuperclasse("Parasitas", new Color(0.55f, 0.16f, 0.90f, 1f)),
+        new MapeamentoCorSuperclasse("Hospedeiros", new Color(0.10f, 0.45f, 0.95f, 1f))
+    };
 
     private GameObject m_ContainerParedes;
 
@@ -1098,7 +1128,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
         if (dado.ehValida)
         {
-            // GEMAS (Pac-Dots = OWL Classes): Remocao imediata de NavMeshAgent ou GemaFugitiva
+            // NODOS DE DADOS OWL (Cubos/Prismas Translúcidos): Remoção de NavMeshAgent ou GemaFugitiva
             UnityEngine.AI.NavMeshAgent nav = obj.GetComponent<UnityEngine.AI.NavMeshAgent>();
             if (nav != null) Destroy(nav);
 
@@ -1108,7 +1138,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             SphereCollider sc = obj.GetComponent<SphereCollider>();
             if (sc == null) sc = obj.AddComponent<SphereCollider>();
             sc.isTrigger = true;
-            sc.radius = 0.35f;
+            sc.radius = 0.45f;
 
             if (obj.GetComponent<RotacaoFlutuante>() == null)
             {
@@ -1116,53 +1146,64 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 rot.permitirFlutuacao = false;
             }
 
-            // Elementos Visuais: Escala das Gemas (Amarelas) menores (pontos clássicos)
+            // Converte o MeshFilter do núcleo para Cubo/Prisma (Nodo de Dados) e aplica material translúcido
             Transform nucleo = obj.transform.Find("Nucleo_PacDot");
             if (nucleo != null)
             {
-                nucleo.localScale = new Vector3(0.20f, 0.20f, 0.20f);
+                nucleo.localScale = new Vector3(0.32f, 0.46f, 0.32f);
+                nucleo.localRotation = Quaternion.Euler(35f, 45f, 0f);
+                MeshFilter mf = nucleo.GetComponent<MeshFilter>();
+                if (mf != null)
+                {
+                    GameObject tempCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    mf.sharedMesh = tempCube.GetComponent<MeshFilter>().sharedMesh;
+                    if (Application.isPlaying) Destroy(tempCube);
+                    else DestroyImmediate(tempCube);
+                }
             }
             Transform halo = obj.transform.Find("Halo_Aura");
             if (halo != null)
             {
-                halo.localScale = new Vector3(0.28f, 0.02f, 0.28f);
+                halo.localScale = new Vector3(0.42f, 0.015f, 0.42f);
             }
 
-            Color corGemaAmarela = new Color(1.0f, 0.88f, 0.20f, 1f);
-            Material matGemaAmarela = CriarMaterialDinamico(corGemaAmarela, corGemaAmarela * 1.35f, 0.95f);
-            Renderer[] rendsGema = obj.GetComponentsInChildren<Renderer>();
-            foreach (var r in rendsGema)
+            Color corNodoBase = dado.corDestaque != Color.clear ? dado.corDestaque : new Color(0.0f, 0.90f, 1.0f, 1f);
+            Material matNodoTranslucido = CriarMaterialTranslúcidoNodo(corNodoBase, 0.58f);
+            Renderer[] rendsNodo = obj.GetComponentsInChildren<Renderer>();
+            foreach (var r in rendsNodo)
             {
-                r.material = matGemaAmarela;
+                r.material = matNodoTranslucido;
             }
         }
         else
         {
-            // FANTASMAS: Destaque visual com as 4 cores clássicas (Vermelho, Rosa, Azul, Laranja)
+            // REASONER AGENTS (Antigos Fantasmas):
+            // Estado inicial Patrol (CONSISTENTE): Material Azul Translúcido.
+            // Ao detectar erro lógico (INCONSISTENTE), o MotorRaciocinioSemantico altera para Vermelho Sólido (Chase).
             int ghostIdx = (m_ContadorFantasmasConfigurados) % CoresClassicasFantasmas.Length;
-            Color corFantasma = CoresClassicasFantasmas[ghostIdx];
             string nomeGhost = NomesFantasmasClassicos[ghostIdx];
-            obj.name = $"Fantasma_{nomeGhost}_{dado.id}";
+            obj.name = $"ReasonerAgent_{nomeGhost}_{dado.id}";
             obj.transform.localScale = new Vector3(0.80f, 0.80f, 0.80f);
 
-            Material matFantasma = CriarMaterialDinamico(corFantasma, corFantasma * 1.35f, 0.92f);
+            Color corAzulPatrol = new Color(0.10f, 0.55f, 1.0f, 1f);
+            Material matAgentPatrol = CriarMaterialTranslúcidoNodo(corAzulPatrol, 0.52f);
             Renderer[] rendsFantasma = obj.GetComponentsInChildren<Renderer>();
             foreach (var r in rendsFantasma)
             {
                 string rName = r.name.ToLower();
                 if (!rName.Contains("olho") && !rName.Contains("pupila") && !rName.Contains("eye"))
                 {
-                    r.material = matFantasma;
+                    r.material = matAgentPatrol;
                 }
             }
 
-            // FANTASMAS: NavMeshAgent com Avoidance Priority diferenciada (30, 40, 50, 60)
+            // NavMeshAgent com Avoidance Priority diferenciada (30, 40, 50, 60)
             UnityEngine.AI.NavMeshAgent agent = obj.GetComponent<UnityEngine.AI.NavMeshAgent>();
             if (agent == null)
             {
                 agent = obj.AddComponent<UnityEngine.AI.NavMeshAgent>();
             }
-            agent.speed = 2.6f;
+            agent.speed = 2.0f;
             agent.acceleration = 12f;
             agent.radius = 0.28f;
             agent.height = 1.0f;
@@ -1174,7 +1215,6 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 agent.isStopped = false;
             }
             
-            // Atribui valores distintos de Avoidance Priority (30, 40, 50, 60) para eliminar fila indiana
             int prioridade = 30 + ((m_ContadorFantasmasConfigurados++) % 4) * 10;
             agent.avoidancePriority = prioridade;
         }
@@ -1213,41 +1253,72 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         }
     }
 
-        private GameObject CriarGemaProcedural(Vector3 posicao, DadoInstanciaSemantica dado = null)
+    private GameObject CriarGemaProcedural(Vector3 posicao, DadoInstanciaSemantica dado = null)
     {
-        GameObject pilula = new GameObject("PacDot_Procedural");
-        pilula.transform.position = posicao;
-        pilula.transform.SetParent(transform);
+        GameObject nodoObj = new GameObject("NodoDados_Procedural");
+        nodoObj.transform.position = posicao;
+        nodoObj.transform.SetParent(transform);
 
-        // Cor Amarela Clássica dos pontos (Gemas)
-        Color corBase = new Color(1.0f, 0.88f, 0.20f, 1f);
-        Material matGema = CriarMaterialDinamico(corBase, corBase * 1.4f, 0.95f);
+        Color corBase = (dado != null && dado.corDestaque != Color.clear) ? dado.corDestaque : new Color(0.0f, 0.90f, 1.0f, 1f);
+        Material matNodo = CriarMaterialTranslúcidoNodo(corBase, 0.58f);
 
-        // Esfera minúscula (escala estrita 0.2) conforme especificação da hierarquia
-        GameObject esfera = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        esfera.name = "Nucleo_PacDot";
-        esfera.transform.SetParent(pilula.transform, false);
-        esfera.transform.localScale = new Vector3(0.20f, 0.20f, 0.20f);
-        Destroy(esfera.GetComponent<Collider>());
-        esfera.GetComponent<Renderer>().material = matGema;
+        // Cubo / Prisma rotacionado (Nodo de Dados OWL)
+        GameObject cuboPrisma = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        cuboPrisma.name = "Nucleo_PacDot";
+        cuboPrisma.transform.SetParent(nodoObj.transform, false);
+        cuboPrisma.transform.localScale = new Vector3(0.32f, 0.46f, 0.32f);
+        cuboPrisma.transform.localRotation = Quaternion.Euler(35f, 45f, 0f);
+        Destroy(cuboPrisma.GetComponent<Collider>());
+        cuboPrisma.GetComponent<Renderer>().material = matNodo;
 
-        // Halo aura luminosa proporcional
+        // Halo cibernético de base
         GameObject halo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         halo.name = "Halo_Aura";
-        halo.transform.SetParent(pilula.transform, false);
-        halo.transform.localScale = new Vector3(0.25f, 0.02f, 0.25f);
+        halo.transform.SetParent(nodoObj.transform, false);
+        halo.transform.localScale = new Vector3(0.42f, 0.015f, 0.42f);
         Destroy(halo.GetComponent<Collider>());
-        halo.GetComponent<Renderer>().material = matGema;
+        halo.GetComponent<Renderer>().material = matNodo;
 
-        SphereCollider sc = pilula.AddComponent<SphereCollider>();
+        SphereCollider sc = nodoObj.AddComponent<SphereCollider>();
         sc.isTrigger = true;
-        sc.radius = 0.35f;
+        sc.radius = 0.45f;
 
-        pilula.AddComponent<GemaValidaSemantica>();
-        RotacaoFlutuante rot = pilula.AddComponent<RotacaoFlutuante>();
+        nodoObj.AddComponent<GemaValidaSemantica>();
+        RotacaoFlutuante rot = nodoObj.AddComponent<RotacaoFlutuante>();
         rot.permitirFlutuacao = false;
 
-        return pilula;
+        return nodoObj;
+    }
+
+    /// <summary>
+    /// Cria um material translúcido cibernético para os Nodos de Dados OWL e Reasoner Agents.
+    /// </summary>
+    public Material CriarMaterialTranslúcidoNodo(Color corBase, float alpha = 0.58f)
+    {
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
+        Material mat = new Material(shader);
+        Color corTranslucida = new Color(corBase.r, corBase.g, corBase.b, alpha);
+
+        // Configuração de Transparência para URP e Standard
+        if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f); // 1 = Transparent no URP
+        if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0f);
+        if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", corTranslucida);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", corTranslucida);
+
+        if (mat.HasProperty("_EmissionColor"))
+        {
+            mat.EnableKeyword("_EMISSION");
+            mat.SetColor("_EmissionColor", new Color(corBase.r, corBase.g, corBase.b, 1f) * 0.65f);
+        }
+
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.92f);
+        return mat;
     }
 
         private GameObject CriarObstaculoProcedural(Vector3 posicao, DadoInstanciaSemantica dado = null)
@@ -1257,17 +1328,16 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         posicao.z = Mathf.Clamp(posicao.z, -2.0f, 1.5f);
 
         int ghostIdx = (m_ContadorFantasmasConfigurados) % CoresClassicasFantasmas.Length;
-        Color corFantasma = CoresClassicasFantasmas[ghostIdx];
         string nomeGhost = NomesFantasmasClassicos[ghostIdx];
 
-        GameObject fantasma = new GameObject($"Fantasma_{nomeGhost}");
+        GameObject fantasma = new GameObject($"ReasonerAgent_{nomeGhost}");
         fantasma.transform.position = posicao;
         fantasma.transform.SetParent(transform);
 
         // Personagem em escala adequada ao corredor: 0.80f
         fantasma.transform.localScale = new Vector3(0.80f, 0.80f, 0.80f);
 
-        Material matCorpo = CriarMaterialDinamico(corFantasma, corFantasma * 1.35f, 0.90f);
+        Material matCorpo = CriarMaterialTranslúcidoNodo(new Color(0.10f, 0.55f, 1.0f, 1f), 0.52f);
 
         // 1. CORPO EM FORMA DE CÁPSULA (CAPSULE) CONFORME EXIGÊNCIA ESTRITA
         GameObject corpoCapsula = GameObject.CreatePrimitive(PrimitiveType.Capsule);
@@ -1470,36 +1540,103 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     }
 
     /// <summary>
-    /// Cria o material avançado Sci-Fi / Laboratório Biomédico para paredes com texturas compostas e bump maps.
+    /// Determina a Superclasse OWL associada à região espacial do labirinto (Topologia Semântica).
+    /// Hemisfério Norte / NW / NE / Leste = "Parasitas" (Roxo);
+    /// Hemisfério Sul / SW / SE / Oeste = "Hospedeiros" (Azul).
     /// </summary>
-    public Material CriarMaterialParedeBiomedicaSciFi()
+    public string DeterminarSuperclassePorRegiao(Vector3 posicao, string nomeBloco = "")
     {
+        if (!string.IsNullOrEmpty(nomeBloco))
+        {
+            if (nomeBloco.Contains("Norte") || nomeBloco.Contains("NW") || nomeBloco.Contains("NE") || nomeBloco.Contains("Leste"))
+            {
+                return "Parasitas";
+            }
+            if (nomeBloco.Contains("Sul") || nomeBloco.Contains("SW") || nomeBloco.Contains("SE") || nomeBloco.Contains("Oeste"))
+            {
+                return "Hospedeiros";
+            }
+        }
+
+        return (posicao.z >= 0f && posicao.x >= 0f) || posicao.z > 1.0f ? "Parasitas" : "Hospedeiros";
+    }
+
+    /// <summary>
+    /// Retorna a Cor de Material associada à Superclasse da região gerada:
+    /// - "Parasitas" (Nematoda / Platyhelminthes / Protozoa) = Roxo
+    /// - "Hospedeiros" (Host / Human / Pig) = Azul
+    /// </summary>
+    public Color ObterCorTopologiaSuperclasse(string superclasse)
+    {
+        if (!string.IsNullOrEmpty(superclasse))
+        {
+            if (mapeamentoCoresSuperclasse != null)
+            {
+                for (int i = 0; i < mapeamentoCoresSuperclasse.Count; i++)
+                {
+                    if (string.Equals(mapeamentoCoresSuperclasse[i].nomeSuperclasse, superclasse, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return mapeamentoCoresSuperclasse[i].corMaterialRegiao;
+                    }
+                }
+            }
+
+            if (superclasse.IndexOf("Parasit", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                superclasse.IndexOf("Nematod", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                superclasse.IndexOf("Platyhelmint", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return corSuperclasseParasitas; // Roxo
+            }
+
+            if (superclasse.IndexOf("Hosped", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                superclasse.IndexOf("Host", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                superclasse.IndexOf("Human", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return corSuperclasseHospedeiros; // Azul
+            }
+        }
+
+        return corSuperclasseHospedeiros;
+    }
+
+    /// <summary>
+    /// Cria o material de parede parametrizado pela Superclasse OWL da região (ex: "Parasitas" = Roxo; "Hospedeiros" = Azul).
+    /// </summary>
+    public Material CriarMaterialParedePorSuperclasse(string superclasse)
+    {
+        Color corSuperclasse = ObterCorTopologiaSuperclasse(superclasse);
         Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
         Material mat = new Material(shader);
-        mat.name = "Mat_Parede_Protege_DarkBlue";
+        mat.name = $"Mat_Parede_Superclasse_{superclasse}";
 
-        // Azul-arroxeado escuro autêntico da Interface do Software Protégé (#1C184E / #1E1A59)
-        Color corProtegeAzulRoxo = new Color(0.12f, 0.10f, 0.35f, 1f);
-        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", corProtegeAzulRoxo);
-        if (mat.HasProperty("_Color")) mat.SetColor("_Color", corProtegeAzulRoxo);
-        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.05f);
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.25f);
+        // Tonalidade profunda de laboratório tingida pela cor semântica da Superclasse (Roxo vs Azul)
+        Color corParedeBase = Color.Lerp(new Color(0.06f, 0.06f, 0.14f, 1f), corSuperclasse, 0.58f);
+        corParedeBase.a = 1f;
 
-        // Suave contorno índigo arcade - discreto, elegante e SEM emissão ofuscante (paredes não acesas)
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", corParedeBase);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", corParedeBase);
+        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.12f);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.38f);
+
         if (mat.HasProperty("_EmissionColor"))
         {
             mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", new Color(0.14f, 0.11f, 0.38f) * 0.18f);
+            mat.SetColor("_EmissionColor", corSuperclasse * 0.25f);
         }
 
         return mat;
     }
 
-
-
+    /// <summary>
+    /// Cria o material avançado Sci-Fi / Laboratório Biomédico para paredes com texturas compostas e bump maps.
+    /// </summary>
+    public Material CriarMaterialParedeBiomedicaSciFi()
+    {
+        return CriarMaterialParedePorSuperclasse("Parasitas");
+    }
 
     /// <summary>
-    /// Cria o material néon luminoso (LED Trim) para frisos e sinalizações de corredores.
+    /// Cria o material néon luminoso (LED Trim) para frisos e sinalizações de corredores com a cor da Superclasse.
     /// </summary>
     public Material CriarMaterialNeonLED(Color corLED)
     {
@@ -1507,17 +1644,17 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         Material mat = new Material(shader);
         mat.name = "Mat_NeonLED_Trim";
 
-        Color corFrisoSutil = new Color(0.20f, 0.18f, 0.55f, 1f);
-        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", corFrisoSutil);
-        if (mat.HasProperty("_Color")) mat.SetColor("_Color", corFrisoSutil);
+        Color corFriso = new Color(corLED.r, corLED.g, corLED.b, 1f);
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", corFriso);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", corFriso);
 
         if (mat.HasProperty("_EmissionColor"))
         {
             mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", corFrisoSutil * 0.35f);
+            mat.SetColor("_EmissionColor", corFriso * 0.65f);
         }
 
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.5f);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.6f);
         return mat;
     }
 
@@ -1761,41 +1898,19 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     /// </summary>
     
     /// <summary>
-    /// Instancia Cerejas (Object Properties) abaixo da gaiola central e Power Pellets (Individuals) nos 4 cantos.
+    /// Instancia Nodos Âncora de Relações (Object Properties) e Indivíduos Nomeados nos 4 cantos.
+    /// (As antigas "Cerejas" foram substituídas pela mecânica espacial de LineRenderer em RelationBuilder.cs).
     /// </summary>
     public void InstanciarCerejasEPowerPellets()
     {
-        // 1. CEREJA (Object Properties): Posicionada abaixo da gaiola central do labirinto
-        Vector3 posCereja = new Vector3(0f, 0.35f, -3.5f);
-        GameObject cerejaObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        cerejaObj.name = "Cereja_ObjectProperty_has_habitat";
-        cerejaObj.transform.position = posCereja;
-        cerejaObj.transform.localScale = Vector3.one * 0.45f;
-        cerejaObj.transform.position = new Vector3(0f, 0.95f, -3.5f);
-        cerejaObj.transform.SetParent(transform);
-
-        Renderer rendC = cerejaObj.GetComponent<Renderer>();
-        if (rendC != null)
+        // Garante que o Player possua o componente RelationBuilder ativo para traçar Object Properties (LineRenderer)
+        GameObject playerObj = GameObject.FindWithTag("Player") ?? GameObject.Find("Visual_PacMan");
+        if (playerObj != null && playerObj.GetComponent<RelationBuilder>() == null)
         {
-            Shader s = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
-            Material matC = new Material(s);
-            matC.color = new Color(1f, 0.05f, 0.2f); // Vermelho cereja arcade
-            if (matC.HasProperty("_BaseColor")) matC.SetColor("_BaseColor", new Color(1f, 0.05f, 0.2f));
-            if (matC.HasProperty("_EmissionColor"))
-            {
-                matC.EnableKeyword("_EMISSION");
-                matC.SetColor("_EmissionColor", new Color(1f, 0f, 0.15f) * 1.2f);
-            }
-            rendC.material = matC;
+            playerObj.AddComponent<RelationBuilder>();
         }
 
-        SphereCollider colC = cerejaObj.GetComponent<SphereCollider>();
-        if (colC != null) { colC.isTrigger = true; colC.radius = 0.75f; }
-
-        cerejaObj.AddComponent<CerejaObjetoSemantico>();
-        m_ObjetosInstanciados.Add(cerejaObj);
-
-        // 2. POWER PELLETS (Individuals): 4 bolas maiores piscantes nos cantos do labirinto
+        // 2. POWER PELLETS / NAMED INDIVIDUALS: 4 Nodos prismáticos nos cantos do labirinto
         Vector3[] cantosPellets = new Vector3[]
         {
             new Vector3(-8.5f, 0.35f, 8.5f),
@@ -1806,38 +1921,32 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
         string[] nomesIndividuos = new string[]
         {
-            "Individual: Specimen_Ascaris_01",
-            "Individual: Specimen_Enterobius_02",
-            "Individual: Specimen_Taenia_03",
-            "Individual: Specimen_Vector_04"
+            "Human_Host_01",
+            "SmallIntestine_Habitat_02",
+            "FecalOral_Transmission_03",
+            "AntiparasiticTreatment_04"
         };
 
         for (int i = 0; i < cantosPellets.Length; i++)
         {
-            GameObject pelletObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            pelletObj.name = $"PowerPellet_{i + 1}";
-            pelletObj.transform.position = cantosPellets[i];
-            pelletObj.transform.localScale = Vector3.one * 0.50f;
-            pelletObj.transform.position = new Vector3(cantosPellets[i].x, 0.95f, cantosPellets[i].z);
+            GameObject pelletObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            pelletObj.name = $"NamedIndividual_Node_{i + 1}";
+            pelletObj.transform.position = new Vector3(cantosPellets[i].x, 0.65f, cantosPellets[i].z);
+            pelletObj.transform.localScale = new Vector3(0.42f, 0.58f, 0.42f);
+            pelletObj.transform.localRotation = Quaternion.Euler(35f, 45f, 0f);
             pelletObj.transform.SetParent(transform);
 
             Renderer rendP = pelletObj.GetComponent<Renderer>();
             if (rendP != null)
             {
-                Shader s = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
-                Material matP = new Material(s);
-                matP.color = Color.white;
-                if (matP.HasProperty("_BaseColor")) matP.SetColor("_BaseColor", Color.white);
-                if (matP.HasProperty("_EmissionColor"))
-                {
-                    matP.EnableKeyword("_EMISSION");
-                    matP.SetColor("_EmissionColor", Color.white * 1.8f);
-                }
-                rendP.material = matP;
+                rendP.material = CriarMaterialTranslúcidoNodo(new Color(0.65f, 0.35f, 1.0f, 1f), 0.62f);
             }
 
-            SphereCollider colP = pelletObj.GetComponent<SphereCollider>();
-            if (colP != null) { colP.isTrigger = true; colP.radius = 0.85f; }
+            BoxCollider boxCol = pelletObj.GetComponent<BoxCollider>();
+            if (boxCol != null) Destroy(boxCol);
+            SphereCollider colP = pelletObj.AddComponent<SphereCollider>();
+            colP.isTrigger = true;
+            colP.radius = 0.85f;
 
             var scriptP = pelletObj.AddComponent<PowerPelletIndividualSemantico>();
             scriptP.nomeIndividuo = nomesIndividuos[i];
@@ -1845,7 +1954,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             m_ObjetosInstanciados.Add(pelletObj);
         }
 
-        Debug.Log("<color=#FFD700><b>[Mapeamento Ontológico]</b></color> Cereja (ObjectProperty) e 4 Power Pellets (Individuals) instanciados no labirinto.");
+        Debug.Log("<color=#A855F7><b>[Mapeamento Ontológico]</b></color> RelationBuilder (LineRenderer) ativo e 4 Nodos de Indivíduos Nomeados instanciados no espaço.");
     }
 
     public void ConstruirLabirinto3D()
@@ -1923,7 +2032,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         CriarBlocoParede(m_ContainerParedes.transform, new Vector3(0f, yCentro, 8.5f), new Vector3(6f, alturaParedes, espessuraParedes), matParede, "Parede_Norte_T");
         CriarBlocoParede(m_ContainerParedes.transform, new Vector3(0f, yCentro, -8.5f), new Vector3(6f, alturaParedes, espessuraParedes), matParede, "Parede_Sul_T");
 
-        Debug.Log($"<color=#00FF99><b>[Labirinto 3D]</b></color> {m_ContainerParedes.transform.childCount} paredes 3D instanciadas com texturas Sci-Fi, bump maps e frisos luminosos LED.");
+        Debug.Log($"<color=#A855F7><b>[Topologia Semântica - Labirinto 3D]</b></color> {m_ContainerParedes.transform.childCount} blocos de parede instanciados e coloridos por Superclasse OWL (Parasitas = Roxo | Hospedeiros = Azul).");
     }
 
     private GameObject CriarBlocoParede(Transform pai, Vector3 pos, Vector3 escala, Material mat, string nome)
@@ -1935,10 +2044,17 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         parede.transform.localScale = escala;
         parede.layer = LayerMask.NameToLayer("Default");
 
+        // Topologia Semântica: determina a Superclasse OWL da região ("Parasitas" = Roxo; "Hospedeiros" = Azul)
+        string superclasseRegiao = DeterminarSuperclassePorRegiao(pos, nome);
+        Color corSuperclasse = ObterCorTopologiaSuperclasse(superclasseRegiao);
+        Material matRegiao = usarTopologiaSemanticaPorSuperclasse
+            ? CriarMaterialParedePorSuperclasse(superclasseRegiao)
+            : mat;
+
         Renderer rend = parede.GetComponent<Renderer>();
         if (rend != null)
         {
-            rend.material = mat;
+            rend.material = matRegiao;
             rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
             rend.receiveShadows = true;
         }
@@ -1953,18 +2069,23 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             col.center = Vector3.zero;
         }
 
-        // Adiciona friso superior luminoso (LED Trim Bar) para estética Sci-Fi / Laboratório
+        // Adiciona friso superior luminoso (LED Trim Bar) com a cor da Superclasse da região
         GameObject trimLED = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        trimLED.name = $"{nome}_LEDTrim";
+        trimLED.name = $"{nome}_LEDTrim_{superclasseRegiao}";
         trimLED.transform.SetParent(parede.transform);
         trimLED.transform.localPosition = new Vector3(0f, 0.49f, 0f);
         trimLED.transform.localScale = new Vector3(1.02f, 0.04f, 1.02f);
-        Destroy(trimLED.GetComponent<Collider>());
+        Collider colTrim = trimLED.GetComponent<Collider>();
+        if (colTrim != null)
+        {
+            if (Application.isPlaying) Destroy(colTrim);
+            else DestroyImmediate(colTrim);
+        }
 
         Renderer rendLED = trimLED.GetComponent<Renderer>();
         if (rendLED != null)
         {
-            rendLED.material = CriarMaterialNeonLED(new Color(0f, 0.85f, 1f));
+            rendLED.material = CriarMaterialNeonLED(corSuperclasse);
             rendLED.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             rendLED.receiveShadows = false;
         }

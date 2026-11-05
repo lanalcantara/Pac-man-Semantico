@@ -38,11 +38,12 @@ namespace PacMan.Network
         public bool ReasonerConsistent => m_ReasonerConsistent;
         public int AxiomsInsertedCount => m_AxiomsInsertedCount;
 
-        // Eventos para sincronizar HUD, IA dos Reasoner Agents e Topologia
+        // Eventos para sincronizar HUD, IA dos Reasoner Agents, Topologia e Placas de Wayfinding
         public event Action<string> OnActionLogged;
         public event Action<bool, string> OnReasonerStatusChanged;
         public event Action<int> OnAxiomCountChanged;
         public event Action<string> OnRawMessageReceived;
+        public event Action<string[], string[]> OnTaxonomyReceived;
 
         private ClientWebSocket m_WebSocket;
         private CancellationTokenSource m_Cts;
@@ -51,7 +52,7 @@ namespace PacMan.Network
         [Serializable]
         public class OwlSocketMessage
         {
-            public string action;         // Ex: "INSTANTIATE_NODE", "CREATE_OBJECT_PROPERTY", "UNDO_LAST_ACTION", "REASONER_STATUS"
+            public string action;         // Ex: "INSTANTIATE_NODE", "CREATE_OBJECT_PROPERTY", "UNDO_LAST_ACTION", "REASONER_STATUS", "TAXONOMY_UPDATE"
             public string subjectId;
             public string subjectClass;
             public string propertyName;
@@ -59,6 +60,8 @@ namespace PacMan.Network
             public string objectClass;
             public bool isConsistent = true;
             public string reasonerMessage;
+            public string[] superclasses; // Superclasses da TBox enviadas pelo Protégé (agnóstico de domínio)
+            public string[] subclasses;   // Subclasses da TBox enviadas pelo Protégé (agnóstico de domínio)
             public long timestamp;
         }
 
@@ -190,12 +193,30 @@ namespace PacMan.Network
                     {
                         DefinirStatusReasoner(msg.isConsistent, msg.reasonerMessage);
                     }
+                    else if (msg.action == "TAXONOMY_UPDATE" || msg.action == "TBOX_HIERARCHY" || msg.action == "ONTOLOGY_LOADED")
+                    {
+                        NotificarTaxonomiaRecebida(msg.superclasses, msg.subclasses);
+                    }
+                    else if (msg.superclasses != null && msg.superclasses.Length > 0)
+                    {
+                        NotificarTaxonomiaRecebida(msg.superclasses, msg.subclasses);
+                    }
                 }
             }
             catch (Exception ex)
             {
                 Debug.LogWarning($"[ProtegeWebSocketBridge] Falha ao processar payload JSON do Protégé: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Propaga dinamicamente a hierarquia da TBox (Superclasses e Subclasses) recebida via WebSocket
+        /// para atualizar as Placas de Sinalização Semântica (Wayfinding) de forma agnóstica de domínio.
+        /// </summary>
+        public void NotificarTaxonomiaRecebida(string[] superclasses, string[] subclasses)
+        {
+            OnTaxonomyReceived?.Invoke(superclasses ?? Array.Empty<string>(), subclasses ?? Array.Empty<string>());
+            RegistrarLog($"[TBox] Taxonomia atualizada via WebSocket ({(superclasses != null ? superclasses.Length : 0)} superclasses, {(subclasses != null ? subclasses.Length : 0)} subclasses).");
         }
 
         /// <summary>

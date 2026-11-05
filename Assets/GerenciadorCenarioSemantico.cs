@@ -6,6 +6,8 @@ using Unity.AI.Navigation;
 using VirtOnto.Model;
 using PacMan.Semantics;
 using PacMan.Network;
+using PacMan.XR;
+using TMPro;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -100,6 +102,13 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
     [Tooltip("Prefab opcional para gemas especiais (Power Pellet).")]
     public GameObject prefabGemaEspecial;
+
+    [Header("Wayfinding Semântico (Placas de Sinalização TBox)")]
+    [Tooltip("Ativa a detecção de bifurcações/entradas de corredor e instanciação de Placas de Sinalização Semântica.")]
+    public bool instanciarPlacasSinalizacao = true;
+
+    [Tooltip("Prefab da Placa de Sinalização Semântica (Poste / Painel Holográfico com TextMeshPro).")]
+    public GameObject prefabPlacaSinalizacao;
 
     [System.Serializable]
     public struct MapeamentoClassePrefab
@@ -215,6 +224,11 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     private readonly List<IInstanciaSemantica> m_InstanciasSemanticas = new List<IInstanciaSemantica>();
     private readonly List<GameObject> m_ObjetosInstanciados = new List<GameObject>();
     private readonly List<Vector3> m_PosicoesOcupadas = new List<Vector3>();
+    private readonly List<PlacaSinalizacaoSemantica> m_PlacasWayfinding = new List<PlacaSinalizacaoSemantica>();
+
+    // Taxonomia dinâmica agnóstica de domínio (alimentada pelo Grafo VirtOnto ou WebSocket 8085)
+    private string[] m_SuperclassesAtivas = new string[] { "Parasitas", "Hospedeiros" };
+    private string[] m_SubclassesAtivas = new string[] { "Nematoda", "Platyhelminthes", "Human", "SmallIntestine", "FecalOral", "AntiparasiticTreatment" };
 
     // Grafo Ontológico VirtOnto em C#
     public Graph GrafoOntologico { get; private set; } = new Graph();
@@ -247,6 +261,16 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         GarantirNavMeshSurface();
         InicializarMotorRaciocinio();
         InicializarApiClient();
+    }
+
+    private void OnEnable()
+    {
+        ProtegeWebSocketBridge.OnTaxonomyReceived += AtualizarPlacasWayfindingTaxonomia;
+    }
+
+    private void OnDisable()
+    {
+        ProtegeWebSocketBridge.OnTaxonomyReceived -= AtualizarPlacasWayfindingTaxonomia;
     }
 
     public void InicializarMotorRaciocinio()
@@ -485,6 +509,9 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         GrafoOntologico.BuildFromCenarioDTO(cenario);
         m_TotalNosGrafo = GrafoOntologico.GetNodeCount();
         m_TotalArestasGrafo = GrafoOntologico.GetEdgeCount();
+
+        // 1.1 Extrai a taxonomia TBox ativa (agnóstica de domínio) e atualiza as Placas de Sinalização Semântica
+        ExtrairTaxonomiaDoGrafoAtivo();
 
         int contadorValidos = 0;
         int contadorInvalidos = 0;
@@ -967,6 +994,11 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         if (!IsPrefabValid(prefabGemaEspecial))
         {
             prefabGemaEspecial = LoadPrefabRobust("GemaValida");
+        }
+
+        if (!IsPrefabValid(prefabPlacaSinalizacao))
+        {
+            prefabPlacaSinalizacao = LoadPrefabRobust("PlacaSinalizacaoSemantica");
         }
 
         // Garante mapeamentos canônicos das classes ontológicas OWL para modelos 3D
@@ -1625,7 +1657,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         if (mat.HasProperty("_EmissionColor"))
         {
             mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", corSuperclasse * 0.25f);
+            mat.SetColor("_EmissionColor", corSuperclasse * 0.75f);
         }
 
         return mat;
@@ -1655,10 +1687,10 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         if (mat.HasProperty("_EmissionColor"))
         {
             mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", corFriso * 0.65f);
+            mat.SetColor("_EmissionColor", corFriso * 2.2f);
         }
 
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.6f);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.85f);
         return mat;
     }
 
@@ -1824,77 +1856,51 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     }
 
     /// <summary>
-    /// Configura iluminação global Sci-Fi, sombras suaves e luzes de corredor néon imersivas.
+    /// Configura iluminação cibernética noturna otimizada para Meta Quest 3 (URP):
+    /// Remove Point Lights extras com sombras em tempo real (que causavam o erro "Reduced additional punctual light shadows resolution")
+    /// e utiliza apenas 1 Directional Light noturna com Soft Shadows + materiais HDR emissivos com Bloom.
     /// </summary>
     public void ConfigurarIluminacaoSciFi()
     {
+        // Remove qualquer container legado de Point Lights que estourava o Shadow Atlas no Quest 3
+        GameObject containerLuzesLegado = GameObject.Find("Iluminacao_Corredores_SciFi");
+        if (containerLuzesLegado != null)
+        {
+            if (Application.isPlaying) Destroy(containerLuzesLegado);
+            else DestroyImmediate(containerLuzesLegado);
+        }
+
         Light dirLight = null;
         Light[] allLights = FindObjectsByType<Light>(FindObjectsSortMode.None);
         foreach (var l in allLights)
         {
-            if (l.type == LightType.Directional)
+            if (l == null) continue;
+            if (l.type == LightType.Directional && dirLight == null)
             {
                 dirLight = l;
-                break;
+            }
+            else if (l.type != LightType.Directional)
+            {
+                // Desativa sombras de luzes pontuais avulsas para eliminar "Reduced additional punctual light shadows resolution"
+                l.shadows = LightShadows.None;
             }
         }
 
         if (dirLight != null)
         {
-            dirLight.intensity = 1.35f;
-            dirLight.color = new Color(0.95f, 0.97f, 1f);
+            dirLight.intensity = 0.55f;
+            dirLight.color = new Color(0.55f, 0.68f, 0.95f, 1f);
             dirLight.shadows = LightShadows.Soft;
-            dirLight.shadowStrength = 0.85f;
-            dirLight.transform.rotation = Quaternion.Euler(55f, -35f, 0f);
-        }
-
-        GameObject containerLuzes = GameObject.Find("Iluminacao_Corredores_SciFi");
-        if (containerLuzes == null)
-        {
-            containerLuzes = new GameObject("Iluminacao_Corredores_SciFi");
-            containerLuzes.transform.SetParent(transform);
-            containerLuzes.transform.localPosition = Vector3.zero;
-
-            Vector3[] posLuzes = new Vector3[]
-            {
-                new Vector3(0f, 2.2f, 0f),       // Centro da Arena
-                new Vector3(-7f, 2.2f, 7f),     // Quadrante NW
-                new Vector3(7f, 2.2f, 7f),      // Quadrante NE
-                new Vector3(-7f, 2.2f, -7f),    // Quadrante SW
-                new Vector3(7f, 2.2f, -7f),     // Quadrante SE
-                new Vector3(0f, 2.2f, 8.5f),    // Corredor Norte
-                new Vector3(0f, 2.2f, -8.5f)    // Corredor Sul
-            };
-
-            Color[] coresLuzes = new Color[]
-            {
-                new Color(0f, 0.9f, 1f),        // Ciano Néon Centro
-                new Color(0f, 1f, 0.65f),       // Esmeralda NW
-                new Color(1f, 0.75f, 0.1f),     // Âmbar NE
-                new Color(1f, 0.75f, 0.1f),     // Âmbar SW
-                new Color(0f, 0.9f, 1f),        // Ciano SE
-                new Color(0f, 0.9f, 1f),        // Ciano Norte
-                new Color(1f, 0.2f, 0.4f)       // Rubi Alerta Sul
-            };
-
-            for (int i = 0; i < posLuzes.Length; i++)
-            {
-                GameObject pointLightObj = new GameObject($"Luz_Corredor_{i + 1}");
-                pointLightObj.transform.SetParent(containerLuzes.transform);
-                pointLightObj.transform.position = posLuzes[i];
-
-                Light pLight = pointLightObj.AddComponent<Light>();
-                pLight.type = LightType.Point;
-                pLight.color = coresLuzes[i];
-                pLight.range = 8.5f;
-                pLight.intensity = 2.2f;
-                pLight.shadows = LightShadows.Soft;
-            }
+            dirLight.shadowStrength = 0.80f;
+            dirLight.transform.rotation = Quaternion.Euler(52f, -35f, 0f);
         }
 
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientSkyColor = new Color(0.04f, 0.08f, 0.16f);
-        RenderSettings.subtractiveShadowColor = new Color(0.02f, 0.04f, 0.08f);
+        RenderSettings.ambientSkyColor = new Color(0.03f, 0.05f, 0.11f, 1f);
+        RenderSettings.subtractiveShadowColor = new Color(0.02f, 0.03f, 0.07f, 1f);
+
+        // Garante o otimizador gráfico Quest 3 (MSAA 4x, Render Scale 1.25, Anisotropic Forced On, HDR Bloom)
+        OtimizadorGraficoQuest3URP.AplicarOtimizacaoAutomaticaNoBoot();
     }
 
     /// <summary>
@@ -2036,7 +2042,382 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         CriarBlocoParede(m_ContainerParedes.transform, new Vector3(0f, yCentro, 8.5f), new Vector3(6f, alturaParedes, espessuraParedes), matParede, "Parede_Norte_T");
         CriarBlocoParede(m_ContainerParedes.transform, new Vector3(0f, yCentro, -8.5f), new Vector3(6f, alturaParedes, espessuraParedes), matParede, "Parede_Sul_T");
 
-        Debug.Log($"<color=#A855F7><b>[Topologia Semântica - Labirinto 3D]</b></color> {m_ContainerParedes.transform.childCount} blocos de parede instanciados e coloridos por Superclasse OWL (Parasitas = Roxo | Hospedeiros = Azul).");
+        // 3. WAYFINDING SEMÂNTICO: Detecta bifurcações e inícios de corredores para instanciar Placas de Sinalização TBox
+        if (instanciarPlacasSinalizacao)
+        {
+            DetectarBifurcacoesEInstanciarPlacas(m_ContainerParedes.transform);
+        }
+
+        Debug.Log($"<color=#A855F7><b>[Topologia Semântica - Labirinto 3D]</b></color> {m_ContainerParedes.transform.childCount} elementos do labirinto (paredes + placas de sinalização Wayfinding) instanciados.");
+    }
+
+    /// <summary>
+    /// Detecta bifurcações e inícios de corredores no labirinto procedural e instancia Placas de Sinalização Semântica (Wayfinding)
+    /// com TextMeshPro emissivo alimentado dinamicamente pela taxonomia TBox (agnóstico de domínio).
+    /// </summary>
+    public void DetectarBifurcacoesEInstanciarPlacas(Transform paiLabirinto)
+    {
+        m_PlacasWayfinding.Clear();
+
+        if (paiLabirinto == null)
+        {
+            paiLabirinto = m_ContainerParedes != null ? m_ContainerParedes.transform : transform;
+        }
+
+        Transform containerAntigo = paiLabirinto.Find("Container_Placas_Wayfinding");
+        if (containerAntigo != null)
+        {
+            if (Application.isPlaying) Destroy(containerAntigo.gameObject);
+            else DestroyImmediate(containerAntigo.gameObject);
+        }
+
+        GameObject containerPlacas = new GameObject("Container_Placas_Wayfinding");
+        containerPlacas.transform.SetParent(paiLabirinto, false);
+        containerPlacas.transform.localPosition = Vector3.zero;
+
+        float yChao = ObterAlturaSuperficieChao(Vector3.zero);
+
+        string supNorte = (m_SuperclassesAtivas != null && m_SuperclassesAtivas.Length > 0) ? m_SuperclassesAtivas[0] : "Parasitas";
+        string supSul = (m_SuperclassesAtivas != null && m_SuperclassesAtivas.Length > 1) ? m_SuperclassesAtivas[1] : "Hospedeiros";
+
+        string sub0 = ObterSubclasseTaxonomia(0, "Nematoda");
+        string sub1 = ObterSubclasseTaxonomia(1, "Platyhelminthes");
+        string sub2 = ObterSubclasseTaxonomia(2, "Human");
+        string sub3 = ObterSubclasseTaxonomia(3, "SmallIntestine");
+        string sub4 = ObterSubclasseTaxonomia(4, "FecalOral");
+        string sub5 = ObterSubclasseTaxonomia(5, "AntiparasiticTreatment");
+
+        // Pontos de bifurcação e entradas de corredores detectados na malha do labirinto:
+        // 1. Bifurcação Central Norte (Entrada do Hemisfério da Superclasse 1)
+        InstanciarPlacaEmPontoDeDecisao(
+            containerPlacas.transform,
+            new Vector3(-2.6f, yChao, 3.2f),
+            Quaternion.Euler(0f, 0f, 0f),
+            "Bifurcacao_Central_Norte",
+            "⬆", "Caminho", supNorte,
+            ObterCorTopologiaSuperclasse(supNorte));
+
+        // 2. Bifurcação Central Sul (Entrada do Hemisfério da Superclasse 2)
+        InstanciarPlacaEmPontoDeDecisao(
+            containerPlacas.transform,
+            new Vector3(2.6f, yChao, -3.8f),
+            Quaternion.Euler(0f, 180f, 0f),
+            "Bifurcacao_Central_Sul",
+            "⬇", "Caminho", supSul,
+            ObterCorTopologiaSuperclasse(supSul));
+
+        // 3. Corredor Noroeste (NW) - Subclasse 0 (ex: Nematoda)
+        InstanciarPlacaEmPontoDeDecisao(
+            containerPlacas.transform,
+            new Vector3(-4.2f, yChao, 5.2f),
+            Quaternion.Euler(0f, -35f, 0f),
+            "Corredor_NW_Subclasse",
+            "⬅", "Subclasses", sub0,
+            corSuperclasseParasitas);
+
+        // 4. Corredor Nordeste (NE) - Subclasse 1 (ex: Platyhelminthes)
+        InstanciarPlacaEmPontoDeDecisao(
+            containerPlacas.transform,
+            new Vector3(4.2f, yChao, 5.2f),
+            Quaternion.Euler(0f, 35f, 0f),
+            "Corredor_NE_Subclasse",
+            "➡", "Subclasses", sub1,
+            corSuperclasseParasitas);
+
+        // 5. Corredor Sudoeste (SW) - Subclasse 2 (ex: Human / Host)
+        InstanciarPlacaEmPontoDeDecisao(
+            containerPlacas.transform,
+            new Vector3(-4.2f, yChao, -5.2f),
+            Quaternion.Euler(0f, -145f, 0f),
+            "Corredor_SW_Subclasse",
+            "⬅", "Subclasses", sub2,
+            corSuperclasseHospedeiros);
+
+        // 6. Corredor Sudeste (SE) - Subclasse 3 (ex: SmallIntestine / Habitat)
+        InstanciarPlacaEmPontoDeDecisao(
+            containerPlacas.transform,
+            new Vector3(4.2f, yChao, -5.2f),
+            Quaternion.Euler(0f, 145f, 0f),
+            "Corredor_SE_Subclasse",
+            "➡", "Subclasses", sub3,
+            corSuperclasseHospedeiros);
+
+        // 7. Bifurcação T Norte (Acesso aos ramos extremos superiores)
+        InstanciarPlacaEmPontoDeDecisao(
+            containerPlacas.transform,
+            new Vector3(-3.3f, yChao, 8.0f),
+            Quaternion.Euler(0f, 0f, 0f),
+            "Bifurcacao_T_Norte",
+            "⬆", "Subclasses", sub4,
+            corSuperclasseParasitas);
+
+        // 8. Bifurcação T Sul (Acesso aos ramos extremos inferiores)
+        InstanciarPlacaEmPontoDeDecisao(
+            containerPlacas.transform,
+            new Vector3(3.3f, yChao, -8.0f),
+            Quaternion.Euler(0f, 180f, 0f),
+            "Bifurcacao_T_Sul",
+            "⬇", "Subclasses", sub5,
+            corSuperclasseHospedeiros);
+    }
+
+    private PlacaSinalizacaoSemantica InstanciarPlacaEmPontoDeDecisao(
+        Transform pai,
+        Vector3 posicao,
+        Quaternion rotacao,
+        string idPonto,
+        string seta,
+        string prefixoHierarquia,
+        string nomeClasse,
+        Color corNeon)
+    {
+        GameObject placaObj = null;
+
+        if (!IsPrefabValid(prefabPlacaSinalizacao))
+        {
+            prefabPlacaSinalizacao = LoadPrefabRobust("PlacaSinalizacaoSemantica");
+        }
+
+        if (IsPrefabValid(prefabPlacaSinalizacao))
+        {
+            placaObj = Instantiate(prefabPlacaSinalizacao, posicao, rotacao, pai);
+            placaObj.name = $"Placa_Wayfinding_{idPonto}";
+        }
+        else
+        {
+            placaObj = CriarPlacaWayfindingProcedural(pai, posicao, rotacao, idPonto);
+        }
+
+        PlacaSinalizacaoSemantica compPlaca = placaObj.GetComponent<PlacaSinalizacaoSemantica>();
+        if (compPlaca == null)
+        {
+            compPlaca = placaObj.AddComponent<PlacaSinalizacaoSemantica>();
+        }
+
+        compPlaca.idBifurcacao = idPonto;
+        compPlaca.ConfigurarPlaca(seta, prefixoHierarquia, nomeClasse, corNeon);
+        m_PlacasWayfinding.Add(compPlaca);
+        return compPlaca;
+    }
+
+    /// <summary>
+    /// Constrói proceduralmente o poste/painel holográfico de sinalização com TextMeshPro 3D (frente e verso)
+    /// caso o Prefab ainda não tenha sido salvo em disco.
+    /// </summary>
+    public static GameObject CriarPlacaWayfindingProcedural(Transform pai, Vector3 posicao, Quaternion rotacao, string idPonto)
+    {
+        GameObject raizPlaca = new GameObject($"Placa_Wayfinding_{idPonto}");
+        if (pai != null) raizPlaca.transform.SetParent(pai, true);
+        raizPlaca.transform.position = posicao;
+        raizPlaca.transform.rotation = rotacao;
+
+        // 1. Base Tecnológica Fixa no Chão
+        GameObject basePedestal = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        basePedestal.name = "Base_Pedestal";
+        basePedestal.transform.SetParent(raizPlaca.transform, false);
+        basePedestal.transform.localPosition = new Vector3(0f, 0.04f, 0f);
+        basePedestal.transform.localScale = new Vector3(0.45f, 0.04f, 0.45f);
+        Collider colBase = basePedestal.GetComponent<Collider>();
+        if (colBase != null)
+        {
+            if (Application.isPlaying) Destroy(colBase);
+            else DestroyImmediate(colBase);
+        }
+
+        // 2. Poste Vertical Metálico
+        GameObject poste = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        poste.name = "Poste_Suporte";
+        poste.transform.SetParent(raizPlaca.transform, false);
+        poste.transform.localPosition = new Vector3(0f, 0.72f, 0f);
+        poste.transform.localScale = new Vector3(0.08f, 0.70f, 0.08f);
+        Collider colPoste = poste.GetComponent<Collider>();
+        if (colPoste != null)
+        {
+            if (Application.isPlaying) Destroy(colPoste);
+            else DestroyImmediate(colPoste);
+        }
+
+        // 3. Painel Holográfico Escuro (Fundo da Placa)
+        GameObject painel = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        painel.name = "Painel_Holografico";
+        painel.transform.SetParent(raizPlaca.transform, false);
+        painel.transform.localPosition = new Vector3(0f, 1.48f, 0f);
+        painel.transform.localScale = new Vector3(2.15f, 0.56f, 0.05f);
+        Collider colPainel = painel.GetComponent<Collider>();
+        if (colPainel != null)
+        {
+            if (Application.isPlaying) Destroy(colPainel);
+            else DestroyImmediate(colPainel);
+        }
+
+        // 4. Moldura Emissiva Néon Superior/Inferior
+        GameObject molduraNeon = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        molduraNeon.name = "Moldura_Neon_HDR";
+        molduraNeon.transform.SetParent(raizPlaca.transform, false);
+        molduraNeon.transform.localPosition = new Vector3(0f, 1.78f, 0f);
+        molduraNeon.transform.localScale = new Vector3(2.22f, 0.05f, 0.08f);
+        Collider colMoldura = molduraNeon.GetComponent<Collider>();
+        if (colMoldura != null)
+        {
+            if (Application.isPlaying) Destroy(colMoldura);
+            else DestroyImmediate(colMoldura);
+        }
+
+        // 5. Texto TextMeshPro 3D Frontal
+        GameObject txtFrenteObj = new GameObject("TMP_Texto_Frontal");
+        txtFrenteObj.transform.SetParent(raizPlaca.transform, false);
+        txtFrenteObj.transform.localPosition = new Vector3(0f, 1.48f, -0.045f);
+        txtFrenteObj.transform.localRotation = Quaternion.identity;
+        TextMeshPro tmpFrente = txtFrenteObj.AddComponent<TextMeshPro>();
+        tmpFrente.fontSize = 2.15f;
+        tmpFrente.alignment = TextAlignmentOptions.Center;
+        tmpFrente.rectTransform.sizeDelta = new Vector2(2.05f, 0.50f);
+        tmpFrente.textWrappingMode = TextWrappingModes.Normal;
+
+        // 6. Texto TextMeshPro 3D Traseiro (Legível dos dois sentidos do corredor)
+        GameObject txtVersoObj = new GameObject("TMP_Texto_Traseiro");
+        txtVersoObj.transform.SetParent(raizPlaca.transform, false);
+        txtVersoObj.transform.localPosition = new Vector3(0f, 1.48f, 0.045f);
+        txtVersoObj.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+        TextMeshPro tmpVerso = txtVersoObj.AddComponent<TextMeshPro>();
+        tmpVerso.fontSize = 2.15f;
+        tmpVerso.alignment = TextAlignmentOptions.Center;
+        tmpVerso.rectTransform.sizeDelta = new Vector2(2.05f, 0.50f);
+        tmpVerso.textWrappingMode = TextWrappingModes.Normal;
+
+        PlacaSinalizacaoSemantica placaComp = raizPlaca.AddComponent<PlacaSinalizacaoSemantica>();
+        placaComp.textoFrontal = tmpFrente;
+        placaComp.textoTraseiro = tmpVerso;
+        placaComp.renderersEmissivos = new Renderer[]
+        {
+            molduraNeon.GetComponent<Renderer>(),
+            basePedestal.GetComponent<Renderer>()
+        };
+        placaComp.rendererPainelFundo = painel.GetComponent<Renderer>();
+
+        return raizPlaca;
+    }
+
+    private string ObterSubclasseTaxonomia(int indice, string fallback)
+    {
+        if (m_SubclassesAtivas != null && m_SubclassesAtivas.Length > 0)
+        {
+            return m_SubclassesAtivas[indice % m_SubclassesAtivas.Length];
+        }
+        return fallback;
+    }
+
+    /// <summary>
+    /// Extrai dinamicamente as Superclasses e Subclasses do Grafo Ontológico ativo (VirtOnto),
+    /// garantindo que o Wayfinding funcione para qualquer ontologia carregada (agnóstico de domínio).
+    /// </summary>
+    public void ExtrairTaxonomiaDoGrafoAtivo()
+    {
+        if (GrafoOntologico == null) return;
+
+        List<string> superclasses = new List<string>();
+        List<string> subclasses = new List<string>();
+
+        var nosClasse = GrafoOntologico.GetNodesByType(NodeType.CLASS);
+        if (nosClasse != null)
+        {
+            foreach (var n in nosClasse)
+            {
+                if (n == null || string.IsNullOrEmpty(n.Label)) continue;
+                var arestasSaida = GrafoOntologico.GetOutgoingEdges(n.Id);
+                bool ehSubclasse = false;
+                if (arestasSaida != null)
+                {
+                    foreach (var e in arestasSaida)
+                    {
+                        if (e != null && (e.Predicate.Contains("subClassOf") || e.Predicate.Contains("is_a")))
+                        {
+                            ehSubclasse = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (ehSubclasse)
+                {
+                    if (!subclasses.Contains(n.Label)) subclasses.Add(n.Label);
+                }
+                else
+                {
+                    if (!superclasses.Contains(n.Label)) superclasses.Add(n.Label);
+                }
+            }
+        }
+
+        // Também coleta classes referenciadas pelos indivíduos se a lista de subclasses estiver curta
+        var nosInd = GrafoOntologico.GetNodesByType(NodeType.INDIVIDUAL);
+        if (nosInd != null)
+        {
+            foreach (var ind in nosInd)
+            {
+                if (ind != null && !string.IsNullOrEmpty(ind.OntologyClass) && !subclasses.Contains(ind.OntologyClass))
+                {
+                    subclasses.Add(ind.OntologyClass);
+                }
+            }
+        }
+
+        if (superclasses.Count == 0)
+        {
+            superclasses.Add("Parasitas");
+            superclasses.Add("Hospedeiros");
+        }
+        else if (superclasses.Count == 1)
+        {
+            superclasses.Add("EntidadesRelacionadas");
+        }
+
+        AtualizarPlacasWayfindingTaxonomia(superclasses.ToArray(), subclasses.ToArray());
+    }
+
+    /// <summary>
+    /// Atualiza em tempo real os textos das Placas de Sinalização Semântica quando uma nova taxonomia
+    /// é recebida via WebSocket (Protégé 8085) ou carregada de arquivo OWL/JSON.
+    /// </summary>
+    public void AtualizarPlacasWayfindingTaxonomia(string[] superclasses, string[] subclasses)
+    {
+        if (superclasses != null && superclasses.Length > 0)
+        {
+            m_SuperclassesAtivas = superclasses;
+        }
+        if (subclasses != null && subclasses.Length > 0)
+        {
+            m_SubclassesAtivas = subclasses;
+        }
+
+        if (m_PlacasWayfinding == null || m_PlacasWayfinding.Count == 0) return;
+
+        string supNorte = (m_SuperclassesAtivas != null && m_SuperclassesAtivas.Length > 0) ? m_SuperclassesAtivas[0] : "Parasitas";
+        string supSul = (m_SuperclassesAtivas != null && m_SuperclassesAtivas.Length > 1) ? m_SuperclassesAtivas[1] : (m_SuperclassesAtivas != null && m_SuperclassesAtivas.Length > 0 ? m_SuperclassesAtivas[0] : "Hospedeiros");
+
+        for (int i = 0; i < m_PlacasWayfinding.Count; i++)
+        {
+            PlacaSinalizacaoSemantica placa = m_PlacasWayfinding[i];
+            if (placa == null) continue;
+
+            if (i == 0)
+            {
+                placa.ConfigurarPlaca("⬆", "Caminho", supNorte, ObterCorTopologiaSuperclasse(supNorte));
+            }
+            else if (i == 1)
+            {
+                placa.ConfigurarPlaca("⬇", "Caminho", supSul, ObterCorTopologiaSuperclasse(supSul));
+            }
+            else
+            {
+                string subNome = ObterSubclasseTaxonomia(i - 2, $"Subclasse_{i - 1}");
+                string seta = (i % 2 == 0) ? "⬅" : "➡";
+                if (i == 6) seta = "⬆";
+                if (i == 7) seta = "⬇";
+                Color cor = (i == 2 || i == 3 || i == 6) ? corSuperclasseParasitas : corSuperclasseHospedeiros;
+                placa.ConfigurarPlaca(seta, "Subclasses", subNome, cor);
+            }
+        }
     }
 
     private GameObject CriarBlocoParede(Transform pai, Vector3 pos, Vector3 escala, Material mat, string nome)

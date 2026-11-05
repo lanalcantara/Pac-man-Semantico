@@ -23,9 +23,11 @@ public static class GeradorPrefabsEditor
     private const string CaminhoGemaValida = PastaPrefabs + "/GemaValida.prefab";
     private const string CaminhoObstaculoInvalido = PastaPrefabs + "/ObstaculoInvalido.prefab";
     private const string CaminhoPacManJogador = PastaPrefabs + "/PacManJogador.prefab";
+    private const string CaminhoPlacaSinalizacao = PastaPrefabs + "/PlacaSinalizacaoSemantica.prefab";
 
     private const string CaminhoGemaResources = PastaResourcesPrefabs + "/GemaValida.prefab";
     private const string CaminhoObstaculoResources = PastaResourcesPrefabs + "/ObstaculoInvalido.prefab";
+    private const string CaminhoPlacaResources = PastaResourcesPrefabs + "/PlacaSinalizacaoSemantica.prefab";
 
     static GeradorPrefabsEditor()
     {
@@ -244,10 +246,20 @@ public static class GeradorPrefabsEditor
         Debug.Log($"<color=#00DDFF><b>[Pac-Man Semântico]</b></color> Arquivo de exemplo JSON ontológico gerado em: {caminhoArquivo}");
     }
 
+    [MenuItem("Pac-Man Semântico/4. Gerar Prefab Placa de Sinalização Semântica (Wayfinding TMP)", false, 4)]
+    public static void MenuGerarPrefabPlacaSinalizacao()
+    {
+        GarantirPastasExistentes();
+        CriarPrefabPlacaSinalizacao();
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+    }
+
     public static void VerificarECriarPrefabsAutomaticamente()
     {
         if (!File.Exists(CaminhoGemaValida) || !File.Exists(CaminhoObstaculoInvalido) ||
-            !File.Exists(CaminhoPacManJogador) || !File.Exists(CaminhoGemaResources) || !File.Exists(CaminhoObstaculoResources))
+            !File.Exists(CaminhoPacManJogador) || !File.Exists(CaminhoPlacaSinalizacao) ||
+            !File.Exists(CaminhoGemaResources) || !File.Exists(CaminhoObstaculoResources) || !File.Exists(CaminhoPlacaResources))
         {
             CriarPrefabs(forcarRecriacao: false);
         }
@@ -270,6 +282,11 @@ public static class GeradorPrefabsEditor
         if (forcarRecriacao || !File.Exists(CaminhoPacManJogador))
         {
             CriarPrefabPacManJogador();
+        }
+
+        if (forcarRecriacao || !File.Exists(CaminhoPlacaSinalizacao) || !File.Exists(CaminhoPlacaResources))
+        {
+            CriarPrefabPlacaSinalizacao();
         }
 
         AssetDatabase.SaveAssets();
@@ -514,6 +531,42 @@ public static class GeradorPrefabsEditor
         Object.DestroyImmediate(pacManRaiz);
 
         Debug.Log($"<color=#00FF99><b>[Pac-Man Semântico]</b></color> Prefab Pac-Man Jogador com boca animada criado em: {CaminhoPacManJogador}");
+    }
+
+    // =========================================================================
+    // 4. PREFAB PLACA DE SINALIZAÇÃO SEMÂNTICA (WAYFINDING HOLOGRÁFICO TMP)
+    // =========================================================================
+    private static void CriarPrefabPlacaSinalizacao()
+    {
+        GameObject placaRaiz = GerenciadorCenarioSemantico.CriarPlacaWayfindingProcedural(null, Vector3.zero, Quaternion.identity, "Prefab");
+        placaRaiz.name = "PlacaSinalizacaoSemantica";
+
+        Color corNeon = new Color(0.55f, 0.16f, 0.90f, 1f);
+        Material matMoldura = CriarOuObterMaterial("Mat_Placa_Neon_HDR", corNeon, corNeon * 2.4f, 0.9f);
+        Material matPainel = CriarOuObterMaterial("Mat_Placa_Painel_Escuro", new Color(0.03f, 0.04f, 0.09f, 1f), corNeon * 0.25f, 0.85f);
+
+        PlacaSinalizacaoSemantica comp = placaRaiz.GetComponent<PlacaSinalizacaoSemantica>();
+        if (comp != null)
+        {
+            if (comp.renderersEmissivos != null)
+            {
+                foreach (var r in comp.renderersEmissivos)
+                {
+                    if (r != null) r.sharedMaterial = matMoldura;
+                }
+            }
+            if (comp.rendererPainelFundo != null)
+            {
+                comp.rendererPainelFundo.sharedMaterial = matPainel;
+            }
+            comp.ConfigurarPlaca("⬆", "Caminho", "Parasitas", corNeon);
+        }
+
+        PrefabUtility.SaveAsPrefabAsset(placaRaiz, CaminhoPlacaSinalizacao);
+        PrefabUtility.SaveAsPrefabAsset(placaRaiz, CaminhoPlacaResources);
+        Object.DestroyImmediate(placaRaiz);
+
+        Debug.Log($"<color=#00FF99><b>[Wayfinding OWL]</b></color> Prefab de Placa de Sinalização Semântica com TextMeshPro criado em: {CaminhoPlacaSinalizacao}");
     }
 
     private static Material CriarOuObterMaterial(string nome, Color corBase, Color corEmissao, float suavidade = 0.9f)

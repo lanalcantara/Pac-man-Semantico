@@ -63,8 +63,9 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
         nomeClasseExibida = string.IsNullOrEmpty(nomeClasse) ? "owl:Thing" : nomeClasse;
         corNeon = corCategoria;
 
-        string hexCor = ColorUtility.ToHtmlStringRGB(Color.Lerp(corCategoria, Color.white, 0.35f));
-        string conteudoFormatado = $"{setaDirecao} <color=#94A3B8>{tipoHierarquia}:</color>\n<color=#{hexCor}><b>{nomeClasseExibida}</b></color>";
+        string hexCor = ColorUtility.ToHtmlStringRGB(Color.Lerp(corCategoria, Color.white, 0.25f));
+        // Texto principal em Branco Puro (#FFFFFF) para legibilidade máxima sobre o fundo Dark Grid
+        string conteudoFormatado = $"<color=#{hexCor}>{setaDirecao} {tipoHierarquia}:</color>\n<color=#FFFFFF><b>{nomeClasseExibida}</b></color>";
 
         if (textoFrontalTMP == null || textoTraseiroTMP == null)
         {
@@ -89,9 +90,8 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
         tmp.richText = true;
         tmp.alignment = TextAlignmentOptions.Center;
 
-        // Brilho sutil e legível para o texto 3D sem borrar as letras no Bloom
-        Color corBrilhoTexto = Color.Lerp(corBase, Color.white, 0.55f) * 1.15f;
-        corBrilhoTexto.a = 1.0f;
+        // Branco puro nítido para o TextMeshPro se destacar com 100% de contraste sobre a grade escura
+        Color corBrilhoTexto = Color.white;
         tmp.color = corBrilhoTexto;
 
         if (tmp.fontSharedMaterial != null)
@@ -99,15 +99,15 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
             Material matTexto = new Material(tmp.fontSharedMaterial);
             if (matTexto.HasProperty("_FaceColor"))
             {
-                matTexto.SetColor("_FaceColor", corBrilhoTexto);
+                matTexto.SetColor("_FaceColor", Color.white);
             }
             if (matTexto.HasProperty("_OutlineColor"))
             {
-                matTexto.SetColor("_OutlineColor", corBase * intensidadeEmissaoHDR);
+                matTexto.SetColor("_OutlineColor", Color.black);
             }
             if (matTexto.HasProperty("_OutlineWidth"))
             {
-                matTexto.SetFloat("_OutlineWidth", 0.14f);
+                matTexto.SetFloat("_OutlineWidth", 0.18f);
             }
             tmp.fontMaterial = matTexto;
         }

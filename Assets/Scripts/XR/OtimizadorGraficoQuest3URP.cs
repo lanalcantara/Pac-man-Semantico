@@ -29,23 +29,23 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
     public bool forcarFiltroAnisotropico = true;
 
     [Header("2. Estética Cibernética (HDR Post-Processing & Bloom)")]
-    [Tooltip("Limiar (Threshold) alto do Bloom para que apenas os núcleos emissivos (frisos LED e LineRenderers) brilhem, mantendo as paredes nítidas.")]
-    public float bloomThreshold = 1.20f;
+    [Tooltip("Limiar (Threshold) alto do Bloom para que apenas as linhas finas da grade (Wireframe) brilhem suavemente.")]
+    public float bloomThreshold = 1.15f;
 
-    [Tooltip("Intensidade sutil e limpa do brilho néon (entre 0.5 e 1.0) sem borrar a tela.")]
-    [Range(0.2f, 1.0f)]
-    public float bloomIntensity = 0.65f;
+    [Tooltip("Intensidade baixa do Bloom (0.35) para estética Dark Grid Retrowave limpa e nítida.")]
+    [Range(0.1f, 1.0f)]
+    public float bloomIntensity = 0.35f;
 
     [Tooltip("Espalhamento (Scatter) contido para preservar nitidez máxima no Quest 3.")]
     [Range(0.1f, 0.75f)]
-    public float bloomScatter = 0.48f;
+    public float bloomScatter = 0.38f;
 
     [Header("3. Iluminação Noturna e Fix de Sombras URP")]
     [Tooltip("Desativa sombras de Point Lights adicionais para eliminar o erro 'Reduced additional punctual light shadows resolution'.")]
     public bool corrigirSombrasLuzesPontuais = true;
 
-    [Tooltip("Intensidade da Directional Light noturna (deixa a emissão dos materiais iluminar o labirinto).")]
-    public float intensidadeLuzDirecionalNoturna = 0.55f;
+    [Tooltip("Intensidade baixa da Directional Light (fundo escuro estilo Retrowave).")]
+    public float intensidadeLuzDirecionalNoturna = 0.22f;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     public static void AplicarOtimizacaoAutomaticaNoBoot()
@@ -111,7 +111,8 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
             cam.allowMSAA = true;
             if (cam.CompareTag("MainCamera"))
             {
-                cam.backgroundColor = new Color(0.015f, 0.025f, 0.055f, 1.0f);
+                cam.clearFlags = CameraClearFlags.SolidColor;
+                cam.backgroundColor = new Color(0.008f, 0.008f, 0.015f, 1.0f);
             }
 
             UniversalAdditionalCameraData camData = cam.GetComponent<UniversalAdditionalCameraData>();
@@ -159,10 +160,10 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
             bloom = profile.Add<Bloom>(true);
         }
 
-        // Garante que valores antigos serializados na cena não estourem o Bloom
-        if (bloomThreshold < 1.10f) bloomThreshold = 1.20f;
-        if (bloomIntensity > 1.00f) bloomIntensity = 0.65f;
-        if (bloomScatter > 0.55f) bloomScatter = 0.48f;
+        // Garante que valores antigos serializados na cena não estourem o Bloom na estética Dark Grid
+        if (bloomThreshold < 1.10f) bloomThreshold = 1.15f;
+        if (bloomIntensity > 0.45f) bloomIntensity = 0.35f;
+        if (bloomScatter > 0.45f) bloomScatter = 0.38f;
 
         bloom.active = true;
         bloom.threshold.overrideState = true;

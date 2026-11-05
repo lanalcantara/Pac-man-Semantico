@@ -141,8 +141,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     [Tooltip("Gera as paredes físicas perimetrais e internas do labirinto.")]
     public bool instanciarLabirinto3D = true;
 
-    [Tooltip("Altura das paredes 3D do labirinto.")]
-    public float alturaParedes = 1.8f;
+    [Tooltip("Altura das paredes 3D do labirinto (estética Dark Grid Retrowave).")]
+    public float alturaParedes = 1.15f;
     // Spawns dos 4 Fantasmas estritamente dentro da Gaiola Central do Labirinto (Y = 0.0f Snap no Chao)
     private int m_ContadorSpawnFantasmas = 0;
     private int m_ContadorFantasmasConfigurados = 0;
@@ -1204,12 +1204,15 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             }
 
             Color corNodoBase = dado.corDestaque != Color.clear ? dado.corDestaque : new Color(0.0f, 0.90f, 1.0f, 1f);
-            Material matNodoTranslucido = CriarMaterialTranslúcidoNodo(corNodoBase, 0.58f);
+            Material matNodoTranslucido = CriarMaterialTranslúcidoNodo(corNodoBase, 0.72f);
             Renderer[] rendsNodo = obj.GetComponentsInChildren<Renderer>();
             foreach (var r in rendsNodo)
             {
                 r.material = matNodoTranslucido;
             }
+
+            // Pequena Point Light local (sem sombra) para destacar o Nodo Ontológico no chão Dark Grid
+            AnexarLuzPontualDestaque(obj, corNodoBase, 2.2f, 1.15f);
         }
         else
         {
@@ -1222,7 +1225,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             obj.transform.localScale = new Vector3(0.80f, 0.80f, 0.80f);
 
             Color corAzulPatrol = new Color(0.10f, 0.55f, 1.0f, 1f);
-            Material matAgentPatrol = CriarMaterialTranslúcidoNodo(corAzulPatrol, 0.52f);
+            Material matAgentPatrol = CriarMaterialTranslúcidoNodo(corAzulPatrol, 0.78f);
             Renderer[] rendsFantasma = obj.GetComponentsInChildren<Renderer>();
             foreach (var r in rendsFantasma)
             {
@@ -1232,6 +1235,9 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                     r.material = matAgentPatrol;
                 }
             }
+
+            // Point Light local no Fantasma/Reasoner Agent para destacá-lo sobre a grade preta
+            AnexarLuzPontualDestaque(obj, corAzulPatrol, 3.2f, 1.45f);
 
             // NavMeshAgent com Avoidance Priority diferenciada (30, 40, 50, 60)
             UnityEngine.AI.NavMeshAgent agent = obj.GetComponent<UnityEngine.AI.NavMeshAgent>();
@@ -1323,7 +1329,45 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         RotacaoFlutuante rot = nodoObj.AddComponent<RotacaoFlutuante>();
         rot.permitirFlutuacao = false;
 
+        AnexarLuzPontualDestaque(nodoObj, corBase, 2.2f, 1.15f);
+
         return nodoObj;
+    }
+
+    /// <summary>
+    /// Anexa uma pequena Point Light sem sombras (para não afetar o Shadow Atlas no Quest 3)
+    /// aos objetos principais (Nodos Ontológicos e Fantasmas/Reasoner Agents), destacando-os sobre o chão Dark Grid.
+    /// </summary>
+    public static Light AnexarLuzPontualDestaque(GameObject alvo, Color corLuz, float alcance = 2.4f, float intensidade = 1.2f)
+    {
+        if (alvo == null) return null;
+
+        Transform tExistente = alvo.transform.Find("Luz_Destaque_Grid");
+        GameObject luzObj;
+        if (tExistente != null)
+        {
+            luzObj = tExistente.gameObject;
+        }
+        else
+        {
+            luzObj = new GameObject("Luz_Destaque_Grid");
+            luzObj.transform.SetParent(alvo.transform, false);
+            luzObj.transform.localPosition = new Vector3(0f, 0.45f, 0f);
+        }
+
+        Light ptLight = luzObj.GetComponent<Light>();
+        if (ptLight == null)
+        {
+            ptLight = luzObj.AddComponent<Light>();
+        }
+
+        ptLight.type = LightType.Point;
+        ptLight.color = new Color(corLuz.r, corLuz.g, corLuz.b, 1f);
+        ptLight.range = alcance;
+        ptLight.intensity = intensidade;
+        ptLight.shadows = LightShadows.None; // Essencial: sem sombra para manter 0 erros de Shadow Atlas no URP
+        ptLight.renderMode = LightRenderMode.Auto;
+        return ptLight;
     }
 
     /// <summary>
@@ -1636,44 +1680,72 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     }
 
     /// <summary>
-    /// Cria o material de parede parametrizado pela Superclasse OWL da região (ex: "Parasitas" = Roxo; "Hospedeiros" = Azul).
+    /// Cria o material de parede na estética "Dark Grid / Wireframe Retrowave":
+    /// Fundo preto profundo (#030306) com textura emissiva de GRADE (Grid/Wireframe) na cor da Superclasse OWL
+    /// (Roxo para Parasitas, Azul para Hospedeiros), eliminando blocos sólidos ofuscantes.
     /// </summary>
-    public Material CriarMaterialParedePorSuperclasse(string superclasse)
+    public Material CriarMaterialParedePorSuperclasse(string superclasse, Vector2 tilingGrid = default)
     {
         Color corSuperclasse = ObterCorTopologiaSuperclasse(superclasse);
         Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
         Material mat = new Material(shader);
-        mat.name = $"Mat_Parede_Superclasse_{superclasse}";
+        mat.name = $"Mat_Parede_DarkGrid_{superclasse}";
 
-        // Tonalidade profunda de laboratório tingida pela cor semântica da Superclasse (Roxo vs Azul)
-        Color corParedeBase = Color.Lerp(new Color(0.06f, 0.06f, 0.14f, 1f), corSuperclasse, 0.58f);
-        corParedeBase.a = 1f;
+        if (tilingGrid == default || tilingGrid.x <= 0.01f)
+        {
+            tilingGrid = new Vector2(2f, 1f);
+        }
 
-        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", corParedeBase);
-        if (mat.HasProperty("_Color")) mat.SetColor("_Color", corParedeBase);
-        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.12f);
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.38f);
+        // Gera texturas Base (preta com linhas) e Emissiva (preto absoluto no interior, branco apenas nas linhas da grade)
+        GerarTexturasWireframeGrid(
+            new Color(0.015f, 0.015f, 0.025f, 1f),
+            corSuperclasse,
+            256,
+            espessuraLinha: 7,
+            subdivisoes: 2,
+            out Texture2D texBase,
+            out Texture2D texEmissiva);
+
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+        if (mat.HasProperty("_BaseMap"))
+        {
+            mat.SetTexture("_BaseMap", texBase);
+            mat.SetTextureScale("_BaseMap", tilingGrid);
+        }
+        mat.mainTexture = texBase;
+        mat.mainTextureScale = tilingGrid;
+
+        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.05f);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.20f);
 
         if (mat.HasProperty("_EmissionColor"))
         {
             mat.EnableKeyword("_EMISSION");
-            // Emissão sutil abaixo do Threshold do Bloom (1.20) para que o corpo da parede fique 100% nítido e sem borrão
-            mat.SetColor("_EmissionColor", corSuperclasse * 0.16f);
+            if (mat.HasProperty("_EmissionMap"))
+            {
+                mat.SetTexture("_EmissionMap", texEmissiva);
+                mat.SetTextureScale("_EmissionMap", tilingGrid);
+            }
+            // Apenas as linhas finas da grade (onde texEmissiva == branco) emitem luz néon; o interior do bloco é 100% preto
+            Color corLinhaBrilhante = Color.Lerp(corSuperclasse, Color.white, 0.18f) * 1.35f;
+            corLinhaBrilhante.a = 1f;
+            mat.SetColor("_EmissionColor", corLinhaBrilhante);
         }
 
         return mat;
     }
 
     /// <summary>
-    /// Cria o material avançado Sci-Fi / Laboratório Biomédico para paredes com texturas compostas e bump maps.
+    /// Cria o material avançado Dark Grid / Wireframe para paredes.
     /// </summary>
     public Material CriarMaterialParedeBiomedicaSciFi()
     {
-        return CriarMaterialParedePorSuperclasse("Parasitas");
+        return CriarMaterialParedePorSuperclasse("Parasitas", new Vector2(2f, 1f));
     }
 
     /// <summary>
-    /// Cria o material néon luminoso (LED Trim) para frisos e sinalizações de corredores com a cor da Superclasse.
+    /// Cria o material néon luminoso (LED Trim) discreto para detalhes de portal/arestas.
     /// </summary>
     public Material CriarMaterialNeonLED(Color corLED)
     {
@@ -1688,37 +1760,128 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         if (mat.HasProperty("_EmissionColor"))
         {
             mat.EnableKeyword("_EMISSION");
-            // Apenas o friso fino de LED ultrapassa levemente o Threshold (1.20) para um contorno neon limpo e nítido
-            mat.SetColor("_EmissionColor", corFriso * 1.45f);
+            mat.SetColor("_EmissionColor", corFriso * 1.25f);
         }
 
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.85f);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.5f);
         return mat;
     }
 
     /// <summary>
-    /// Cria o material reflexivo e texturizado de laboratório estéril com grid metálico para o chão.
+    /// Cria o material "Dark Grid / Wireframe" para o chão (Plane):
+    /// Fundo preto profundo (#020205) com grade azul emissiva nítida (estilo Retrowave da referência).
     /// </summary>
     public Material CriarMaterialChaoLaboratorio()
     {
         Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
         Material mat = new Material(shader);
-        mat.name = "Mat_Chao_Preto_Absoluto";
+        mat.name = "Mat_Chao_DarkGrid_Azul";
 
-        // Preto absoluto (#000000) estilo arcade clássico
-        Color corPreta = Color.black;
-        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", corPreta);
-        if (mat.HasProperty("_Color")) mat.SetColor("_Color", corPreta);
+        Color corFundoPreto = new Color(0.01f, 0.01f, 0.02f, 1f);
+        Color corGradeAzul = new Color(0.05f, 0.28f, 1.0f, 1f);
+        Vector2 tilingChao = new Vector2(22f, 22f);
+
+        GerarTexturasWireframeGrid(
+            corFundoPreto,
+            corGradeAzul,
+            256,
+            espessuraLinha: 5,
+            subdivisoes: 1,
+            out Texture2D texBase,
+            out Texture2D texEmissiva);
+
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+        if (mat.HasProperty("_BaseMap"))
+        {
+            mat.SetTexture("_BaseMap", texBase);
+            mat.SetTextureScale("_BaseMap", tilingChao);
+        }
+        mat.mainTexture = texBase;
+        mat.mainTextureScale = tilingChao;
+
         if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0f);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.15f);
 
         if (mat.HasProperty("_EmissionColor"))
         {
-            mat.DisableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", Color.black);
+            mat.EnableKeyword("_EMISSION");
+            if (mat.HasProperty("_EmissionMap"))
+            {
+                mat.SetTexture("_EmissionMap", texEmissiva);
+                mat.SetTextureScale("_EmissionMap", tilingChao);
+            }
+            mat.SetColor("_EmissionColor", corGradeAzul * 1.25f);
         }
 
         return mat;
+    }
+
+    /// <summary>
+    /// Gera o par de texturas procedurais (Base + Máscara Emissiva) para a estética Dark Grid / Wireframe.
+    /// O interior das células é preto absoluto (0 de emissão) e apenas as linhas da grade brilham.
+    /// </summary>
+    private void GerarTexturasWireframeGrid(
+        Color corFundo,
+        Color corLinha,
+        int tamanho,
+        int espessuraLinha,
+        int subdivisoes,
+        out Texture2D texBase,
+        out Texture2D texEmissiva)
+    {
+        texBase = new Texture2D(tamanho, tamanho, TextureFormat.RGBA32, true);
+        texBase.wrapMode = TextureWrapMode.Repeat;
+        texBase.filterMode = FilterMode.Trilinear;
+        texBase.anisoLevel = 16;
+
+        texEmissiva = new Texture2D(tamanho, tamanho, TextureFormat.RGBA32, true);
+        texEmissiva.wrapMode = TextureWrapMode.Repeat;
+        texEmissiva.filterMode = FilterMode.Trilinear;
+        texEmissiva.anisoLevel = 16;
+
+        Color[] pixelsBase = new Color[tamanho * tamanho];
+        Color[] pixelsEmissivos = new Color[tamanho * tamanho];
+
+        int passoSub = Mathf.Max(16, tamanho / Mathf.Max(1, subdivisoes));
+        int meiaEspessura = Mathf.Max(1, espessuraLinha / 2);
+
+        for (int y = 0; y < tamanho; y++)
+        {
+            for (int x = 0; x < tamanho; x++)
+            {
+                int modX = x % passoSub;
+                int modY = y % passoSub;
+
+                bool ehBordaPrincipal = (x < meiaEspessura || x >= tamanho - meiaEspessura ||
+                                         y < meiaEspessura || y >= tamanho - meiaEspessura);
+                bool ehLinhaSubdivisao = (modX < meiaEspessura || modX >= passoSub - meiaEspessura ||
+                                          modY < meiaEspessura || modY >= passoSub - meiaEspessura);
+
+                int idx = y * tamanho + x;
+                if (ehBordaPrincipal)
+                {
+                    pixelsBase[idx] = corLinha;
+                    pixelsEmissivos[idx] = Color.white;
+                }
+                else if (ehLinhaSubdivisao)
+                {
+                    pixelsBase[idx] = Color.Lerp(corFundo, corLinha, 0.75f);
+                    pixelsEmissivos[idx] = new Color(0.65f, 0.65f, 0.65f, 1f);
+                }
+                else
+                {
+                    pixelsBase[idx] = corFundo;
+                    pixelsEmissivos[idx] = Color.black;
+                }
+            }
+        }
+
+        texBase.SetPixels(pixelsBase);
+        texBase.Apply(true);
+
+        texEmissiva.SetPixels(pixelsEmissivos);
+        texEmissiva.Apply(true);
     }
 
 
@@ -1890,18 +2053,20 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
         if (dirLight != null)
         {
-            dirLight.intensity = 0.55f;
-            dirLight.color = new Color(0.55f, 0.68f, 0.95f, 1f);
+            dirLight.intensity = 0.22f;
+            dirLight.color = new Color(0.45f, 0.58f, 0.90f, 1f);
             dirLight.shadows = LightShadows.Soft;
-            dirLight.shadowStrength = 0.80f;
+            dirLight.shadowStrength = 0.70f;
             dirLight.transform.rotation = Quaternion.Euler(52f, -35f, 0f);
         }
 
+        // Emissão global e Skybox quase totalmente pretas para estética Dark Grid Retrowave
+        RenderSettings.skybox = null;
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientSkyColor = new Color(0.03f, 0.05f, 0.11f, 1f);
-        RenderSettings.subtractiveShadowColor = new Color(0.02f, 0.03f, 0.07f, 1f);
+        RenderSettings.ambientSkyColor = new Color(0.01f, 0.01f, 0.02f, 1f);
+        RenderSettings.subtractiveShadowColor = new Color(0.005f, 0.005f, 0.015f, 1f);
 
-        // Garante o otimizador gráfico Quest 3 (MSAA 4x, Render Scale 1.25, Anisotropic Forced On, HDR Bloom)
+        // Garante o otimizador gráfico Quest 3 (MSAA 4x, Render Scale 1.25, Anisotropic Forced On, HDR Bloom baixo)
         OtimizadorGraficoQuest3URP.AplicarOtimizacaoAutomaticaNoBoot();
     }
 
@@ -1962,6 +2127,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
             var scriptP = pelletObj.AddComponent<PowerPelletIndividualSemantico>();
             scriptP.nomeIndividuo = nomesIndividuos[i];
+
+            AnexarLuzPontualDestaque(pelletObj, new Color(0.65f, 0.35f, 1.0f, 1f), 2.6f, 1.35f);
 
             m_ObjetosInstanciados.Add(pelletObj);
         }
@@ -2432,11 +2599,14 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         parede.transform.localScale = escala;
         parede.layer = LayerMask.NameToLayer("Default");
 
-        // Topologia Semântica: determina a Superclasse OWL da região ("Parasitas" = Roxo; "Hospedeiros" = Azul)
+        // Topologia Semântica Dark Grid: parede preta com linhas de grade emissivas (Roxo = Parasitas | Azul = Hospedeiros)
         string superclasseRegiao = DeterminarSuperclassePorRegiao(pos, nome);
-        Color corSuperclasse = ObterCorTopologiaSuperclasse(superclasseRegiao);
+        Vector2 tilingParede = new Vector2(
+            Mathf.Max(1f, Mathf.Round(Mathf.Max(escala.x, escala.z) * 0.75f)),
+            Mathf.Max(1f, Mathf.Round(Mathf.Min(escala.x, escala.z) * 0.75f)));
+
         Material matRegiao = usarTopologiaSemanticaPorSuperclasse
-            ? CriarMaterialParedePorSuperclasse(superclasseRegiao)
+            ? CriarMaterialParedePorSuperclasse(superclasseRegiao, tilingParede)
             : mat;
 
         Renderer rend = parede.GetComponent<Renderer>();
@@ -2453,29 +2623,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         if (col != null)
         {
             col.isTrigger = false;
-            col.size = Vector3.one;
+            col.size = new Vector3(1f, 1.6f, 1f);
             col.center = Vector3.zero;
-        }
-
-        // Adiciona friso superior luminoso (LED Trim Bar) com a cor da Superclasse da região
-        GameObject trimLED = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        trimLED.name = $"{nome}_LEDTrim_{superclasseRegiao}";
-        trimLED.transform.SetParent(parede.transform);
-        trimLED.transform.localPosition = new Vector3(0f, 0.49f, 0f);
-        trimLED.transform.localScale = new Vector3(1.02f, 0.04f, 1.02f);
-        Collider colTrim = trimLED.GetComponent<Collider>();
-        if (colTrim != null)
-        {
-            if (Application.isPlaying) Destroy(colTrim);
-            else DestroyImmediate(colTrim);
-        }
-
-        Renderer rendLED = trimLED.GetComponent<Renderer>();
-        if (rendLED != null)
-        {
-            rendLED.material = CriarMaterialNeonLED(corSuperclasse);
-            rendLED.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            rendLED.receiveShadows = false;
         }
 
         return parede;

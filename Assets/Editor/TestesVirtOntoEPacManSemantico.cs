@@ -216,7 +216,7 @@ public static class TestesVirtOntoEPacManSemantico
             Debug.Assert(estado2 == PacMan.Semantics.GameEntityState.Aggressive, $"Esperado Aggressive quando INCONSISTENTE, obtido {estado2}");
 
             // 4. Retorno para Patrol após desfazer a ação inconsistente
-            motor.DesfazerAcaoInconsistente("Teste_Rollback");
+            motor.DesfazerAcaoInconsistente();
             var estado3 = motor.AvaliarRegraEstadoFantasma("ghost_blinky", pacmanIsPowered: false, distancia: 2.5f);
             Debug.Assert(estado3 == PacMan.Semantics.GameEntityState.Patrol, $"Esperado Patrol após desfazer inconsistência, obtido {estado3}");
 

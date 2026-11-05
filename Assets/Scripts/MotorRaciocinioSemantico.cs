@@ -159,7 +159,7 @@ namespace PacMan.Semantics
         /// <summary>
         /// Permite ao jogador desfazer a última ação que causou inconsistência, retornando os Reasoner Agents para Patrol (CONSISTENTE).
         /// </summary>
-        public void DesfazerAcaoInconsistente()
+        public void DesfazerAcaoInconsistente(string motivo = "")
         {
             reasonerConsistente = true;
             var ws = PacMan.Network.ProtegeWebSocketBridge.Instance ?? FindFirstObjectByType<PacMan.Network.ProtegeWebSocketBridge>();

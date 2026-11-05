@@ -2329,7 +2329,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             new Vector3(-2.6f, yChao, 3.2f),
             Quaternion.Euler(0f, 0f, 0f),
             "Bifurcacao_Central_Norte",
-            "⬆", "Caminho", supNorte,
+            "⬆", "Superclasse", supNorte,
             ObterCorTopologiaSuperclasse(supNorte));
 
         // 2. Bifurcação Central Sul (Entrada do Hemisfério da Superclasse 2)
@@ -2338,7 +2338,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             new Vector3(2.6f, yChao, -3.8f),
             Quaternion.Euler(0f, 180f, 0f),
             "Bifurcacao_Central_Sul",
-            "⬇", "Caminho", supSul,
+            "⬇", "Superclasse", supSul,
             ObterCorTopologiaSuperclasse(supSul));
 
         // 3. Corredor Noroeste (NW) - Subclasse 0 (ex: Nematoda)
@@ -2347,7 +2347,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             new Vector3(-4.2f, yChao, 5.2f),
             Quaternion.Euler(0f, -35f, 0f),
             "Corredor_NW_Subclasse",
-            "⬅", "Subclasses", sub0,
+            "⬅", "Subclasse", sub0,
             corSuperclasseParasitas);
 
         // 4. Corredor Nordeste (NE) - Subclasse 1 (ex: Platyhelminthes)
@@ -2356,7 +2356,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             new Vector3(4.2f, yChao, 5.2f),
             Quaternion.Euler(0f, 35f, 0f),
             "Corredor_NE_Subclasse",
-            "➡", "Subclasses", sub1,
+            "➡", "Subclasse", sub1,
             corSuperclasseParasitas);
 
         // 5. Corredor Sudoeste (SW) - Subclasse 2 (ex: Human / Host)
@@ -2365,7 +2365,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             new Vector3(-4.2f, yChao, -5.2f),
             Quaternion.Euler(0f, -145f, 0f),
             "Corredor_SW_Subclasse",
-            "⬅", "Subclasses", sub2,
+            "⬅", "Subclasse", sub2,
             corSuperclasseHospedeiros);
 
         // 6. Corredor Sudeste (SE) - Subclasse 3 (ex: SmallIntestine / Habitat)
@@ -2374,7 +2374,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             new Vector3(4.2f, yChao, -5.2f),
             Quaternion.Euler(0f, 145f, 0f),
             "Corredor_SE_Subclasse",
-            "➡", "Subclasses", sub3,
+            "➡", "Subclasse", sub3,
             corSuperclasseHospedeiros);
 
         // 7. Bifurcação T Norte (Acesso aos ramos extremos superiores)
@@ -2383,7 +2383,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             new Vector3(-3.3f, yChao, 8.0f),
             Quaternion.Euler(0f, 0f, 0f),
             "Bifurcacao_T_Norte",
-            "⬆", "Subclasses", sub4,
+            "⬆", "Subclasse", sub4,
             corSuperclasseParasitas);
 
         // 8. Bifurcação T Sul (Acesso aos ramos extremos inferiores)
@@ -2392,7 +2392,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             new Vector3(3.3f, yChao, -8.0f),
             Quaternion.Euler(0f, 180f, 0f),
             "Bifurcacao_T_Sul",
-            "⬇", "Subclasses", sub5,
+            "⬇", "Subclasse", sub5,
             corSuperclasseHospedeiros);
     }
 
@@ -2467,8 +2467,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         GameObject poste = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         poste.name = "Poste_Suporte";
         poste.transform.SetParent(raizPlaca.transform, false);
-        poste.transform.localPosition = new Vector3(0f, 0.72f, 0f);
-        poste.transform.localScale = new Vector3(0.08f, 0.70f, 0.08f);
+        poste.transform.localPosition = new Vector3(0f, 0.58f, 0f);
+        poste.transform.localScale = new Vector3(0.08f, 0.56f, 0.08f);
         Collider colPoste = poste.GetComponent<Collider>();
         if (colPoste != null)
         {
@@ -2476,12 +2476,12 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             else DestroyImmediate(colPoste);
         }
 
-        // 3. Painel Holográfico Escuro (Fundo da Placa)
+        // 3. Painel Holográfico Escuro (Fundo da Placa na altura dos olhos no corredor)
         GameObject painel = GameObject.CreatePrimitive(PrimitiveType.Cube);
         painel.name = "Painel_Holografico";
         painel.transform.SetParent(raizPlaca.transform, false);
-        painel.transform.localPosition = new Vector3(0f, 1.48f, 0f);
-        painel.transform.localScale = new Vector3(2.15f, 0.56f, 0.05f);
+        painel.transform.localPosition = new Vector3(0f, 1.22f, 0f);
+        painel.transform.localScale = new Vector3(2.20f, 0.54f, 0.05f);
         Collider colPainel = painel.GetComponent<Collider>();
         if (colPainel != null)
         {
@@ -2489,12 +2489,12 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             else DestroyImmediate(colPainel);
         }
 
-        // 4. Moldura Emissiva Néon Superior/Inferior
+        // 4. Moldura Emissiva Néon Superior
         GameObject molduraNeon = GameObject.CreatePrimitive(PrimitiveType.Cube);
         molduraNeon.name = "Moldura_Neon_HDR";
         molduraNeon.transform.SetParent(raizPlaca.transform, false);
-        molduraNeon.transform.localPosition = new Vector3(0f, 1.78f, 0f);
-        molduraNeon.transform.localScale = new Vector3(2.22f, 0.05f, 0.08f);
+        molduraNeon.transform.localPosition = new Vector3(0f, 1.51f, 0f);
+        molduraNeon.transform.localScale = new Vector3(2.26f, 0.05f, 0.08f);
         Collider colMoldura = molduraNeon.GetComponent<Collider>();
         if (colMoldura != null)
         {
@@ -2505,28 +2505,29 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         // 5. Texto TextMeshPro 3D Frontal
         GameObject txtFrenteObj = new GameObject("TMP_Texto_Frontal");
         txtFrenteObj.transform.SetParent(raizPlaca.transform, false);
-        txtFrenteObj.transform.localPosition = new Vector3(0f, 1.48f, -0.045f);
+        txtFrenteObj.transform.localPosition = new Vector3(0f, 1.22f, -0.055f);
         txtFrenteObj.transform.localRotation = Quaternion.identity;
         TextMeshPro tmpFrente = txtFrenteObj.AddComponent<TextMeshPro>();
-        tmpFrente.fontSize = 2.15f;
+        tmpFrente.fontSize = 2.1f;
         tmpFrente.alignment = TextAlignmentOptions.Center;
-        tmpFrente.rectTransform.sizeDelta = new Vector2(2.05f, 0.50f);
+        tmpFrente.rectTransform.sizeDelta = new Vector2(2.15f, 0.50f);
         tmpFrente.textWrappingMode = TextWrappingModes.Normal;
 
         // 6. Texto TextMeshPro 3D Traseiro (Legível dos dois sentidos do corredor)
         GameObject txtVersoObj = new GameObject("TMP_Texto_Traseiro");
         txtVersoObj.transform.SetParent(raizPlaca.transform, false);
-        txtVersoObj.transform.localPosition = new Vector3(0f, 1.48f, 0.045f);
+        txtVersoObj.transform.localPosition = new Vector3(0f, 1.22f, 0.055f);
         txtVersoObj.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
         TextMeshPro tmpVerso = txtVersoObj.AddComponent<TextMeshPro>();
-        tmpVerso.fontSize = 2.15f;
+        tmpVerso.fontSize = 2.1f;
         tmpVerso.alignment = TextAlignmentOptions.Center;
-        tmpVerso.rectTransform.sizeDelta = new Vector2(2.05f, 0.50f);
+        tmpVerso.rectTransform.sizeDelta = new Vector2(2.15f, 0.50f);
         tmpVerso.textWrappingMode = TextWrappingModes.Normal;
 
         PlacaSinalizacaoSemantica placaComp = raizPlaca.AddComponent<PlacaSinalizacaoSemantica>();
         placaComp.textoFrontal = tmpFrente;
         placaComp.textoTraseiro = tmpVerso;
+        placaComp.rendererMolduraNeon = molduraNeon.GetComponent<Renderer>();
         placaComp.renderersEmissivos = new Renderer[]
         {
             molduraNeon.GetComponent<Renderer>(),
@@ -2642,11 +2643,11 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
             if (i == 0)
             {
-                placa.ConfigurarPlaca("⬆", "Caminho", supNorte, ObterCorTopologiaSuperclasse(supNorte));
+                placa.ConfigurarPlaca("⬆", "Superclasse", supNorte, ObterCorTopologiaSuperclasse(supNorte));
             }
             else if (i == 1)
             {
-                placa.ConfigurarPlaca("⬇", "Caminho", supSul, ObterCorTopologiaSuperclasse(supSul));
+                placa.ConfigurarPlaca("⬇", "Superclasse", supSul, ObterCorTopologiaSuperclasse(supSul));
             }
             else
             {
@@ -2655,7 +2656,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 if (i == 6) seta = "⬆";
                 if (i == 7) seta = "⬇";
                 Color cor = (i == 2 || i == 3 || i == 6) ? corSuperclasseParasitas : corSuperclasseHospedeiros;
-                placa.ConfigurarPlaca(seta, "Subclasses", subNome, cor);
+                placa.ConfigurarPlaca(seta, "Subclasse", subNome, cor);
             }
         }
     }

@@ -542,8 +542,8 @@ public static class GeradorPrefabsEditor
         placaRaiz.name = "PlacaSinalizacaoSemantica";
 
         Color corNeon = new Color(0.55f, 0.16f, 0.90f, 1f);
-        Material matMoldura = CriarOuObterMaterial("Mat_Placa_Neon_HDR", corNeon, corNeon * 2.4f, 0.9f);
-        Material matPainel = CriarOuObterMaterial("Mat_Placa_Painel_Escuro", new Color(0.03f, 0.04f, 0.09f, 1f), corNeon * 0.25f, 0.85f);
+        Material matMoldura = CriarOuObterMaterial("Mat_Placa_Neon_HDR", corNeon, corNeon * 0.85f, 0.1f);
+        Material matPainel = CriarOuObterMaterial("Mat_Placa_Painel_Escuro", new Color(0.01f, 0.015f, 0.03f, 1f), Color.clear, 0.0f);
 
         PlacaSinalizacaoSemantica comp = placaRaiz.GetComponent<PlacaSinalizacaoSemantica>();
         if (comp != null)
@@ -559,7 +559,7 @@ public static class GeradorPrefabsEditor
             {
                 comp.rendererPainelFundo.sharedMaterial = matPainel;
             }
-            comp.ConfigurarPlaca("⬆", "Caminho", "Parasitas", corNeon);
+            comp.ConfigurarPlaca("Parasitas", "Superclasse", corNeon);
         }
 
         PrefabUtility.SaveAsPrefabAsset(placaRaiz, CaminhoPlacaSinalizacao);

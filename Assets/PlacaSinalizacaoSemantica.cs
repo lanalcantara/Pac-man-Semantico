@@ -10,13 +10,14 @@ using UnityEngine;
 /// (Superclasses e Subclasses OWL) de forma agnóstica de domínio.
 /// ============================================================================
 /// </summary>
+[ExecuteAlways]
 [DisallowMultipleComponent]
 public class PlacaSinalizacaoSemantica : MonoBehaviour
 {
-    [Header("Identificação da Bifurcação")]
+    [Header("Identificação da Bifurcação e Hierarquia OWL")]
     public string idBifurcacao = "Bifurcacao_01";
     public string setaDirecao = "⬆";
-    public string tipoHierarquia = "Caminho";
+    public string tipoHierarquia = "Superclasse";
     public string nomeClasseExibida = "Parasitas";
 
     [Header("Referências Visuais e TextMeshPro")]
@@ -47,52 +48,217 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
 
     public Renderer[] renderersEmissivos;
 
-    [Header("Estética Cibernética HDR (Quest 3 Bloom)")]
+    [Header("Estética Cibernética Dark Grid")]
     public Color corNeon = new Color(0.65f, 0.20f, 1.0f, 1.0f);
-    [Range(1.0f, 3.0f)]
-    public float intensidadeEmissaoHDR = 1.45f;
+    [Range(0.5f, 2.0f)]
+    public float intensidadeEmissaoHDR = 0.85f;
+
+    private static TMP_FontAsset s_FontePadraoTMP;
+
+    private void Awake()
+    {
+        GarantirReferenciasTextMeshPro();
+        GarantirTextoPadraoOffline();
+        AtualizarVisualPlaca();
+    }
+
+    private void OnEnable()
+    {
+        GarantirReferenciasTextMeshPro();
+        GarantirTextoPadraoOffline();
+        AtualizarVisualPlaca();
+    }
+
+    private void Start()
+    {
+        GarantirReferenciasTextMeshPro();
+        GarantirTextoPadraoOffline();
+        AtualizarVisualPlaca();
+    }
 
     /// <summary>
-    /// Atualiza dinamicamente o texto e o brilho emissivo HDR da placa de sinalização
-    /// a partir da taxonomia TBox recebida via WebSocket ou Grafo OWL.
+    /// Sobrecarga canônica exigida pela especificação:
+    /// Inicializa a placa recebendo o nome da classe OWL e o tipo de relação/hierarquia
+    /// (ex: ConfigurarPlaca("Parasitas", "Superclasse") ou ConfigurarPlaca("Nematoda", "Subclasse")).
+    /// </summary>
+    public void ConfigurarPlaca(string nomeClasse, string tipoRelacao = "Subclasse")
+    {
+        Color corAutomatica = DeterminarCorPorClasseOuRelacao(nomeClasse, tipoRelacao);
+        string seta = !string.IsNullOrEmpty(setaDirecao) ? setaDirecao : "⬆";
+        ConfigurarPlaca(seta, tipoRelacao, nomeClasse, corAutomatica);
+    }
+
+    /// <summary>
+    /// Sobrecarga com cor customizada: ConfigurarPlaca("Nematoda", "Subclasse", corNeon).
+    /// </summary>
+    public void ConfigurarPlaca(string nomeClasse, string tipoRelacao, Color corCategoria)
+    {
+        string seta = !string.IsNullOrEmpty(setaDirecao) ? setaDirecao : "⬆";
+        ConfigurarPlaca(seta, tipoRelacao, nomeClasse, corCategoria);
+    }
+
+    /// <summary>
+    /// Atualiza dinamicamente o texto e o brilho da placa de sinalização
+    /// a partir da taxonomia TBox recebida via WebSocket ou Grafo OWL local/offline.
     /// </summary>
     public void ConfigurarPlaca(string seta, string prefixoHierarquia, string nomeClasse, Color corCategoria)
     {
         setaDirecao = string.IsNullOrEmpty(seta) ? "⬆" : seta;
-        tipoHierarquia = string.IsNullOrEmpty(prefixoHierarquia) ? "Caminho" : prefixoHierarquia;
-        nomeClasseExibida = string.IsNullOrEmpty(nomeClasse) ? "owl:Thing" : nomeClasse;
+        tipoHierarquia = NormalizarTipoRelacao(prefixoHierarquia);
+        nomeClasseExibida = string.IsNullOrEmpty(nomeClasse) ? ObterNomeClasseOfflinePadrao(tipoHierarquia) : nomeClasse;
         corNeon = corCategoria;
 
-        string hexCor = ColorUtility.ToHtmlStringRGB(Color.Lerp(corCategoria, Color.white, 0.25f));
-        // Texto principal em Branco Puro (#FFFFFF) para legibilidade máxima sobre o fundo Dark Grid
-        string conteudoFormatado = $"<color=#{hexCor}>{setaDirecao} {tipoHierarquia}:</color>\n<color=#FFFFFF><b>{nomeClasseExibida}</b></color>";
+        GarantirReferenciasTextMeshPro();
+        AtualizarVisualPlaca();
+    }
+
+    private void GarantirTextoPadraoOffline()
+    {
+        if (string.IsNullOrEmpty(tipoHierarquia))
+        {
+            tipoHierarquia = "Superclasse";
+        }
+        if (string.IsNullOrEmpty(nomeClasseExibida))
+        {
+            nomeClasseExibida = ObterNomeClasseOfflinePadrao(tipoHierarquia);
+        }
+        if ( string.IsNullOrEmpty(setaDirecao))
+        {
+            setaDirecao = "⬆";
+        }
+    }
+
+    private static string NormalizarTipoRelacao(string prefixo)
+    {
+        if (string.IsNullOrEmpty(prefixo)) return "Superclasse";
+        if (prefixo.IndexOf("Caminho", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+            prefixo.IndexOf("Super", System.StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return "Superclasse";
+        }
+        if (prefixo.IndexOf("Sub", System.StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return "Subclasse";
+        }
+        return prefixo;
+    }
+
+    private string ObterNomeClasseOfflinePadrao(string relacao)
+    {
+        if (!string.IsNullOrEmpty(relacao) && relacao.IndexOf("Super", System.StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return "Parasitas";
+        }
+        return "Nematoda";
+    }
+
+    private Color DeterminarCorPorClasseOuRelacao(string nomeClasse, string tipoRelacao)
+    {
+        string combinado = $"{nomeClasse} {tipoRelacao}";
+        if (combinado.IndexOf("Hosped", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+            combinado.IndexOf("Host", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+            combinado.IndexOf("Human", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+            combinado.IndexOf("Intestine", System.StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return new Color(0.05f, 0.55f, 1.0f, 1.0f); // Azul Neon
+        }
+        return new Color(0.68f, 0.20f, 1.0f, 1.0f); // Roxo Neon
+    }
+
+    private void GarantirReferenciasTextMeshPro()
+    {
+        if (textoFrontalTMP == null)
+        {
+            Transform trFrente = transform.Find("TMP_Texto_Frontal");
+            if (trFrente != null) textoFrontalTMP = trFrente.GetComponent<TMP_Text>();
+        }
+        if (textoTraseiroTMP == null)
+        {
+            Transform trVerso = transform.Find("TMP_Texto_Traseiro");
+            if (trVerso != null) textoTraseiroTMP = trVerso.GetComponent<TMP_Text>();
+        }
 
         if (textoFrontalTMP == null || textoTraseiroTMP == null)
         {
             TMP_Text[] textos = GetComponentsInChildren<TMP_Text>(true);
             if (textos != null && textos.Length > 0)
             {
-                textoFrontalTMP = textos[0];
-                if (textos.Length > 1) textoTraseiroTMP = textos[1];
+                if (textoFrontalTMP == null) textoFrontalTMP = textos[0];
+                if (textos.Length > 1 && textoTraseiroTMP == null) textoTraseiroTMP = textos[1];
             }
         }
 
-        AplicarTextoEmissivoTMP(textoFrontalTMP, conteudoFormatado, corCategoria);
-        AplicarTextoEmissivoTMP(textoTraseiroTMP, conteudoFormatado, corCategoria);
-        AplicarMateriaisEmissivosHDR(corCategoria);
+        // Se ainda não houver componente TextMeshPro filho, cria automaticamente na frente e no verso da placa
+        if (textoFrontalTMP == null)
+        {
+            GameObject txtFrenteObj = new GameObject("TMP_Texto_Frontal");
+            txtFrenteObj.transform.SetParent(transform, false);
+            txtFrenteObj.transform.localPosition = new Vector3(0f, 1.22f, -0.055f);
+            txtFrenteObj.transform.localRotation = Quaternion.identity;
+            TextMeshPro tmpFrente = txtFrenteObj.AddComponent<TextMeshPro>();
+            tmpFrente.rectTransform.sizeDelta = new Vector2(2.15f, 0.54f);
+            textoFrontalTMP = tmpFrente;
+        }
+
+        if (textoTraseiroTMP == null)
+        {
+            GameObject txtVersoObj = new GameObject("TMP_Texto_Traseiro");
+            txtVersoObj.transform.SetParent(transform, false);
+            txtVersoObj.transform.localPosition = new Vector3(0f, 1.22f, 0.055f);
+            txtVersoObj.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            TextMeshPro tmpVerso = txtVersoObj.AddComponent<TextMeshPro>();
+            tmpVerso.rectTransform.sizeDelta = new Vector2(2.15f, 0.54f);
+            textoTraseiroTMP = tmpVerso;
+        }
     }
 
-    private void AplicarTextoEmissivoTMP(TMP_Text tmp, string texto, Color corBase)
+    public void AtualizarVisualPlaca()
+    {
+        // Texto 100% em Branco Puro (#FFFFFF) com contorno preto (#000000) para nitidez absoluta no Quest 3
+        string conteudoFormatado = $"{setaDirecao} {tipoHierarquia}: {nomeClasseExibida}";
+
+        AplicarTextoBrancoContornoPretoTMP(textoFrontalTMP, conteudoFormatado);
+        AplicarTextoBrancoContornoPretoTMP(textoTraseiroTMP, conteudoFormatado);
+        AplicarMateriaisEmissivosHDR(corNeon);
+    }
+
+    private static TMP_FontAsset ObterFontePadraoTMP()
+    {
+        if (s_FontePadraoTMP != null) return s_FontePadraoTMP;
+
+        if (TMP_Settings.defaultFontAsset != null)
+        {
+            s_FontePadraoTMP = TMP_Settings.defaultFontAsset;
+            return s_FontePadraoTMP;
+        }
+
+        s_FontePadraoTMP = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF")
+                           ?? Resources.Load<TMP_FontAsset>("LiberationSans SDF");
+        return s_FontePadraoTMP;
+    }
+
+    private void AplicarTextoBrancoContornoPretoTMP(TMP_Text tmp, string texto)
     {
         if (tmp == null) return;
 
+        TMP_FontAsset fonte = ObterFontePadraoTMP();
+        if (tmp.font == null && fonte != null)
+        {
+            tmp.font = fonte;
+        }
+
         tmp.text = texto;
         tmp.richText = true;
+        tmp.fontSize = 2.1f;
+        tmp.fontStyle = FontStyles.Bold;
         tmp.alignment = TextAlignmentOptions.Center;
+        tmp.textWrappingMode = TextWrappingModes.Normal;
+        tmp.overflowMode = TextOverflowModes.Overflow;
 
-        // Branco puro nítido para o TextMeshPro se destacar com 100% de contraste sobre a grade escura
-        Color corBrilhoTexto = Color.white;
-        tmp.color = corBrilhoTexto;
+        // Branco Puro (#FFFFFF) com Contorno Preto (#000000)
+        tmp.color = Color.white;
+        tmp.outlineColor = new Color32(0, 0, 0, 255);
+        tmp.outlineWidth = 0.22f;
 
         if (tmp.fontSharedMaterial != null)
         {
@@ -107,10 +273,18 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
             }
             if (matTexto.HasProperty("_OutlineWidth"))
             {
-                matTexto.SetFloat("_OutlineWidth", 0.18f);
+                matTexto.SetFloat("_OutlineWidth", 0.22f);
             }
             tmp.fontMaterial = matTexto;
         }
+
+        MeshRenderer mr = tmp.GetComponent<MeshRenderer>();
+        if (mr != null)
+        {
+            mr.sortingOrder = 10;
+        }
+
+        tmp.ForceMeshUpdate();
     }
 
     private void AplicarMateriaisEmissivosHDR(Color corBase)
@@ -129,7 +303,7 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
                 matMoldura.EnableKeyword("_EMISSION");
                 matMoldura.SetColor("_EmissionColor", corEmissaoHDR);
             }
-            rendererMolduraNeon.material = matMoldura;
+            rendererMolduraNeon.sharedMaterial = matMoldura;
         }
 
         if (renderersEmissivos != null && shaderLit != null)
@@ -147,26 +321,25 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
             {
                 if (renderersEmissivos[i] != null)
                 {
-                    renderersEmissivos[i].material = matEmissivo;
+                    renderersEmissivos[i].sharedMaterial = matEmissivo;
                 }
             }
         }
 
+        // Fundo do painel holográfico: PRETO PROFUNDO SEM EMISSÃO para que o texto Branco Puro com contorno preto fique 100% legível!
         if (rendererPainelHolografico != null && shaderLit != null)
         {
             Material matPainel = new Material(shaderLit);
-            matPainel.name = $"Mat_PainelWayfinding_{nomeClasseExibida}";
-            Color corFundoEscuro = new Color(0.02f, 0.04f, 0.09f, 0.94f);
-            if (matPainel.HasProperty("_BaseColor")) matPainel.SetColor("_BaseColor", corFundoEscuro);
-            if (matPainel.HasProperty("_Color")) matPainel.SetColor("_Color", corFundoEscuro);
-            if (matPainel.HasProperty("_Smoothness")) matPainel.SetFloat("_Smoothness", 0.75f);
-            if (matPainel.HasProperty("_EmissionColor"))
-            {
-                matPainel.EnableKeyword("_EMISSION");
-                matPainel.SetColor("_EmissionColor", corBase * 0.45f);
-            }
-            rendererPainelHolografico.material = matPainel;
+            matPainel.name = $"Mat_PainelWayfinding_Preto_{nomeClasseExibida}";
+            Color corFundoPreto = new Color(0.01f, 0.015f, 0.03f, 1.0f);
+            if (matPainel.HasProperty("_BaseColor")) matPainel.SetColor("_BaseColor", corFundoPreto);
+            if (matPainel.HasProperty("_Color")) matPainel.SetColor("_Color", corFundoPreto);
+            if (matPainel.HasProperty("_Smoothness")) matPainel.SetFloat("_Smoothness", 0.0f);
+            if (matPainel.HasProperty("_SpecularHighlights")) matPainel.SetFloat("_SpecularHighlights", 0.0f);
+            if (matPainel.HasProperty("_EnvironmentReflections")) matPainel.SetFloat("_EnvironmentReflections", 0.0f);
+            matPainel.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
+            matPainel.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
+            rendererPainelHolografico.sharedMaterial = matPainel;
         }
     }
 }
-

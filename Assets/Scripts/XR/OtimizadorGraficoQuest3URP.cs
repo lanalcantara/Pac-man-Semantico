@@ -29,15 +29,16 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
     public bool forcarFiltroAnisotropico = true;
 
     [Header("2. Estética Cibernética (HDR Post-Processing & Bloom)")]
-    [Tooltip("Limiar (Threshold) do efeito Bloom no Volume Global.")]
-    public float bloomThreshold = 0.85f;
+    [Tooltip("Limiar (Threshold) alto do Bloom para que apenas os núcleos emissivos (frisos LED e LineRenderers) brilhem, mantendo as paredes nítidas.")]
+    public float bloomThreshold = 1.20f;
 
-    [Tooltip("Intensidade do brilho néon (Intensity) para paredes, placas TMP e LineRenderers.")]
-    public float bloomIntensity = 1.85f;
+    [Tooltip("Intensidade sutil e limpa do brilho néon (entre 0.5 e 1.0) sem borrar a tela.")]
+    [Range(0.2f, 1.0f)]
+    public float bloomIntensity = 0.65f;
 
-    [Tooltip("Espalhamento (Scatter) suave do brilho no escuro.")]
-    [Range(0.1f, 0.95f)]
-    public float bloomScatter = 0.68f;
+    [Tooltip("Espalhamento (Scatter) contido para preservar nitidez máxima no Quest 3.")]
+    [Range(0.1f, 0.75f)]
+    public float bloomScatter = 0.48f;
 
     [Header("3. Iluminação Noturna e Fix de Sombras URP")]
     [Tooltip("Desativa sombras de Point Lights adicionais para eliminar o erro 'Reduced additional punctual light shadows resolution'.")]
@@ -157,6 +158,12 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
         {
             bloom = profile.Add<Bloom>(true);
         }
+
+        // Garante que valores antigos serializados na cena não estourem o Bloom
+        if (bloomThreshold < 1.10f) bloomThreshold = 1.20f;
+        if (bloomIntensity > 1.00f) bloomIntensity = 0.65f;
+        if (bloomScatter > 0.55f) bloomScatter = 0.48f;
+
         bloom.active = true;
         bloom.threshold.overrideState = true;
         bloom.threshold.value = bloomThreshold;

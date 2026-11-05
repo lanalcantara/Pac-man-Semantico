@@ -1657,7 +1657,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         if (mat.HasProperty("_EmissionColor"))
         {
             mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", corSuperclasse * 0.75f);
+            // Emissão sutil abaixo do Threshold do Bloom (1.20) para que o corpo da parede fique 100% nítido e sem borrão
+            mat.SetColor("_EmissionColor", corSuperclasse * 0.16f);
         }
 
         return mat;
@@ -1687,7 +1688,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         if (mat.HasProperty("_EmissionColor"))
         {
             mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", corFriso * 2.2f);
+            // Apenas o friso fino de LED ultrapassa levemente o Threshold (1.20) para um contorno neon limpo e nítido
+            mat.SetColor("_EmissionColor", corFriso * 1.45f);
         }
 
         if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.85f);

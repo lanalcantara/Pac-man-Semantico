@@ -49,8 +49,8 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
 
     [Header("Estética Cibernética HDR (Quest 3 Bloom)")]
     public Color corNeon = new Color(0.65f, 0.20f, 1.0f, 1.0f);
-    [Range(1.0f, 5.0f)]
-    public float intensidadeEmissaoHDR = 2.4f;
+    [Range(1.0f, 3.0f)]
+    public float intensidadeEmissaoHDR = 1.45f;
 
     /// <summary>
     /// Atualiza dinamicamente o texto e o brilho emissivo HDR da placa de sinalização
@@ -89,8 +89,8 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
         tmp.richText = true;
         tmp.alignment = TextAlignmentOptions.Center;
 
-        // Multiplica a cor do vértice/material por intensidade HDR para acionar o Bloom no Quest 3
-        Color corBrilhoTexto = Color.Lerp(corBase, Color.white, 0.45f) * 1.45f;
+        // Brilho sutil e legível para o texto 3D sem borrar as letras no Bloom
+        Color corBrilhoTexto = Color.Lerp(corBase, Color.white, 0.55f) * 1.15f;
         corBrilhoTexto.a = 1.0f;
         tmp.color = corBrilhoTexto;
 

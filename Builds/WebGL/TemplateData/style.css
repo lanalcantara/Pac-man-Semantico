@@ -1,0 +1,7 @@
+/* Pac-Man Semântico (CIn-UFPE) - Unity WebGL TemplateData Stylesheet */
+#unity-container {
+  position: relative;
+}
+#unity-canvas {
+  background: #000000;
+}

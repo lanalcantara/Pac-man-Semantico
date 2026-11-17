@@ -25,6 +25,11 @@ namespace PacMan.Editor
         [InitializeOnLoadMethod]
         public static void GarantirCenaDemoWebAoIniciar()
         {
+            // Garante Compression Format = Disabled (0) para compatibilidade total com GitHub Pages gratuito
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
+            PlayerSettings.WebGL.decompressionFallback = true;
+            PlayerSettings.WebGL.nameFilesAsHashes = false;
+
             var sceneAsset = AssetDatabase.LoadAssetAtPath<SceneAsset>(CaminhoCenaDemo);
             if (sceneAsset != null)
             {

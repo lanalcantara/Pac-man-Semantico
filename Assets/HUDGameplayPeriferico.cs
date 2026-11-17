@@ -66,7 +66,7 @@ public class HUDGameplayPeriferico : MonoBehaviour
         {
             GameObject hudObj = new GameObject("HUD_Gameplay_Periferico");
             hudObj.AddComponent<HUDGameplayPeriferico>();
-            DontDestroyOnLoad(hudObj);
+            if (Application.isPlaying) DontDestroyOnLoad(hudObj);
         }
     }
 
@@ -125,17 +125,18 @@ public class HUDGameplayPeriferico : MonoBehaviour
             if (m_CanvasHUD.renderMode != RenderMode.WorldSpace)
             {
                 m_CanvasHUD.renderMode = RenderMode.WorldSpace;
-                m_CanvasHUD.transform.localScale = Vector3.one * 0.0011f;
             }
+            m_CanvasHUD.transform.localScale = Vector3.one * 0.0008f;
 
             Vector3 camPos = cam.transform.position;
             Vector3 camFwd = cam.transform.forward;
             Vector3 camUp = cam.transform.up;
             Vector3 camRight = cam.transform.right;
 
-            // Flutua no canto superior esquerdo a 1.6 metros de distância da visão
-            Vector3 posAlvo = camPos + camFwd * 1.6f + camUp * 0.44f - camRight * 0.62f;
-            Quaternion rotAlvo = Quaternion.LookRotation(camFwd, camUp);
+            // Flutua no canto superior esquerdo periférico a 1.35 metros de distância da visão
+            Vector3 posAlvo = camPos + camFwd * 1.35f + camUp * 0.38f - camRight * 0.72f;
+            Vector3 dirOlhar = (posAlvo - camPos).normalized;
+            Quaternion rotAlvo = Quaternion.LookRotation(dirOlhar, camUp);
 
             m_CanvasHUD.transform.position = Vector3.Lerp(m_CanvasHUD.transform.position, posAlvo, Time.unscaledDeltaTime * 14f);
             m_CanvasHUD.transform.rotation = Quaternion.Slerp(m_CanvasHUD.transform.rotation, rotAlvo, Time.unscaledDeltaTime * 14f);

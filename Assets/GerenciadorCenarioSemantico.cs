@@ -861,6 +861,11 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 MinimapSemanticoVR.Instancia.DefinirAlvoOrbeAtiva(posSpawn, m_IndiceOrbeAtual + 1, m_TotalOrbesSequencia);
             }
 
+            if (MinimapaHUDVR.Instancia != null)
+            {
+                MinimapaHUDVR.Instancia.DefinirAlvoOrbe(objInstanciado.transform);
+            }
+
             Debug.Log($"<color=#00E5FF><b>[Missão Sequencial]</b></color> Orbe #{m_IndiceOrbeAtual + 1} / {m_TotalOrbesSequencia} spawnada em {posSpawn} (Orbe de Poder: {ehOrbeDePoder})");
         }
     }

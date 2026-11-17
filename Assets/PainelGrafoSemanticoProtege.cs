@@ -80,6 +80,7 @@ public class PainelGrafoSemanticoProtege : MonoBehaviour
             return;
         }
         Instancia = this;
+        if (m_PainelRaiz != null) m_PainelRaiz.SetActive(false);
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]

@@ -37,9 +37,9 @@ public class MinimapSemanticoVR : MonoBehaviour
 
     [Header("Configurações Visuais e Ergonomia VR")]
     public bool exibirMinimapa = true;
-    public Vector2 tamanhoPainel = new Vector2(330f, 350f);
-    public float distanciaVisaoVR = 1.62f;
-    public Vector2 offsetPerifericoVR = new Vector2(-0.62f, 0.04f); // Esquerda da visão
+    public Vector2 tamanhoPainel = new Vector2(280f, 280f);
+    public float distanciaVisaoVR = 1.35f;
+    public Vector2 offsetPerifericoVR = new Vector2(-0.82f, -0.30f); // Rigorosamente na periferia inferior esquerda
 
     // Representação interna de Nó da TBox
     private class NoTaxonomicoUI
@@ -108,7 +108,7 @@ public class MinimapSemanticoVR : MonoBehaviour
             {
                 GameObject obj = new GameObject("Minimap_Semantico_VR");
                 obj.AddComponent<MinimapSemanticoVR>();
-                DontDestroyOnLoad(obj);
+                if (Application.isPlaying) DontDestroyOnLoad(obj);
             }
         }
     }
@@ -165,17 +165,20 @@ public class MinimapSemanticoVR : MonoBehaviour
         if (m_CanvasMinimapa.renderMode != RenderMode.WorldSpace)
         {
             m_CanvasMinimapa.renderMode = RenderMode.WorldSpace;
-            m_CanvasMinimapa.transform.localScale = Vector3.one * 0.0011f;
         }
+        m_CanvasMinimapa.transform.localScale = Vector3.one * 0.00075f;
 
         Vector3 camPos = cam.transform.position;
         Vector3 camFwd = cam.transform.forward;
         Vector3 camUp = cam.transform.up;
         Vector3 camRight = cam.transform.right;
 
-        // Posicionado suavemente no campo de visão esquerdo (levemente abaixo da telemetria)
+        // Posicionado suavemente no campo de visão periférico esquerdo (fora da frente do Pac-Man)
         Vector3 posAlvo = camPos + camFwd * distanciaVisaoVR + camRight * offsetPerifericoVR.x + camUp * offsetPerifericoVR.y;
-        Quaternion rotAlvo = Quaternion.LookRotation(camFwd, camUp);
+        
+        // Canting esférico voltado para os olhos do usuário (cockpit HUD periférico)
+        Vector3 dirOlhar = (posAlvo - camPos).normalized;
+        Quaternion rotAlvo = Quaternion.LookRotation(dirOlhar, camUp);
 
         m_CanvasMinimapa.transform.position = Vector3.Lerp(m_CanvasMinimapa.transform.position, posAlvo, Time.unscaledDeltaTime * 14f);
         m_CanvasMinimapa.transform.rotation = Quaternion.Slerp(m_CanvasMinimapa.transform.rotation, rotAlvo, Time.unscaledDeltaTime * 14f);

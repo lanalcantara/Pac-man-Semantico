@@ -36,9 +36,9 @@ public class PainelInventarioABoxVR : MonoBehaviour
 
     [Header("Configurações Visuais e Ergonomia VR")]
     public bool exibirInventario = true;
-    public Vector2 tamanhoPainel = new Vector2(360f, 350f);
-    public float distanciaVisaoVR = 1.62f;
-    public Vector2 offsetPerifericoVR = new Vector2(0.62f, 0.04f); // Direita da visão
+    public Vector2 tamanhoPainel = new Vector2(300f, 280f);
+    public float distanciaVisaoVR = 1.35f;
+    public Vector2 offsetPerifericoVR = new Vector2(0.82f, -0.30f); // Rigorosamente na periferia inferior direita
 
     // Dados estruturados de uma tripla semântica coletada
     public class EntradaTriplaABox
@@ -154,17 +154,20 @@ public class PainelInventarioABoxVR : MonoBehaviour
         if (m_CanvasInventario.renderMode != RenderMode.WorldSpace)
         {
             m_CanvasInventario.renderMode = RenderMode.WorldSpace;
-            m_CanvasInventario.transform.localScale = Vector3.one * 0.0011f;
         }
+        m_CanvasInventario.transform.localScale = Vector3.one * 0.00075f;
 
         Vector3 camPos = cam.transform.position;
         Vector3 camFwd = cam.transform.forward;
         Vector3 camUp = cam.transform.up;
         Vector3 camRight = cam.transform.right;
 
-        // Posicionado suavemente no campo de visão direito (simétrico ao minimapa)
+        // Posicionado suavemente no campo de visão periférico direito (fora da frente do Pac-Man)
         Vector3 posAlvo = camPos + camFwd * distanciaVisaoVR + camRight * offsetPerifericoVR.x + camUp * offsetPerifericoVR.y;
-        Quaternion rotAlvo = Quaternion.LookRotation(camFwd, camUp);
+
+        // Canting esférico voltado para os olhos do usuário (cockpit HUD periférico)
+        Vector3 dirOlhar = (posAlvo - camPos).normalized;
+        Quaternion rotAlvo = Quaternion.LookRotation(dirOlhar, camUp);
 
         m_CanvasInventario.transform.position = Vector3.Lerp(m_CanvasInventario.transform.position, posAlvo, Time.unscaledDeltaTime * 14f);
         m_CanvasInventario.transform.rotation = Quaternion.Slerp(m_CanvasInventario.transform.rotation, rotAlvo, Time.unscaledDeltaTime * 14f);

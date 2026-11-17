@@ -99,7 +99,7 @@ public class HubInicialAmbiente : MonoBehaviour
     private Outline[] m_OutlinesOntologia = new Outline[4];
 
     // Elementos do Carrossel de Mapas
-    private int m_IndiceMapaAtual = 1; // 0: Neon, 1: Clássico Dia (CIn-UFPE), 2: Especial Natal
+    private int m_IndiceMapaAtual = 0; // 0: Arcade Neon Clássico, 1: Clássico CIn-UFPE, 2: Especial Natal
     private RawImage m_ImgPreviewMapa;
     private TMP_Text m_TextoTituloMapa;
     private TMP_Text m_TextoDescricaoMapa;
@@ -131,6 +131,7 @@ public class HubInicialAmbiente : MonoBehaviour
     // Estado dos Modais
     public bool GameOverAberto => m_PainelJanelaGameOver != null && m_PainelJanelaGameOver.activeSelf;
     public bool VitoriaAberta => m_PainelJanelaVitoria != null && m_PainelJanelaVitoria.activeSelf;
+    public bool ContagemAtiva => m_PainelContagemRegressiva != null && m_PainelContagemRegressiva.activeSelf;
 
     // Texturas em cache
     private Texture2D m_TexMapaNeon;
@@ -731,31 +732,37 @@ public class HubInicialAmbiente : MonoBehaviour
         }
 
         GerenciadorCenarioSemantico.TipoTemaLabirinto tema = (GerenciadorCenarioSemantico.TipoTemaLabirinto)m_IndiceMapaAtual;
-        if (GerenciadorCenarioSemantico.Instancia != null)
+        try
         {
-            GerenciadorCenarioSemantico.Instancia.AplicarTemaLabirinto(tema);
-            // RESET INTEGRAL: orbes, pontuação, fantasmas e posições zeradas para nova rodada limpa
-            GerenciadorCenarioSemantico.Instancia.ReiniciarLabirintoEInstancias();
+            if (GerenciadorCenarioSemantico.Instancia != null)
+            {
+                GerenciadorCenarioSemantico.Instancia.AplicarTemaLabirinto(tema);
+                // RESET INTEGRAL: orbes, pontuação, fantasmas e posições zeradas para nova rodada limpa
+                GerenciadorCenarioSemantico.Instancia.ReiniciarLabirintoEInstancias();
+            }
+            ImobilizarTodosFantasmas();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[HubInicialAmbiente] Aviso na preparação do cenário: {ex.Message}");
         }
 
-        ImobilizarTodosFantasmas();
-
-        // 2. Constrói / exibe o painel de contagem regressiva
+        // 2. Constrói / exibe o painel de contagem regressiva estilo Arcade ("READY!")
         if (m_PainelContagemRegressiva == null)
         {
             ConstruirPainelContagemRegressiva();
         }
         m_PainelContagemRegressiva.SetActive(true);
 
-        // 3. Contagem regressiva de 5 segundos
-        for (int i = 5; i >= 1; i--)
+        // 3. Contagem regressiva estilo Arcade (READY!)
+        for (int i = 3; i >= 1; i--)
         {
             if (m_TextoContagemRegressiva != null)
             {
-                m_TextoContagemRegressiva.text = $"<color=#00E5FF><b>PREPARAR!</b></color>\n<size=110><color=#FFD700><b>{i}</b></color></size>";
+                m_TextoContagemRegressiva.text = $"<color=#FFD700><b>READY!</b></color>\n<size=110><color=#00E5FF><b>{i}</b></color></size>";
             }
-            TocarSomBeepProcedural(480f + (5 - i) * 60f);
-            yield return new WaitForSeconds(1.0f);
+            TocarSomBeepProcedural(480f + (3 - i) * 90f);
+            yield return new WaitForSeconds(0.65f);
         }
 
         if (m_TextoContagemRegressiva != null)
@@ -763,11 +770,12 @@ public class HubInicialAmbiente : MonoBehaviour
             m_TextoContagemRegressiva.text = "<size=110><color=#00FF99><b>VAI!</b></color></size>";
         }
         TocarSomBeepProcedural(880f);
-        yield return new WaitForSeconds(0.6f);
+        yield return new WaitForSeconds(0.4f);
 
         m_PainelContagemRegressiva.SetActive(false);
 
         // 4. Libera locomoção e inicia gameplay ativo
+        LocalizarControladores();
         if (controladorJogador != null)
         {
             controladorJogador.controlesHabilitados = true;
@@ -1583,6 +1591,7 @@ public class HubInicialAmbiente : MonoBehaviour
         txt.alignment = TextAlignmentOptions.Center;
         txt.textWrappingMode = TextWrappingModes.Normal;
         txt.overflowMode = TextOverflowModes.Truncate;
+        txt.raycastTarget = false;
         return txt;
     }
 

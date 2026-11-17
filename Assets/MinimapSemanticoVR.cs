@@ -427,65 +427,73 @@ public class MinimapSemanticoVR : MonoBehaviour
         m_TemOrbeAtiva = false;
         m_UltimaZona = "";
 
-        foreach (var kvp in m_NosTaxonomia)
+        if (m_NosTaxonomia != null)
         {
-            var no = kvp.Value;
-            if (no == null) continue;
+            foreach (var kvp in m_NosTaxonomia)
+            {
+                var no = kvp.Value;
+                if (no == null) continue;
 
-            if (no.id == "owl:Thing")
-            {
-                no.descoberto = true;
-                no.imgFundo.color = new Color(0.20f, 0.25f, 0.35f, 0.95f);
-                no.imgBorda.color = Color.white;
-                no.txtRotulo.color = Color.white;
-            }
-            else
-            {
-                no.descoberto = false;
-                no.imgFundo.color = new Color(0.06f, 0.08f, 0.12f, 0.75f);
-                no.imgBorda.color = new Color(0.25f, 0.30f, 0.40f, 0.50f);
-                no.txtRotulo.color = new Color(0.60f, 0.65f, 0.75f, 0.75f);
+                if (no.id == "owl:Thing")
+                {
+                    no.descoberto = true;
+                    if (no.imgFundo != null) no.imgFundo.color = new Color(0.20f, 0.25f, 0.35f, 0.95f);
+                    if (no.imgBorda != null) no.imgBorda.color = Color.white;
+                    if (no.txtRotulo != null) no.txtRotulo.color = Color.white;
+                }
+                else
+                {
+                    no.descoberto = false;
+                    if (no.imgFundo != null) no.imgFundo.color = new Color(0.06f, 0.08f, 0.12f, 0.75f);
+                    if (no.imgBorda != null) no.imgBorda.color = new Color(0.25f, 0.30f, 0.40f, 0.50f);
+                    if (no.txtRotulo != null) no.txtRotulo.color = new Color(0.60f, 0.65f, 0.75f, 0.75f);
+                }
             }
         }
 
-        for (int i = 0; i < m_ArestasTaxonomia.Count; i++)
+        if (m_ArestasTaxonomia != null)
         {
-            var aresta = m_ArestasTaxonomia[i];
-            if (aresta != null)
+            for (int i = 0; i < m_ArestasTaxonomia.Count; i++)
             {
-                aresta.ativa = false;
-                aresta.imgLinha.color = new Color(0.18f, 0.22f, 0.30f, 0.40f);
-                aresta.rtLinha.sizeDelta = new Vector2(aresta.rtLinha.sizeDelta.x, 1.4f);
+                var aresta = m_ArestasTaxonomia[i];
+                if (aresta != null)
+                {
+                    aresta.ativa = false;
+                    if (aresta.imgLinha != null) aresta.imgLinha.color = new Color(0.18f, 0.22f, 0.30f, 0.40f);
+                    if (aresta.rtLinha != null) aresta.rtLinha.sizeDelta = new Vector2(aresta.rtLinha.sizeDelta.x, 1.4f);
+                }
             }
         }
     }
 
     private void IluminarNodo(string id)
     {
-        if (m_NosTaxonomia.TryGetValue(id, out NoTaxonomicoUI no))
+        if (m_NosTaxonomia == null) return;
+        if (m_NosTaxonomia.TryGetValue(id, out NoTaxonomicoUI no) && no != null)
         {
             if (!no.descoberto)
             {
                 no.descoberto = true;
-                no.imgFundo.color = new Color(no.corPadrao.r * 0.35f, no.corPadrao.g * 0.35f, no.corPadrao.b * 0.35f, 0.95f);
-                no.imgBorda.color = no.corPadrao;
-                no.txtRotulo.color = Color.white;
+                if (no.imgFundo != null) no.imgFundo.color = new Color(no.corPadrao.r * 0.35f, no.corPadrao.g * 0.35f, no.corPadrao.b * 0.35f, 0.95f);
+                if (no.imgBorda != null) no.imgBorda.color = no.corPadrao;
+                if (no.txtRotulo != null) no.txtRotulo.color = Color.white;
             }
         }
     }
 
     private void IluminarAresta(string idOrigem, string idDestino)
     {
+        if (m_ArestasTaxonomia == null) return;
         for (int i = 0; i < m_ArestasTaxonomia.Count; i++)
         {
             var a = m_ArestasTaxonomia[i];
-            if (a.idOrigem == idOrigem && a.idDestino == idDestino)
+            if (a != null && a.idOrigem == idOrigem && a.idDestino == idDestino)
             {
                 if (!a.ativa)
                 {
                     a.ativa = true;
-                    a.imgLinha.color = new Color(0.0f, 1.0f, 0.65f, 0.95f); // Neon verde-esmeralda
-                    a.rtLinha.sizeDelta = new Vector2(a.rtLinha.sizeDelta.x, 2.5f);
+                    if (a.imgLinha != null) a.imgLinha.color = new Color(0.0f, 1.0f, 0.65f, 0.95f); // Neon verde-esmeralda
+                    if (a.rtLinha != null) a.rtLinha.sizeDelta = new Vector2(a.rtLinha.sizeDelta.x, 2.5f);
                 }
                 break;
             }

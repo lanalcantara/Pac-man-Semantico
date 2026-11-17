@@ -4122,6 +4122,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 int slotIdx = i % s_SpawnsGaiolaCentral.Length;
                 Vector3 slotPos = s_SpawnsGaiolaCentral[slotIdx];
                 float atraso = s_AtrasosSaidaGaiola[slotIdx];
+                var nav = fantasmas[i].GetComponent<UnityEngine.AI.NavMeshAgent>();
+                if (nav != null) nav.enabled = false;
                 fantasmas[i].transform.position = slotPos;
                 fantasmas[i].ConfigurarSpawnGaiola(slotPos, atraso, s_PosicaoSaidaGaiola);
                 fantasmas[i].gameObject.SetActive(true);
@@ -4145,20 +4147,33 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         }
 
         // 6. Reseta painel do grafo Protégé
-        if (PainelGrafoSemanticoProtege.Instancia != null)
+        try
         {
-            PainelGrafoSemanticoProtege.Instancia.ReiniciarMetricas();
+            if (PainelGrafoSemanticoProtege.Instancia != null)
+            {
+                PainelGrafoSemanticoProtege.Instancia.ReiniciarMetricas();
+            }
         }
+        catch (Exception ex) { Debug.LogWarning($"[GerenciadorCenarioSemantico] Aviso ao reiniciar PainelGrafo: {ex.Message}"); }
 
         // 6.1 Reseta Minimapa Semântico (TBox) e Inventário de ABox
-        if (MinimapSemanticoVR.Instancia != null)
+        try
         {
-            MinimapSemanticoVR.Instancia.ReiniciarMinimapa();
+            if (MinimapSemanticoVR.Instancia != null)
+            {
+                MinimapSemanticoVR.Instancia.ReiniciarMinimapa();
+            }
         }
-        if (PainelInventarioABoxVR.Instancia != null)
+        catch (Exception ex) { Debug.LogWarning($"[GerenciadorCenarioSemantico] Aviso ao reiniciar MinimapSemanticoVR: {ex.Message}"); }
+
+        try
         {
-            PainelInventarioABoxVR.Instancia.LimparInventario();
+            if (PainelInventarioABoxVR.Instancia != null)
+            {
+                PainelInventarioABoxVR.Instancia.LimparInventario();
+            }
         }
+        catch (Exception ex) { Debug.LogWarning($"[GerenciadorCenarioSemantico] Aviso ao reiniciar PainelInventarioABoxVR: {ex.Message}"); }
 
         // 7. Spawna a PRIMEIRA orbe (#1) da nova partida
         if (m_FilaNodosOrbes.Count > 0)

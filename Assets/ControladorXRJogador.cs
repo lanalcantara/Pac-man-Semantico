@@ -283,6 +283,16 @@ public class ControladorXRJogador : MonoBehaviour
         }
         else
         {
+            // Salvaguarda: durante partida ativa (sem Hub, sem Fim de Jogo e sem Contagem Regressiva), garante controles liberados
+            if (!controlesHabilitados &&
+                (HubInicialAmbiente.Instancia == null ||
+                 (!HubInicialAmbiente.Instancia.ContagemAtiva &&
+                  !HubInicialAmbiente.Instancia.GameOverAberto &&
+                  !HubInicialAmbiente.Instancia.VitoriaAberta)))
+            {
+                controlesHabilitados = true;
+            }
+
             // --- AÇÕES EM GAMEPLAY ---
             // *** MUDAR CÂMERA: BOTÃO B (Xbox) OU BOLA (PlayStation) OU B (Meta Quest) OU TECLA C ***
             if (entrada.AlternarModoCamera)

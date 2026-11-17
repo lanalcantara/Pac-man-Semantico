@@ -281,14 +281,15 @@ public class PainelInventarioABoxVR : MonoBehaviour
         for (int i = 0; i < m_CardsUI.Count; i++)
         {
             var card = m_CardsUI[i];
+            if (card == null || card.objCard == null) continue;
             if (i == 0)
             {
                 card.objCard.SetActive(true);
-                card.imgFundo.color = new Color(0.04f, 0.07f, 0.12f, 0.65f);
-                card.outlineBorda.effectColor = new Color(0.20f, 0.35f, 0.50f, 0.40f);
-                card.txtLinha1Status.text = "<color=#667788><b>[ABox EM ESPERA]</b></color>";
-                card.txtLinha2Tripla.text = "<color=#8899AA><i>Colete orbes no labirinto para sintetizar triplas.</i></color>";
-                card.txtLinha3Axioma.text = "<color=#556677><size=9>Axiomas DL serão validados pelo HermiT em tempo real</size></color>";
+                if (card.imgFundo != null) card.imgFundo.color = new Color(0.04f, 0.07f, 0.12f, 0.65f);
+                if (card.outlineBorda != null) card.outlineBorda.effectColor = new Color(0.20f, 0.35f, 0.50f, 0.40f);
+                if (card.txtLinha1Status != null) card.txtLinha1Status.text = "<color=#667788><b>[ABox EM ESPERA]</b></color>";
+                if (card.txtLinha2Tripla != null) card.txtLinha2Tripla.text = "<color=#8899AA><i>Colete orbes no labirinto para sintetizar triplas.</i></color>";
+                if (card.txtLinha3Axioma != null) card.txtLinha3Axioma.text = "<color=#556677><size=9>Axiomas DL serão validados pelo HermiT em tempo real</size></color>";
             }
             else
             {

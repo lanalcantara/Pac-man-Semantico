@@ -16,7 +16,7 @@ Este documento contém **todos os dados, credenciais, repositórios, configuraç
 | **Repositório Git (GitHub)** | `https://github.com/lanalcantara/Pac-man-Semantico-.git` |
 | **Redirecionamento Histórico**| `https://github.com/lanalcantara/Pac-man-Semantico-Privado.git` |
 | **Branch Principal** | `main` |
-| **Último Commit Base** | `b4c4510` (Minimapa circular GTA HUD, warning dinâmico de orbes, reposicionamento periférico real cockpit e canting esférico) |
+| **Último Commit Base** | `2dc254b` (Fix console TMP ellipsis, HUDs ancorados PC/VR, paleta arcade #1919A6/#00FFFF e dual control PC) |
 | **Versão Exata do Unity** | **Unity 6 - `6000.6.7f1`** (Revision `b22767f04f04`) |
 | **Pipeline Gráfico (SRP)** | Universal Render Pipeline (URP Mobile) |
 | **Cena Principal** | `Assets/Scenes/DemoWeb/CenaDemoWeb.unity` |
@@ -66,7 +66,12 @@ Este documento contém **todos os dados, credenciais, repositórios, configuraç
 8. **Minimapa Circular HUD VR e Ergonomia Periférica Cockpit (`MinimapaHUDVR.cs`)**:
    - **Minimapa Circular GTA-Style**: HUD circular estilizado com textura procedural wireframe, ícone do Pac-Man que rotaciona com o yaw da cabeça do jogador e orbe alvo pulsante em ciano neon.
    - **Warning Dinâmico de Captura**: Banner `textoWarning` com efeito pill flutuante (`[✓] CAPTUROU ORBE: {nomeOrbe}`) acionado via `GemaValidaSemantica.cs` que permanece visível por 3.5 segundos e some automaticamente.
-   - **Desobstrução Total do Campo Central de Visão**: O Minimapa Semântico TBox (`-0.82f, -0.30f`), o Painel de Inventário ABox (`+0.82f, -0.30f`) e a Telemetria (`-0.72f, +0.38f`) foram posicionados nos extremos periféricos do FOV a 1.35m com escala reduzida e **canting esférico** (`Quaternion.LookRotation((posAlvo - camPos).normalized, camUp)`). O centro da visão do pesquisador fica completamente limpo.
+   - **Desobstrução Total do Campo Central de Visão**: O Minimapa Semântico TBox (`-0.82f, -0.30f`), o Painel de Inventário ABox (`+0.82f, -0.30f`) e a Telemetria (`-0.72f, +0.38f`) foram posicionados nos extremos periféricos do FOV a 1.35m com escala reduzida e **canting esférico** (`Quaternion.LookRotation((posAlvo - camPos).normalized, camUp)`). No PC/Editor, ancoram-se em `ScreenSpaceOverlay` nos cantos da tela sem flutuar no chão.
+
+9. **Suporte Duplo Simultâneo de Controles no PC (Teclado/Mouse e Gamepad USB)**:
+   - **Teclado & Mouse**: Deslocamento com W, A, S, D ou Setas. Rotação suave da câmera com o Mouse (Yaw horizontal e Pitch vertical) e teclas Q/E. Clique na tela trava o cursor em FPS, ESC destrava.
+   - **Gamepad USB / Bluetooth (Xbox & Joysticks)**: Analógico esquerdo para movimento analógico contínuo, analógico direito para rotação de câmera, gatilho direito (RT) para acelerador frontal, e botões A (Interagir) e B (Mudar Câmera).
+   - Suporte híbrido transparente que permite testar no Editor de PC com a mesma responsividade do Meta Quest 3.
 
 ---
 

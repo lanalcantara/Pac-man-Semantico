@@ -32,7 +32,8 @@ public class ControladorXRJogador : MonoBehaviour
     private Transform m_VisualPacManTransform;
     public Transform PosicaoPacManReal => transform;
 
-    private Rigidbody m_Rigidbody;
+    private Rigidbody rb;
+    private Rigidbody m_Rigidbody => rb;
     private CapsuleCollider m_CapsuleCollider;
     private Vector3 m_VetorMovimentoDesejado = Vector3.zero;
     private Vector3 m_VelocidadeLinearAtual = Vector3.zero;
@@ -40,6 +41,7 @@ public class ControladorXRJogador : MonoBehaviour
     // Buffers estáticos para alocação Zero-GC em tempo de execução
     private readonly Collider[] m_BufferColisoresGemas = new Collider[16];
     private readonly Collider[] m_BufferColisoresFantasmas = new Collider[8];
+    private readonly Collider[] m_BufferColisoresParedes = new Collider[8];
     private readonly RaycastHit[] m_BufferHitsParedes = new RaycastHit[4];
 
     // Sistema desacoplado de entrada unificada (Meta Quest Touch Plus, Gamepad Xbox, Teclado/Mouse)
@@ -186,6 +188,7 @@ public class ControladorXRJogador : MonoBehaviour
 
     private void Start()
     {
+        rb = GetComponent<Rigidbody>();
         GarantirInicializacaoControlador();
         LocalizarComponentesHierarquia();
         GarantirColisoresFisicosXR();
@@ -380,19 +383,19 @@ public class ControladorXRJogador : MonoBehaviour
         }
 
         // Rigidbody com travas rigorosas no eixo Y e em todas as rotações físicas
-        m_Rigidbody = GetComponent<Rigidbody>();
-        if (m_Rigidbody == null)
+        rb = GetComponent<Rigidbody>();
+        if (rb == null)
         {
-            m_Rigidbody = gameObject.AddComponent<Rigidbody>();
+            rb = gameObject.AddComponent<Rigidbody>();
         }
-        m_Rigidbody.isKinematic = false;
-        m_Rigidbody.useGravity = false;
-        m_Rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
-        m_Rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-        m_Rigidbody.constraints = RigidbodyConstraints.FreezePositionY |
-                                  RigidbodyConstraints.FreezeRotationX |
-                                  RigidbodyConstraints.FreezeRotationY |
-                                  RigidbodyConstraints.FreezeRotationZ;
+        rb.isKinematic = false;
+        rb.useGravity = false;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        rb.constraints = RigidbodyConstraints.FreezePositionY |
+                         RigidbodyConstraints.FreezeRotationX |
+                         RigidbodyConstraints.FreezeRotationY |
+                         RigidbodyConstraints.FreezeRotationZ;
 
         // Remove colisor esférico antigo caso exista
         SphereCollider oldSc = GetComponent<SphereCollider>();
@@ -621,112 +624,137 @@ public class ControladorXRJogador : MonoBehaviour
     }
 
     /// <summary>
-    /// Aplica o movimento físico usando Rigidbody.MovePosition com varredura preventiva (SweepTest / CapsuleCast)
-    /// e deslizamento tangencial em paredes (Wall Sliding), garantindo que o Pac-Man nunca atravesse colisores.
+    /// Aplica o movimento físico exclusivamente no FixedUpdate() utilizando rb.MovePosition(rb.position + movimento * Time.fixedDeltaTime),
+    /// com despenetração preventiva (ComputePenetration) e varredura (CapsuleCast) para colisão sólida em paredes.
     /// </summary>
     private void ProcessarMovimentoFisico()
     {
-        if (m_Rigidbody == null) m_Rigidbody = GetComponent<Rigidbody>();
-        if (m_Rigidbody == null) return;
+        if (rb == null) rb = GetComponent<Rigidbody>();
+        if (rb == null) return;
 
-        m_Rigidbody.constraints = RigidbodyConstraints.FreezePositionY |
-                                  RigidbodyConstraints.FreezeRotationX |
-                                  RigidbodyConstraints.FreezeRotationY |
-                                  RigidbodyConstraints.FreezeRotationZ;
+        rb.isKinematic = false;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        rb.constraints = RigidbodyConstraints.FreezePositionY |
+                         RigidbodyConstraints.FreezeRotationX |
+                         RigidbodyConstraints.FreezeRotationY |
+                         RigidbodyConstraints.FreezeRotationZ;
 
-        // Zera velocidade linear residual para que a movimentação seja 100% controlada por MovePosition sem penetração
-        m_Rigidbody.linearVelocity = Vector3.zero;
+        // Zera velocidade linear residual para evitar deslize descontrolado ou túnel
+        rb.linearVelocity = Vector3.zero;
 #pragma warning disable CS0618
-        m_Rigidbody.velocity = Vector3.zero;
+        rb.velocity = Vector3.zero;
 #pragma warning restore CS0618
+
+        float raioCapsula = m_CapsuleCollider != null ? m_CapsuleCollider.radius : 0.38f;
+        Vector3 posAtual = rb.position;
+        posAtual.y = 0f;
+
+        // 1. Despenetração imediata caso o jogador já esteja tocando/sobreposto a alguma parede sólida
+        Vector3 p1 = posAtual + Vector3.up * (raioCapsula + 0.05f);
+        Vector3 p2 = posAtual + Vector3.up * 1.35f;
+        if (m_CapsuleCollider != null)
+        {
+            int numOverlap = Physics.OverlapCapsuleNonAlloc(p1, p2, raioCapsula, m_BufferColisoresParedes, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < numOverlap; i++)
+            {
+                Collider col = m_BufferColisoresParedes[i];
+                if (col == null || col.isTrigger || col.gameObject == gameObject || col.transform.IsChildOf(transform)) continue;
+
+                if (Physics.ComputePenetration(
+                    m_CapsuleCollider, posAtual, transform.rotation,
+                    col, col.transform.position, col.transform.rotation,
+                    out Vector3 dirSep, out float distSep))
+                {
+                    dirSep.y = 0f;
+                    if (dirSep.sqrMagnitude > 0.0001f && distSep > 0f)
+                    {
+                        posAtual += dirSep.normalized * (distSep + 0.01f);
+                        p1 = posAtual + Vector3.up * (raioCapsula + 0.05f);
+                        p2 = posAtual + Vector3.up * 1.35f;
+                    }
+                }
+            }
+        }
 
         if (!controlesHabilitados || m_VetorMovimentoDesejado.sqrMagnitude < 0.0001f)
         {
+            if ((posAtual - rb.position).sqrMagnitude > 0.000001f)
+            {
+                rb.MovePosition(posAtual);
+            }
             return;
         }
 
         Vector3 dirDesejada = new Vector3(m_VetorMovimentoDesejado.x, 0f, m_VetorMovimentoDesejado.z);
-        float distanciaPasso = dirDesejada.magnitude * (velocidadeMovimento * m_MultiplicadorVelocidadeAtual) * Time.fixedDeltaTime;
+        float velEscalado = velocidadeMovimento * m_MultiplicadorVelocidadeAtual;
+        Vector3 movimento = dirDesejada.normalized * velEscalado;
+        float distanciaPasso = movimento.magnitude * Time.fixedDeltaTime;
         if (distanciaPasso <= 0.00001f) return;
 
         Vector3 dirNorm = dirDesejada.normalized;
-        Vector3 posAtual = m_Rigidbody.position;
-        posAtual.y = 0f;
-
-        float raioCapsula = m_CapsuleCollider != null ? m_CapsuleCollider.radius : 0.38f;
         float margemPele = 0.03f;
-        Vector3 p1 = posAtual + Vector3.up * (raioCapsula + 0.05f);
-        Vector3 p2 = posAtual + Vector3.up * 1.35f;
 
-        Vector3 deslocamentoFinal = Vector3.zero;
-
-        // 1. Testa caminho livre na direção desejada ignorando Triggers (gemas/zonas)
+        // 2. Varredura preventiva contra paredes sólidas (QueryTriggerInteraction.Ignore) com Wall Sliding
         int hits = Physics.CapsuleCastNonAlloc(
             p1, p2, raioCapsula, dirNorm, m_BufferHitsParedes,
             distanciaPasso + margemPele, ~0, QueryTriggerInteraction.Ignore);
 
         RaycastHit? hitValido = ObterHitParedeMaisProximo(hits);
+        Vector3 movimentoFinal = movimento;
 
-        if (!hitValido.HasValue)
+        if (hitValido.HasValue)
         {
-            deslocamentoFinal = dirNorm * distanciaPasso;
-        }
-        else
-        {
-            // Move apenas até a margem segura antes da parede e aplica deslizamento tangencial (Wall Slide)
             float distLivre = Mathf.Max(0f, hitValido.Value.distance - margemPele);
-            Vector3 passoParcial = dirNorm * distLivre;
-
             Vector3 normalParede = hitValido.Value.normal;
             normalParede.y = 0f;
+
+            Vector3 velSlide = Vector3.zero;
             if (normalParede.sqrMagnitude > 0.0001f)
             {
                 normalParede.Normalize();
                 Vector3 dirDeslize = Vector3.ProjectOnPlane(dirNorm, normalParede);
                 dirDeslize.y = 0f;
 
-                float restDist = distanciaPasso - distLivre;
-                if (restDist > 0.0001f && dirDeslize.sqrMagnitude > 0.001f)
+                if (dirDeslize.sqrMagnitude > 0.001f)
                 {
-                    float fatorDeslize = dirDeslize.magnitude;
                     Vector3 dirDeslizeNorm = dirDeslize.normalized;
-                    float distDeslize = restDist * fatorDeslize;
+                    float velDeslize = velEscalado * dirDeslize.magnitude;
+                    float distDeslize = velDeslize * Time.fixedDeltaTime;
 
-                    Vector3 p1Deslize = p1 + passoParcial;
-                    Vector3 p2Deslize = p2 + passoParcial;
                     int hitsDeslize = Physics.CapsuleCastNonAlloc(
-                        p1Deslize, p2Deslize, raioCapsula, dirDeslizeNorm, m_BufferHitsParedes,
+                        p1, p2, raioCapsula, dirDeslizeNorm, m_BufferHitsParedes,
                         distDeslize + margemPele, ~0, QueryTriggerInteraction.Ignore);
 
                     RaycastHit? hitDeslize = ObterHitParedeMaisProximo(hitsDeslize);
                     if (!hitDeslize.HasValue)
                     {
-                        passoParcial += dirDeslizeNorm * distDeslize;
+                        velSlide = dirDeslizeNorm * velDeslize;
                     }
                     else
                     {
                         float livreDeslize = Mathf.Max(0f, hitDeslize.Value.distance - margemPele);
-                        passoParcial += dirDeslizeNorm * livreDeslize;
+                        velSlide = dirDeslizeNorm * (livreDeslize / Time.fixedDeltaTime);
                     }
                 }
             }
 
-            deslocamentoFinal = passoParcial;
+            movimentoFinal = (dirNorm * (distLivre / Time.fixedDeltaTime)) + velSlide;
         }
 
-        Vector3 destino = posAtual + deslocamentoFinal;
-        destino.y = 0f;
+        Vector3 novaPosicao = posAtual + movimentoFinal * Time.fixedDeltaTime;
+        novaPosicao.y = 0f;
 
-        // Trava de segurança nos limites internos do labirinto (evita fuga do perímetro)
+        // Trava de segurança nos limites internos do labirinto
         float limiteSeguro = 11.4f;
         if (GerenciadorCenarioSemantico.Instancia != null)
         {
             limiteSeguro = (GerenciadorCenarioSemantico.Instancia.tamanhoLabirinto * 0.5f) - 0.6f;
         }
-        destino.x = Mathf.Clamp(destino.x, -limiteSeguro, limiteSeguro);
-        destino.z = Mathf.Clamp(destino.z, -limiteSeguro, limiteSeguro);
+        novaPosicao.x = Mathf.Clamp(novaPosicao.x, -limiteSeguro, limiteSeguro);
+        novaPosicao.z = Mathf.Clamp(novaPosicao.z, -limiteSeguro, limiteSeguro);
 
-        m_Rigidbody.MovePosition(destino);
+        rb.MovePosition(novaPosicao);
     }
 
     private RaycastHit? ObterHitParedeMaisProximo(int count)

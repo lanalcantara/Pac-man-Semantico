@@ -3603,6 +3603,19 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             DetectarBifurcacoesEInstanciarPlacas(m_ContainerParedes.transform);
         }
 
+        // 4. Garantia estrita: todo objeto de parede na cena possui BoxCollider sólido (isTrigger = false)
+        var todosBoxColliders = FindObjectsByType<BoxCollider>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < todosBoxColliders.Length; i++)
+        {
+            var bc = todosBoxColliders[i];
+            if (bc == null) continue;
+            string n = bc.gameObject.name;
+            if ((n.StartsWith("Parede_") || n.Contains("Wall") || n.StartsWith("Barreira_Invisivel_")) && bc.isTrigger)
+            {
+                bc.isTrigger = false;
+            }
+        }
+
         Debug.Log($"<color=#A855F7><b>[Topologia Semântica - Labirinto 3D]</b></color> {m_ContainerParedes.transform.childCount} elementos do labirinto (paredes + placas de sinalização Wayfinding) instanciados.");
     }
 

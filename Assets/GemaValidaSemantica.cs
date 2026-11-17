@@ -182,6 +182,16 @@ public class GemaValidaSemantica : InstanciaSemanticaBase
             PainelGrafoSemanticoProtege.Instancia.ExibirBannerOrbeColetada(nomeClasseFormatado, m_Id, m_ExpressaoDL, ehOrbeDePoder, indiceOrbe, totalOrbes);
         }
 
+        // 5.1 Atualiza Minimapa Semântico (TBox) e Inventário de Instâncias ABox (VR HUD)
+        if (MinimapSemanticoVR.Instancia != null)
+        {
+            MinimapSemanticoVR.Instancia.NotificarInstanciaColetada(nomeClasseFormatado, transform.position);
+        }
+        if (PainelInventarioABoxVR.Instancia != null)
+        {
+            PainelInventarioABoxVR.Instancia.RegistrarInstanciaColetada(m_Id, nomeClasseFormatado, m_ExpressaoDL, m_ValorPontuacao, true);
+        }
+
         EmitirFeedbackHaptico(interator, 0.35f, 0.12f);
         NotificarInteracao(sucesso: true);
         if (RelationBuilder.Instance != null)

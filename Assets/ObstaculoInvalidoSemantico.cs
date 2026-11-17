@@ -506,6 +506,12 @@ public class ObstaculoInvalidoSemantico : InstanciaSemanticaBase
         Debug.LogWarning($"<color=#FF3344><b>[Pac-Man Semântico - OBSTÁCULO INVÁLIDO]</b></color> '{nomeClasseFormatado}' ({m_Id}) colidiu com o Pac-Man! " +
                          $"Violação DL: [{m_ExpressaoDL}]. Penalidade: {m_ValorPontuacao} pts. Total: <b>{pontuacaoLogica}</b>.");
 
+        // Notifica o Inventário de ABox sobre a Inconsistência Lógica detectada pelo HermiT
+        if (PainelInventarioABoxVR.Instancia != null)
+        {
+            PainelInventarioABoxVR.Instancia.RegistrarInstanciaColetada(m_Id, nomeClasseFormatado, m_ExpressaoDL, m_ValorPontuacao, false);
+        }
+
         EmitirFeedbackHaptico(interator, 0.85f, 0.35f);
         NotificarInteracao(sucesso: false);
         CriarEfeitoVisual(sucesso: false);

@@ -211,7 +211,10 @@ Aqui estão os dados centrais do projeto e instruções para você assumir o con
 2. ARQUITETURA CONSTRUÍDA E REQUISITOS FUNDAMENTAIS:
 - Locomoção XR: O controle da mão direita usa combo onde o Analógico Direito gira a câmera/corpo (Yaw) e o Gatilho do Indicador Direito (CommonUsages.trigger) funciona como acelerador contínuo na direção para onde a visão aponta. O analógico esquerdo faz movimentação/strafe omnidirecional. A física do jogador usa CapsuleCollider com PhysicMaterial de atrito 0.0 para deslizar suavemente nas paredes sem travar.
 - Menus e Telas 360° em VR: Todos os menus (HubInicialAmbiente, modais de Vitória, Game Over, Contagem Regressiva e PainelGrafoSemanticoProtege) flutuam em WorldSpace a 1.9m com escala 0.0018f e usam amortecimento contínuo em LateUpdate (Vector3.Lerp/Quaternion.Slerp a 14f). Eles acompanham suavemente para onde o usuário olha, evitando "face-glued UI" (enjoo por falta de VOR).
-- HUD Periférico: Telemetria (vidas em corações ♥♥♥, pontuação e orbes) flutua estavelmente no canto superior esquerdo da visão sem obstruir o jogo.
+- HUD Periférico e Ciência Ontológica:
+  * Telemetria (`HUDGameplayPeriferico.cs`): vidas em corações ♥♥♥, pontuação e orbes no canto superior esquerdo.
+  * Minimapa Semântico (`MinimapSemanticoVR.cs`): no quadrante periférico esquerdo (`-camRight * 0.62f + camUp * 0.04f`), exibe a árvore taxonômica TBox (`owl:Thing` -> Parasitas/Hospedeiros -> Nematoda, Platyhelminthes, etc.) que se ilumina em tempo real ao explorar o labirinto e coletar conceitos, integrado a um Radar Espacial 2D do labirinto (posições em tempo real do Pac-Man ●, da orbe alvo ◆ e dos fantasmas ▲).
+  * Inventário ABox (`PainelInventarioABoxVR.cs`): no quadrante periférico direito (`+camRight * 0.62f + camUp * 0.04f`), formata e lista as triplas semânticas ativas (`⟨Homo_sapiens⟩ ──[has_parasite]──> ⟨Ascaris_lumbricoides⟩`) com validação do Reasoner HermiT (`[✓ CONSISTENTE]` em verde neon ou `[✗ INCONSISTÊNCIA]` em vermelho) e exibição do axioma DL.
 - Zero Cache / Reset Limpo: Cada nova partida destrói orbes antigas e zera contadores estáticos, iniciando rigorosamente da Orbe #1 de 12. Orbes capturadas são imediatamente destruídas do labirinto (Destroy com 0.15s).
 - Gráficos Mobile: URP Mobile com 4x MSAA no GMEM, Multiview stereo (single-pass instanced), Fixed Foveated Rendering dinâmico nível 3 (High).
 
@@ -223,3 +226,4 @@ d) Certifique-se de que a skill global "vrgamesdev" esteja configurada em ~/.gem
 
 Leia o documento HANDOVER_MIGRACAO_MACBOOK.md presente na raiz do projeto para todos os detalhes e confirme quando o ambiente estiver validado e pronto para continuarmos codificando!
 ```
+

@@ -856,6 +856,11 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 PainelGrafoSemanticoProtege.Instancia.DefinirAlvoOrbe(objInstanciado.transform, m_IndiceOrbeAtual + 1, m_TotalOrbesSequencia, ehOrbeDePoder, label);
             }
 
+            if (MinimapSemanticoVR.Instancia != null)
+            {
+                MinimapSemanticoVR.Instancia.DefinirAlvoOrbeAtiva(posSpawn, m_IndiceOrbeAtual + 1, m_TotalOrbesSequencia);
+            }
+
             Debug.Log($"<color=#00E5FF><b>[Missão Sequencial]</b></color> Orbe #{m_IndiceOrbeAtual + 1} / {m_TotalOrbesSequencia} spawnada em {posSpawn} (Orbe de Poder: {ehOrbeDePoder})");
         }
     }
@@ -4173,6 +4178,16 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         if (PainelGrafoSemanticoProtege.Instancia != null)
         {
             PainelGrafoSemanticoProtege.Instancia.ReiniciarMetricas();
+        }
+
+        // 6.1 Reseta Minimapa Semântico (TBox) e Inventário de ABox
+        if (MinimapSemanticoVR.Instancia != null)
+        {
+            MinimapSemanticoVR.Instancia.ReiniciarMinimapa();
+        }
+        if (PainelInventarioABoxVR.Instancia != null)
+        {
+            PainelInventarioABoxVR.Instancia.LimparInventario();
         }
 
         // 7. Spawna a PRIMEIRA orbe (#1) da nova partida

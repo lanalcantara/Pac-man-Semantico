@@ -16,7 +16,7 @@ Este documento contém **todos os dados, credenciais, repositórios, configuraç
 | **Repositório Git (GitHub)** | `https://github.com/lanalcantara/Pac-man-Semantico-.git` |
 | **Redirecionamento Histórico**| `https://github.com/lanalcantara/Pac-man-Semantico-Privado.git` |
 | **Branch Principal** | `main` |
-| **Último Commit Base** | `397c880` (6 commits estruturados com histórico completo) |
+| **Último Commit Base** | `d464579` (Paleta clássica arcade `#1919A6`/`#00FFFF`, vinheta anti-cinetose, estabilização 90 FPS Quest 3) |
 | **Versão Exata do Unity** | **Unity 6 - `6000.6.7f1`** (Revision `b22767f04f04`) |
 | **Pipeline Gráfico (SRP)** | Universal Render Pipeline (URP Mobile) |
 | **Cena Principal** | `Assets/Scenes/DemoWeb/CenaDemoWeb.unity` |
@@ -52,6 +52,16 @@ Este documento contém **todos os dados, credenciais, repositórios, configuraç
 
 5. **Skill Global `VRGAMESDEV`**:
    - Criada no diretório global `~/.gemini/config/skills/vrgamesdev/` contendo documentação completa, scripts e exemplos reutilizáveis para desenvolvimento de VR no Meta Quest.
+
+6. **Identidade Visual Clássica do Arcade (Adeus Rosa/Azul Neon)**:
+   - **Fundo Absoluto**: Skybox e câmera em preto profundo `#000000`.
+   - **Paredes do Labirinto**: Azul Clássico Escuro `#1919A6` com linhas de contorno em Ciano Neon Suave `#00FFFF` (emissão moderada não ofuscante).
+   - **Piso Sóbrio Retrô**: Grade azul escuro sutil (`#0a1428`) sobre base preta absoluta, eliminando totalmente o tom roxo/rosa estourado.
+
+7. **Fluidez e Prevenção de Cinetose (Enjoo em RV)**:
+   - **Vinheta Dinâmica (`VinhetaDinamicaVR.cs`)**: Aplica efeito de *Comfort Tunneling* na visão periférica durante giros com o analógico direito ou acelerações com o gatilho. Reduz o fluxo óptico retiniano sem obstruir a visão central. Zero draw calls em repouso.
+   - **Taxa de Quadros Travada a 90 FPS**: Resolução de renderização XR em 1.15x, buffers Zero-GC em tempo de execução e eliminação de varreduras em `Update()`.
+   - **Colisão Suave com Atrito Zero**: Tanto o `CapsuleCollider` do jogador quanto os `BoxCollider` das paredes do labirinto possuem `PhysicsMaterial` com atrito zero e combinação `Minimum`, permitindo deslizar suavemente pelas quinas sem prender.
 
 ---
 

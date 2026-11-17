@@ -82,18 +82,24 @@ public class GemaValidaSemantica : InstanciaSemanticaBase
         }
     }
 
+    private static ControladorXRJogador s_CtrlCached;
+    private static GameObject s_PacManCorpoCached;
+
     protected override void Update()
     {
         base.Update();
 
-        // Coleta automática por proximidade absoluta vinculada ao corpo do Pac-Man / ControladorXRJogador
+        // Coleta automática por proximidade absoluta vinculada ao corpo do Pac-Man (Zero-GC / referências cacheadas)
         if (!m_Coletada)
         {
-            var ctrl = FindAnyObjectByType<ControladorXRJogador>();
-            if (ctrl == null || !ctrl.controlesHabilitados) return;
+            if (s_CtrlCached == null) s_CtrlCached = FindAnyObjectByType<ControladorXRJogador>();
+            if (s_CtrlCached == null || !s_CtrlCached.controlesHabilitados) return;
 
-            GameObject pacmanCorpo = GameObject.Find("Visual_PacMan");
-            if (pacmanCorpo == null) pacmanCorpo = ctrl.gameObject;
+            if (s_PacManCorpoCached == null)
+            {
+                s_PacManCorpoCached = GameObject.Find("Visual_PacMan") ?? s_CtrlCached.gameObject;
+            }
+            GameObject pacmanCorpo = s_PacManCorpoCached != null ? s_PacManCorpoCached : s_CtrlCached.gameObject;
 
             Vector2 posGema2D = new Vector2(transform.position.x, transform.position.z);
             Vector2 posPac2D = new Vector2(pacmanCorpo.transform.position.x, pacmanCorpo.transform.position.z);

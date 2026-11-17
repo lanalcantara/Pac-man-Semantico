@@ -221,6 +221,9 @@ public class HUDGameplayPeriferico : MonoBehaviour
         }
     }
 
+    private float m_TimerThrottleProximidade = 0f;
+    private float m_UltimaMenorDistancia = 999f;
+
     private void AtualizarSensorProximidade()
     {
         if (m_ControladorJogador == null || m_BadgePerigoProximo == null) return;
@@ -232,21 +235,27 @@ public class HUDGameplayPeriferico : MonoBehaviour
             return;
         }
 
-        Vector3 posJogador = m_ControladorJogador.transform.position;
-        var fantasmas = FindObjectsByType<ObstaculoInvalidoSemantico>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        float menorDistancia = 999f;
-
-        for (int i = 0; i < fantasmas.Length; i++)
+        // Throttle a 10 Hz (a cada 0.1s) para economizar ciclos de CPU no Quest 3
+        m_TimerThrottleProximidade -= Time.deltaTime;
+        if (m_TimerThrottleProximidade <= 0f)
         {
-            if (fantasmas[i] != null && fantasmas[i].gameObject.activeInHierarchy)
+            m_TimerThrottleProximidade = 0.10f;
+            Vector3 posJogador = m_ControladorJogador.transform.position;
+            var fantasmas = ObstaculoInvalidoSemantico.FantasmasAtivos;
+            m_UltimaMenorDistancia = 999f;
+
+            for (int i = 0; i < fantasmas.Count; i++)
             {
-                float d = Vector3.Distance(posJogador, fantasmas[i].transform.position);
-                if (d < menorDistancia) menorDistancia = d;
+                if (fantasmas[i] != null && fantasmas[i].gameObject.activeInHierarchy)
+                {
+                    float d = Vector3.Distance(posJogador, fantasmas[i].transform.position);
+                    if (d < m_UltimaMenorDistancia) m_UltimaMenorDistancia = d;
+                }
             }
         }
 
         // Alerta quando o fantasma estiver a menos de 3.5 metros
-        bool perigo = menorDistancia <= 3.5f;
+        bool perigo = m_UltimaMenorDistancia <= 3.5f;
 
         if (perigo)
         {
@@ -257,7 +266,7 @@ public class HUDGameplayPeriferico : MonoBehaviour
             if (m_TextoPerigoProximo != null)
             {
                 m_TextoPerigoProximo.color = visivel ? new Color(1.0f, 0.20f, 0.25f) : new Color(1.0f, 0.65f, 0.10f);
-                m_TextoPerigoProximo.text = $"PERIGO PROXIMO: {menorDistancia:F1}m";
+                m_TextoPerigoProximo.text = $"PERIGO PROXIMO: {m_UltimaMenorDistancia:F1}m";
             }
         }
         else

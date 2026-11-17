@@ -156,6 +156,8 @@ public class ControladorXRJogador : MonoBehaviour
     private float m_TimerInvulnerabilidade = 0f;
     private float m_TimerSnapTurn = 0f;
     private float m_TimerHapticProximidade = 0f;
+    private float m_TimerThrottleFantasmas = 0f;
+    private float m_TimerThrottleGemas = 0f;
     private float m_CameraYaw = 90f;
     private float m_CameraPitch = 0f;
     public float CameraYawAtual => m_CameraYaw;
@@ -187,6 +189,7 @@ public class ControladorXRJogador : MonoBehaviour
         GarantirInicializacaoControlador();
         LocalizarComponentesHierarquia();
         GarantirColisoresFisicosXR();
+        VinhetaDinamicaVR.GarantirNaCena();
 
         // 1. Posicionamento inicial do jogador no corredor aberto do labirinto
         pontoSpawn = new Vector3(0f, 0.0f, -5.0f);
@@ -774,6 +777,10 @@ public class ControladorXRJogador : MonoBehaviour
     {
         if (vidasRestantes <= 0 || m_TimerInvulnerabilidade > 0f) return;
 
+        m_TimerThrottleFantasmas -= Time.deltaTime;
+        if (m_TimerThrottleFantasmas > 0f) return;
+        m_TimerThrottleFantasmas = 0.04f; // Executa a 25 Hz (Zero impacto no framerate do Quest 3)
+
         Vector3 posCentroCorpo = transform.position + Vector3.up * 0.88f;
 
         // Feedback Háptico de Proximidade (Sprint 4: Batimento cardíaco tátil suave quando um fantasma hostil está nos corredores a < 3.2m)
@@ -1113,6 +1120,14 @@ public class ControladorXRJogador : MonoBehaviour
     }
 
     /// <summary>
+    /// Fornece o estado consolidado de entradas por frame para subsistemas VR (como a Vinheta Dinâmica).
+    /// </summary>
+    public DadosEntradaJogador ObterEntradaAtual()
+    {
+        return m_GerenciadorEntrada.ObterEntradaConsolidada(deadzoneMovimento);
+    }
+
+    /// <summary>
     /// Reposiciona o jogador de volta ao ponto inicial com integridade física garantida.
     /// </summary>
     public void ReposicionarNoSpawn()
@@ -1137,6 +1152,10 @@ public class ControladorXRJogador : MonoBehaviour
     private void VerificarConsumoGemasProximas()
     {
         if (!controlesHabilitados) return;
+
+        m_TimerThrottleGemas -= Time.deltaTime;
+        if (m_TimerThrottleGemas > 0f) return;
+        m_TimerThrottleGemas = 0.05f; // 20 Hz (Zero overhead no Quest 3)
 
         Vector3 centroCorpo = transform.position + Vector3.up * 0.45f;
         int numHits = Physics.OverlapSphereNonAlloc(centroCorpo, 0.45f, m_BufferColisoresGemas, ~0, QueryTriggerInteraction.Collide);

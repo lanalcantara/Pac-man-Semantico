@@ -65,17 +65,17 @@ public static class GeradorMaterialDarkGridEditor
         Texture2D texAzul = AssetDatabase.LoadAssetAtPath<Texture2D>(CaminhoTexBaseAzul);
         Texture2D texMask = AssetDatabase.LoadAssetAtPath<Texture2D>(CaminhoTexEmissao);
 
-        // 2. Cria/Atualiza os Materiais físicos (.mat) no projeto (emissão moderada para linhas nítidas sem estourar)
-        Color roxoNeon = new Color(0.68f, 0.20f, 1.0f, 1f);
-        Color azulNeon = new Color(0.08f, 0.45f, 1.0f, 1f);
-        Color azulChao = new Color(0.05f, 0.32f, 1.0f, 1f);
+        // 2. Cria/Atualiza os Materiais físicos (.mat) na paleta clássica do Arcade:
+        // Paredes em Azul Clássico Escuro (#1919A6) com linhas de contorno em Ciano Neon Suave (#00FFFF)
+        Color cianoNeonSuave = new Color(0.0f, 1.0f, 1.0f, 1f); // #00FFFF
+        Color azulChaoSorio = new Color(0.04f, 0.08f, 0.16f, 1f);
 
         Material matParedeRoxo = CriarOuAtualizarMaterialDarkGrid(
             CaminhoMatParedeRoxo,
             "DarkGridMaterial_Parasitas_Roxo",
-            texRoxo,
+            texAzul,
             texMask,
-            roxoNeon * 0.55f,
+            cianoNeonSuave * 0.35f,
             new Vector2(2f, 1f));
 
         Material matParedeAzul = CriarOuAtualizarMaterialDarkGrid(
@@ -83,7 +83,7 @@ public static class GeradorMaterialDarkGridEditor
             "DarkGridMaterial_Hospedeiros_Azul",
             texAzul,
             texMask,
-            azulNeon * 0.55f,
+            cianoNeonSuave * 0.35f,
             new Vector2(2f, 1f));
 
         Material matDarkGridPrincipal = CriarOuAtualizarMaterialDarkGrid(
@@ -91,7 +91,7 @@ public static class GeradorMaterialDarkGridEditor
             "DarkGridMaterial",
             texAzul,
             texMask,
-            azulNeon * 0.45f,
+            cianoNeonSuave * 0.35f,
             new Vector2(2f, 1f));
 
         CriarOuAtualizarMaterialDarkGrid(
@@ -99,7 +99,7 @@ public static class GeradorMaterialDarkGridEditor
             "DarkGrid",
             texAzul,
             texMask,
-            azulNeon * 0.45f,
+            cianoNeonSuave * 0.35f,
             new Vector2(2f, 1f));
 
         Material matChao = CriarOuAtualizarMaterialDarkGrid(
@@ -107,7 +107,7 @@ public static class GeradorMaterialDarkGridEditor
             "DarkGridMaterial_Chao",
             texAzul,
             texMask,
-            azulChao * 0.45f,
+            azulChaoSorio * 0.15f,
             new Vector2(28f, 28f));
 
         // Atualiza também o material legado Mat_Parede_Labirinto_AzulNeon.mat
@@ -116,14 +116,14 @@ public static class GeradorMaterialDarkGridEditor
             "Mat_Parede_Labirinto_AzulNeon",
             texAzul,
             texMask,
-            azulNeon * 0.55f,
+            cianoNeonSuave * 0.35f,
             new Vector2(2f, 1f));
 
         // Copia para Resources para carregamento garantido em runtime
-        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial.mat", "DarkGridMaterial", texAzul, texMask, azulNeon * 0.55f, new Vector2(2f, 1f));
-        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial_Parasitas_Roxo.mat", "DarkGridMaterial_Parasitas_Roxo", texRoxo, texMask, roxoNeon * 0.55f, new Vector2(2f, 1f));
-        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial_Hospedeiros_Azul.mat", "DarkGridMaterial_Hospedeiros_Azul", texAzul, texMask, azulNeon * 0.55f, new Vector2(2f, 1f));
-        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial_Chao.mat", "DarkGridMaterial_Chao", texAzul, texMask, azulChao * 0.45f, new Vector2(28f, 28f));
+        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial.mat", "DarkGridMaterial", texAzul, texMask, cianoNeonSuave * 0.35f, new Vector2(2f, 1f));
+        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial_Parasitas_Roxo.mat", "DarkGridMaterial_Parasitas_Roxo", texAzul, texMask, cianoNeonSuave * 0.35f, new Vector2(2f, 1f));
+        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial_Hospedeiros_Azul.mat", "DarkGridMaterial_Hospedeiros_Azul", texAzul, texMask, cianoNeonSuave * 0.35f, new Vector2(2f, 1f));
+        CriarOuAtualizarMaterialDarkGrid(CaminhoPastaResources + "/DarkGridMaterial_Chao.mat", "DarkGridMaterial_Chao", texAzul, texMask, azulChaoSorio * 0.15f, new Vector2(28f, 28f));
 
         // 3. Garante Skybox Preto e Câmeras com Fundo Sólido Preto na cena ativa
         ForcarSkyboxECameraPretosNaCena();
@@ -199,9 +199,10 @@ public static class GeradorMaterialDarkGridEditor
         int passo = tam / subdivisoes;
         int meia = espessura / 2;
 
-        Color fundoPreto = new Color(0.01f, 0.01f, 0.018f, 1f);
-        Color linhaRoxa = new Color(0.65f, 0.20f, 1.0f, 1f);
-        Color linhaAzul = new Color(0.05f, 0.38f, 1.0f, 1f);
+        // Identidade Clássica do Arcade (Adeus Rosa/Roxo Neon):
+        // Paredes em Azul Clássico Escuro (#1919A6) com linhas de contorno em Ciano Neon Suave (#00FFFF)
+        Color fundoParedeArcade = new Color(0.098f, 0.098f, 0.651f, 1f); // #1919A6
+        Color linhaCianoSuave = new Color(0.0f, 1.0f, 1.0f, 1f);          // #00FFFF
 
         Texture2D texRoxo = new Texture2D(tam, tam, TextureFormat.RGBA32, false);
         Texture2D texAzul = new Texture2D(tam, tam, TextureFormat.RGBA32, false);
@@ -219,20 +220,20 @@ public static class GeradorMaterialDarkGridEditor
 
                 if (bordaExterna)
                 {
-                    texRoxo.SetPixel(x, y, linhaRoxa);
-                    texAzul.SetPixel(x, y, linhaAzul);
+                    texRoxo.SetPixel(x, y, linhaCianoSuave);
+                    texAzul.SetPixel(x, y, linhaCianoSuave);
                     texMask.SetPixel(x, y, Color.white);
                 }
                 else if (linhaInterna)
                 {
-                    texRoxo.SetPixel(x, y, Color.Lerp(fundoPreto, linhaRoxa, 0.80f));
-                    texAzul.SetPixel(x, y, Color.Lerp(fundoPreto, linhaAzul, 0.80f));
-                    texMask.SetPixel(x, y, new Color(0.75f, 0.75f, 0.75f, 1f));
+                    texRoxo.SetPixel(x, y, Color.Lerp(fundoParedeArcade, linhaCianoSuave, 0.70f));
+                    texAzul.SetPixel(x, y, Color.Lerp(fundoParedeArcade, linhaCianoSuave, 0.70f));
+                    texMask.SetPixel(x, y, new Color(0.70f, 0.70f, 0.70f, 1f));
                 }
                 else
                 {
-                    texRoxo.SetPixel(x, y, fundoPreto);
-                    texAzul.SetPixel(x, y, fundoPreto);
+                    texRoxo.SetPixel(x, y, fundoParedeArcade);
+                    texAzul.SetPixel(x, y, fundoParedeArcade);
                     texMask.SetPixel(x, y, Color.black);
                 }
             }

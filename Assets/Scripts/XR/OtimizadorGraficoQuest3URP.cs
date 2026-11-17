@@ -19,8 +19,8 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
 {
     [Header("1. Nitidez Extrema e Anti-Aliasing (Meta Quest 3 Pancake Lenses)")]
     [Range(1.0f, 1.5f)]
-    [Tooltip("Multiplicador de resolução de textura ocular XR e Render Scale do URP (recomendado Quest 3: 1.25).")]
-    public float escalaResolucaoQuest3 = 1.25f;
+    [Tooltip("Multiplicador de resolução de textura ocular XR e Render Scale do URP (recomendado Quest 3: 1.15 a 1.25).")]
+    public float escalaResolucaoQuest3 = 1.15f;
 
     [Tooltip("Nível de Multisample Anti-Aliasing obrigatório para VR (4x).")]
     public int nivelMSAA = 4;
@@ -72,6 +72,10 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
     [ContextMenu("Quest 3 URP/Aplicar Nitidez, Bloom HDR e Fix de Sombras")]
     public void AplicarConfiguracoesQuest3()
     {
+        // Trava de taxa de quadros e estabilidade VR (mínimo 72 FPS / meta 90 FPS estável no Quest 3)
+        Application.targetFrameRate = 90;
+        QualitySettings.vSyncCount = 0;
+
         // 1. Quality Settings: Anisotropic Filtering Forced On & Anti-Aliasing 4x
         if (forcarFiltroAnisotropico)
         {
@@ -80,13 +84,13 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
         QualitySettings.antiAliasing = nivelMSAA;
         QualitySettings.pixelLightCount = 1;
 
-        // 2. XR Eye Texture Resolution Scale (1.25x para lentes Pancake do Quest 3)
+        // 2. XR Eye Texture Resolution Scale (1.15x para lentes Pancake do Quest 3)
         if (Application.isPlaying && XRSettings.enabled)
         {
             XRSettings.eyeTextureResolutionScale = escalaResolucaoQuest3;
         }
 
-        // 3. Configuração do URP Asset Ativo (MSAA 4x, Render Scale 1.25, Color Grading HDR)
+        // 3. Configuração do URP Asset Ativo (MSAA 4x, Render Scale 1.15, Color Grading HDR)
         UniversalRenderPipelineAsset urpAsset = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
         if (urpAsset == null)
         {
@@ -102,15 +106,31 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
             urpAsset.colorGradingLutSize = 32;
         }
 
-        // 4. Ativa Post-Processing, HDR e Fundo de Céu Diurno da Tarde em todas as Câmeras da cena
-        RenderSettings.skybox = null;
-        RenderSettings.ambientMode = AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = new Color(0.72f, 0.83f, 0.95f, 1f);
-        RenderSettings.ambientEquatorColor = new Color(0.95f, 0.86f, 0.74f, 1f);
-        RenderSettings.ambientGroundColor = new Color(0.30f, 0.58f, 0.32f, 1f);
-        RenderSettings.ambientIntensity = 1.35f;
+        // 4. Configuração de Céu e Câmeras:
+        // Identidade clássica do arcade: Fundo absoluto (Skybox preta profunda, #000000)
+        var cenario = FindAnyObjectByType<GerenciadorCenarioSemantico>();
+        bool ehTemaClassicoDiurno = (cenario != null && cenario.temaAtual == GerenciadorCenarioSemantico.TipoTemaLabirinto.ClassicoVerdeCinza);
 
-        Color corCeuTarde = new Color(0.65f, 0.78f, 0.92f, 1f);
+        RenderSettings.skybox = null;
+        if (ehTemaClassicoDiurno)
+        {
+            RenderSettings.ambientMode = AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.72f, 0.83f, 0.95f, 1f);
+            RenderSettings.ambientEquatorColor = new Color(0.95f, 0.86f, 0.74f, 1f);
+            RenderSettings.ambientGroundColor = new Color(0.30f, 0.58f, 0.32f, 1f);
+            RenderSettings.ambientIntensity = 1.35f;
+        }
+        else
+        {
+            RenderSettings.ambientMode = AmbientMode.Flat;
+            RenderSettings.ambientLight = Color.black;
+            RenderSettings.ambientSkyColor = Color.black;
+            RenderSettings.ambientEquatorColor = Color.black;
+            RenderSettings.ambientGroundColor = Color.black;
+            RenderSettings.ambientIntensity = 0f;
+        }
+
+        Color corCeu = ehTemaClassicoDiurno ? new Color(0.65f, 0.78f, 0.92f, 1f) : Color.black;
         Camera[] cameras = FindObjectsByType<Camera>();
         foreach (Camera cam in cameras)
         {
@@ -118,7 +138,7 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
             cam.allowHDR = true;
             cam.allowMSAA = true;
             cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = corCeuTarde;
+            cam.backgroundColor = corCeu;
 
             UniversalAdditionalCameraData camData = cam.GetComponent<UniversalAdditionalCameraData>();
             if (camData == null)
@@ -128,6 +148,9 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
             camData.renderPostProcessing = true;
             camData.renderShadows = true;
         }
+
+        // Garante Vinheta Dinâmica VR de prevenção de cinetose em execução
+        VinhetaDinamicaVR.GarantirNaCena();
 
         // 5. Garante Volume Global com Bloom HDR configurado
         ConfigurarVolumeGlobalBloom();

@@ -295,10 +295,10 @@ public class MinimapSemanticoVR : MonoBehaviour
         }
 
         // 3. Fantasmas
-        var fantasmas = FindObjectsByType<ObstaculoInvalidoSemantico>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var fantasmas = ObstaculoInvalidoSemantico.FantasmasAtivos;
         for (int i = 0; i < m_MarcadoresFantasmas.Count; i++)
         {
-            if (i < fantasmas.Length && fantasmas[i] != null)
+            if (i < fantasmas.Count && fantasmas[i] != null)
             {
                 m_MarcadoresFantasmas[i].gameObject.SetActive(true);
                 Vector3 p = fantasmas[i].transform.position;

@@ -1965,12 +1965,31 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         return corSuperclasseHospedeiros;
     }
 
+    private static Texture2D s_TexWallArcadeBase;
+    private static Texture2D s_TexWallArcadeMask;
     private static Texture2D s_TexWallRoxoBase;
     private static Texture2D s_TexWallRoxoMask;
     private static Texture2D s_TexWallAzulBase;
     private static Texture2D s_TexWallAzulMask;
     private static Texture2D s_TexChaoBase;
     private static Texture2D s_TexChaoMask;
+    private static PhysicsMaterial s_MaterialParedeZeroAtrito;
+
+    public static PhysicsMaterial ObterMaterialParedeZeroAtrito()
+    {
+        if (s_MaterialParedeZeroAtrito == null)
+        {
+            s_MaterialParedeZeroAtrito = new PhysicsMaterial("Parede_ZeroFriction")
+            {
+                dynamicFriction = 0f,
+                staticFriction = 0f,
+                bounciness = 0f,
+                frictionCombine = PhysicsMaterialCombine.Minimum,
+                bounceCombine = PhysicsMaterialCombine.Minimum
+            };
+        }
+        return s_MaterialParedeZeroAtrito;
+    }
 
     /// <summary>
     /// Cria ou carrega o material físico DarkGrid.mat na estética "Dark Grid / Wireframe Retrowave":
@@ -2023,26 +2042,19 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         Material mat = matFisico != null ? new Material(matFisico) : new Material(shader);
         mat.name = $"{nomeAssetMat}_Tiled";
 
+        // Paleta Clássica do Arcade (Adeus Rosa/Roxo Neon):
+        // Paredes em Azul Clássico Escuro (#1919A6) com linhas de contorno em Ciano Neon Suave (#00FFFF)
+        Color corParedeAzulEscuro = new Color(0.098f, 0.098f, 0.651f, 1f); // #1919A6
+        Color corContornoCiano = new Color(0.0f, 1.0f, 1.0f, 1f);          // #00FFFF
+
         Texture2D texBase;
         Texture2D texEmissiva;
-        if (ehParasita)
+        if (s_TexWallArcadeBase == null || s_TexWallArcadeMask == null)
         {
-            if (s_TexWallRoxoBase == null || s_TexWallRoxoMask == null)
-            {
-                GerarTexturasWireframeGrid(Color.black, corSuperclasse, 256, 6, 1, out s_TexWallRoxoBase, out s_TexWallRoxoMask);
-            }
-            texBase = s_TexWallRoxoBase;
-            texEmissiva = s_TexWallRoxoMask;
+            GerarTexturasWireframeGrid(corParedeAzulEscuro, corContornoCiano, 256, 6, 1, out s_TexWallArcadeBase, out s_TexWallArcadeMask);
         }
-        else
-        {
-            if (s_TexWallAzulBase == null || s_TexWallAzulMask == null)
-            {
-                GerarTexturasWireframeGrid(Color.black, corSuperclasse, 256, 6, 1, out s_TexWallAzulBase, out s_TexWallAzulMask);
-            }
-            texBase = s_TexWallAzulBase;
-            texEmissiva = s_TexWallAzulMask;
-        }
+        texBase = s_TexWallArcadeBase;
+        texEmissiva = s_TexWallArcadeMask;
 
         // Garante sempre _BaseMap e _EmissionMap válidos (evita o fallback "white" do URP Lit que deixava a parede inteira acesa)
         if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
@@ -2056,7 +2068,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         mat.mainTextureScale = tilingGrid;
 
         if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.0f);
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.0f);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.05f);
         if (mat.HasProperty("_SpecularHighlights")) mat.SetFloat("_SpecularHighlights", 0.0f);
         if (mat.HasProperty("_EnvironmentReflections")) mat.SetFloat("_EnvironmentReflections", 0.0f);
         mat.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
@@ -2070,7 +2082,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 mat.SetTexture("_EmissionMap", texEmissiva);
                 mat.SetTextureScale("_EmissionMap", tilingGrid);
             }
-            Color corLinhaBrilhante = Color.Lerp(corSuperclasse, Color.white, 0.10f) * 0.45f;
+            Color corLinhaBrilhante = corContornoCiano * 0.35f;
             corLinhaBrilhante.a = 1f;
             mat.SetColor("_EmissionColor", corLinhaBrilhante);
         }
@@ -2142,12 +2154,14 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         Material mat = matChaoFisico != null ? new Material(matChaoFisico) : new Material(shader);
         mat.name = "Mat_Chao_DarkGrid_Azul";
 
-        Color corGradeAzul = new Color(0.05f, 0.35f, 1.0f, 1f);
+        // Pisos e marcações em tons sóbrios retro (Fundo preto absoluto #000000 com grade azul escuro sóbria)
+        Color corFundoChao = Color.black;
+        Color corGradeSobia = new Color(0.04f, 0.08f, 0.16f, 1f);
         Vector2 tilingChao = new Vector2(28f, 28f);
 
         if (s_TexChaoBase == null || s_TexChaoMask == null)
         {
-            GerarTexturasWireframeGrid(Color.black, corGradeAzul, 256, 6, 1, out s_TexChaoBase, out s_TexChaoMask);
+            GerarTexturasWireframeGrid(corFundoChao, corGradeSobia, 256, 4, 1, out s_TexChaoBase, out s_TexChaoMask);
         }
 
         if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
@@ -2175,7 +2189,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 mat.SetTexture("_EmissionMap", s_TexChaoMask);
                 mat.SetTextureScale("_EmissionMap", tilingChao);
             }
-            mat.SetColor("_EmissionColor", corGradeAzul * 0.40f);
+            mat.SetColor("_EmissionColor", corGradeSobia * 0.15f);
         }
 
         return mat;
@@ -2444,21 +2458,22 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         Light dirLight = ObterOuCriarLuzDirecional();
         if (dirLight != null)
         {
-            dirLight.intensity = 0.90f;
-            dirLight.color = new Color(0.80f, 0.92f, 1.0f, 1f);
-            dirLight.shadows = LightShadows.Soft;
-            dirLight.shadowStrength = 0.40f;
+            dirLight.intensity = 0.55f;
+            dirLight.color = new Color(0.85f, 0.90f, 1.0f, 1f);
+            dirLight.shadows = LightShadows.None; // Zero custo de draw call/shadow map no Quest 3
             dirLight.transform.rotation = Quaternion.Euler(45f, 40f, 0f);
         }
 
+        // Fundo absoluto (Skybox preta profunda, #000000)
         RenderSettings.skybox = null;
-        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = new Color(0.12f, 0.16f, 0.28f, 1f);
-        RenderSettings.ambientEquatorColor = new Color(0.06f, 0.08f, 0.18f, 1f);
-        RenderSettings.ambientGroundColor = new Color(0.01f, 0.02f, 0.06f, 1f);
-        RenderSettings.ambientIntensity = 0.95f;
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientLight = Color.black;
+        RenderSettings.ambientSkyColor = Color.black;
+        RenderSettings.ambientEquatorColor = Color.black;
+        RenderSettings.ambientGroundColor = Color.black;
+        RenderSettings.ambientIntensity = 0f;
 
-        Color corCeuDark = new Color(0.02f, 0.03f, 0.07f, 1f);
+        Color corCeuDark = Color.black; // #000000
         Camera[] todasCameras = FindObjectsByType<Camera>();
         foreach (Camera cam in todasCameras)
         {
@@ -3965,12 +3980,14 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
         parede.isStatic = true;
         // Colisor sólido estritamente não-trigger para bloquear 100% a travessia de jogadores e agentes
+        // Atrito zero e Minimum combine para permitir deslizamento suave pelas quinas sem travar
         BoxCollider col = parede.GetComponent<BoxCollider>();
         if (col != null)
         {
             col.isTrigger = false;
             col.size = new Vector3(1f, 1.6f, 1f);
             col.center = Vector3.zero;
+            col.sharedMaterial = ObterMaterialParedeZeroAtrito();
         }
 
         return parede;

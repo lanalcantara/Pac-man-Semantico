@@ -52,12 +52,32 @@ public class ObstaculoInvalidoSemantico : InstanciaSemanticaBase
     [Tooltip("Ponto de saída / portal da gaiola central para o corredor.")]
     public Vector3 posicaoSaidaGaiola = new Vector3(0f, 0f, 1.8f);
 
+    // Lista estática Zero-GC de fantasmas ativos para telemetria, radar e sensores (elimina FindObjectsByType)
+    public static readonly System.Collections.Generic.List<ObstaculoInvalidoSemantico> FantasmasAtivos = new System.Collections.Generic.List<ObstaculoInvalidoSemantico>();
+
+    private static HubInicialAmbiente s_HubCached;
+    private static MotorRaciocinioSemantico s_MotorCached;
+    private static Transform s_AlvoPacManCached;
+
     private float m_TimerCooldown = 0f;
     private UnityEngine.AI.NavMeshAgent m_NavAgent;
     private Transform m_AlvoPacMan;
     private float m_TimerAtualizacaoIA = 0f;
     private Vector3 m_AlvoPatrulhaProcedural = Vector3.zero;
     private AnimacaoFantasma m_AnimFantasma;
+
+    private void OnEnable()
+    {
+        if (!FantasmasAtivos.Contains(this))
+        {
+            FantasmasAtivos.Add(this);
+        }
+    }
+
+    private void OnDisable()
+    {
+        FantasmasAtivos.Remove(this);
+    }
 
     // Áudio Espacial 3D (Sprint 4)
     private AudioSource m_AudioSourceEspacial;
@@ -191,12 +211,13 @@ public class ObstaculoInvalidoSemantico : InstanciaSemanticaBase
 
     public bool JogoEmPausaOuMenu()
     {
-        if (HubInicialAmbiente.Instancia != null)
+        if (s_HubCached == null) s_HubCached = FindFirstObjectByType<HubInicialAmbiente>();
+        if (s_HubCached != null)
         {
-            if (HubInicialAmbiente.Instancia.hubAberto || 
-                HubInicialAmbiente.Instancia.GameOverAberto || 
-                HubInicialAmbiente.Instancia.VitoriaAberta ||
-                !HubInicialAmbiente.Instancia.partidaEmAndamento)
+            if (s_HubCached.hubAberto || 
+                s_HubCached.GameOverAberto || 
+                s_HubCached.VitoriaAberta ||
+                !s_HubCached.partidaEmAndamento)
             {
                 return true;
             }
@@ -299,8 +320,8 @@ public class ObstaculoInvalidoSemantico : InstanciaSemanticaBase
 
     private void ProcessarEsperaGaiola()
     {
-        var hub = FindFirstObjectByType<HubInicialAmbiente>();
-        if (hub != null && hub.hubAberto) return; // Permanece aguardando na gaiola enquanto o Hub inicial estiver aberto
+        if (s_HubCached == null) s_HubCached = FindFirstObjectByType<HubInicialAmbiente>();
+        if (s_HubCached != null && s_HubCached.hubAberto) return; // Permanece aguardando na gaiola enquanto o Hub inicial estiver aberto
 
         tempoAtrasoSaidaGaiola -= Time.deltaTime;
         if (tempoAtrasoSaidaGaiola <= 0f)
@@ -311,8 +332,8 @@ public class ObstaculoInvalidoSemantico : InstanciaSemanticaBase
 
     private void ProcessarSaidaGaiola()
     {
-        var hub = FindFirstObjectByType<HubInicialAmbiente>();
-        if (hub != null && hub.hubAberto) return;
+        if (s_HubCached == null) s_HubCached = FindFirstObjectByType<HubInicialAmbiente>();
+        if (s_HubCached != null && s_HubCached.hubAberto) return;
 
         // Move suavemente do slot interno em direção ao portal de saída da gaiola
         transform.position = Vector3.MoveTowards(transform.position, posicaoSaidaGaiola, 2.2f * Time.deltaTime);
@@ -351,12 +372,12 @@ public class ObstaculoInvalidoSemantico : InstanciaSemanticaBase
 
         // Sincroniza estado com o MotorRaciocinioSemantico e ProtegeWebSocketBridge
         var ws = PacMan.Network.ProtegeWebSocketBridge.Instance;
-        var motor = FindFirstObjectByType<PacMan.Semantics.MotorRaciocinioSemantico>();
-        bool consistente = (ws != null) ? ws.ReasonerConsistent : (motor == null || motor.reasonerConsistente);
+        if (s_MotorCached == null) s_MotorCached = FindFirstObjectByType<PacMan.Semantics.MotorRaciocinioSemantico>();
+        bool consistente = (ws != null) ? ws.ReasonerConsistent : (s_MotorCached == null || s_MotorCached.reasonerConsistente);
         emModoChaseInconsistente = !consistente;
 
         // Se o MotorRaciocinioSemantico estiver gerenciando a navegação centralmente, delega a ele
-        if (motor != null && motor.moverFantasmasDinamicamente) return;
+        if (s_MotorCached != null && s_MotorCached.moverFantasmasDinamicamente) return;
 
         m_TimerAtualizacaoIA -= Time.deltaTime;
         if (m_TimerAtualizacaoIA <= 0f)
@@ -368,8 +389,12 @@ public class ObstaculoInvalidoSemantico : InstanciaSemanticaBase
                 // CHASE (INCONSISTENTE): Persegue o jogador
                 if (m_AlvoPacMan == null)
                 {
-                    GameObject pac = GameObject.Find("Visual_PacMan") ?? GameObject.FindWithTag("Player");
-                    if (pac != null) m_AlvoPacMan = pac.transform;
+                    if (s_AlvoPacManCached == null)
+                    {
+                        GameObject pac = GameObject.Find("Visual_PacMan") ?? GameObject.FindWithTag("Player");
+                        if (pac != null) s_AlvoPacManCached = pac.transform;
+                    }
+                    m_AlvoPacMan = s_AlvoPacManCached;
                 }
 
                 if (m_AlvoPacMan != null)

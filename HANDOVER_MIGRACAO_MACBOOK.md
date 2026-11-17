@@ -16,7 +16,7 @@ Este documento contém **todos os dados, credenciais, repositórios, configuraç
 | **Repositório Git (GitHub)** | `https://github.com/lanalcantara/Pac-man-Semantico-.git` |
 | **Redirecionamento Histórico**| `https://github.com/lanalcantara/Pac-man-Semantico-Privado.git` |
 | **Branch Principal** | `main` |
-| **Último Commit Base** | `d464579` (Paleta clássica arcade `#1919A6`/`#00FFFF`, vinheta anti-cinetose, estabilização 90 FPS Quest 3) |
+| **Último Commit Base** | `b4c4510` (Minimapa circular GTA HUD, warning dinâmico de orbes, reposicionamento periférico real cockpit e canting esférico) |
 | **Versão Exata do Unity** | **Unity 6 - `6000.6.7f1`** (Revision `b22767f04f04`) |
 | **Pipeline Gráfico (SRP)** | Universal Render Pipeline (URP Mobile) |
 | **Cena Principal** | `Assets/Scenes/DemoWeb/CenaDemoWeb.unity` |
@@ -62,6 +62,11 @@ Este documento contém **todos os dados, credenciais, repositórios, configuraç
    - **Vinheta Dinâmica (`VinhetaDinamicaVR.cs`)**: Aplica efeito de *Comfort Tunneling* na visão periférica durante giros com o analógico direito ou acelerações com o gatilho. Reduz o fluxo óptico retiniano sem obstruir a visão central. Zero draw calls em repouso.
    - **Taxa de Quadros Travada a 90 FPS**: Resolução de renderização XR em 1.15x, buffers Zero-GC em tempo de execução e eliminação de varreduras em `Update()`.
    - **Colisão Suave com Atrito Zero**: Tanto o `CapsuleCollider` do jogador quanto os `BoxCollider` das paredes do labirinto possuem `PhysicsMaterial` com atrito zero e combinação `Minimum`, permitindo deslizar suavemente pelas quinas sem prender.
+
+8. **Minimapa Circular HUD VR e Ergonomia Periférica Cockpit (`MinimapaHUDVR.cs`)**:
+   - **Minimapa Circular GTA-Style**: HUD circular estilizado com textura procedural wireframe, ícone do Pac-Man que rotaciona com o yaw da cabeça do jogador e orbe alvo pulsante em ciano neon.
+   - **Warning Dinâmico de Captura**: Banner `textoWarning` com efeito pill flutuante (`[✓] CAPTUROU ORBE: {nomeOrbe}`) acionado via `GemaValidaSemantica.cs` que permanece visível por 3.5 segundos e some automaticamente.
+   - **Desobstrução Total do Campo Central de Visão**: O Minimapa Semântico TBox (`-0.82f, -0.30f`), o Painel de Inventário ABox (`+0.82f, -0.30f`) e a Telemetria (`-0.72f, +0.38f`) foram posicionados nos extremos periféricos do FOV a 1.35m com escala reduzida e **canting esférico** (`Quaternion.LookRotation((posAlvo - camPos).normalized, camUp)`). O centro da visão do pesquisador fica completamente limpo.
 
 ---
 

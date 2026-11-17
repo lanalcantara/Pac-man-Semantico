@@ -726,7 +726,7 @@ public class HubInicialAmbiente : MonoBehaviour
         {
             if (m_TextoContagemRegressiva != null)
             {
-                m_TextoContagemRegressiva.text = $"<color=#00E5FF><b>PREPARAR...</b></color>\n<size=110><color=#FFD700><b>{i}</b></color></size>";
+                m_TextoContagemRegressiva.text = $"<color=#00E5FF><b>PREPARAR!</b></color>\n<size=110><color=#FFD700><b>{i}</b></color></size>";
             }
             TocarSomBeepProcedural(480f + (5 - i) * 60f);
             yield return new WaitForSeconds(1.0f);
@@ -1217,7 +1217,7 @@ public class HubInicialAmbiente : MonoBehaviour
         m_TextoTituloMapa = CriarTexto(card.transform, "Titulo_Mapa_Card", "MAPA", 18, FontStyles.Bold,
             new Vector2(0f, -48f), new Vector2(500f, 30f), Color.white);
 
-        m_TextoDescricaoMapa = CriarTexto(card.transform, "Desc_Mapa_Card", "Descrição do mapa...", 12, FontStyles.Normal,
+        m_TextoDescricaoMapa = CriarTexto(card.transform, "Desc_Mapa_Card", "Descrição do mapa.", 12, FontStyles.Normal,
             new Vector2(0f, -85f), new Vector2(500f, 45f), new Color(0.80f, 0.88f, 0.95f));
 
         m_TextoIndicadorMapa = CriarTexto(card.transform, "Indicador_Mapa", "● ○ ○  (1 de 3)", 13, FontStyles.Bold,
@@ -1285,7 +1285,7 @@ public class HubInicialAmbiente : MonoBehaviour
         m_TextoTituloCamera = CriarTexto(card.transform, "Titulo_Camera_Card", "CÂMERA", 18, FontStyles.Bold,
             new Vector2(0f, -48f), new Vector2(500f, 30f), Color.white);
 
-        m_TextoDescricaoCamera = CriarTexto(card.transform, "Desc_Camera_Card", "Descrição da perspectiva...", 12, FontStyles.Normal,
+        m_TextoDescricaoCamera = CriarTexto(card.transform, "Desc_Camera_Card", "Descrição da perspectiva.", 12, FontStyles.Normal,
             new Vector2(0f, -85f), new Vector2(500f, 45f), new Color(0.80f, 0.88f, 0.95f));
 
         m_TextoIndicadorCamera = CriarTexto(card.transform, "Indicador_Camera", "● ○ ○  (1 de 3)", 13, FontStyles.Bold,
@@ -1396,7 +1396,7 @@ public class HubInicialAmbiente : MonoBehaviour
         painel.AddComponent<Outline>().effectColor = new Color(0.0f, 0.85f, 1.0f, 0.90f);
 
         m_TextoContagemRegressiva = CriarTexto(painel.transform, "Texto_Contagem",
-            "<color=#00E5FF><b>PREPARAR...</b></color>\n<size=110><color=#FFD700><b>5</b></color></size>",
+            "<color=#00E5FF><b>PREPARAR!</b></color>\n<size=110><color=#FFD700><b>5</b></color></size>",
             32, FontStyles.Bold, Vector2.zero, new Vector2(520f, 260f), Color.white);
     }
 
@@ -1556,6 +1556,7 @@ public class HubInicialAmbiente : MonoBehaviour
         txt.color = cor;
         txt.alignment = TextAlignmentOptions.Center;
         txt.textWrappingMode = TextWrappingModes.Normal;
+        txt.overflowMode = TextOverflowModes.Truncate;
         return txt;
     }
 

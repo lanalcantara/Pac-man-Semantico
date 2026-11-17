@@ -230,106 +230,101 @@ namespace PacMan.XR
             DadosEntradaJogador dados = default;
 
             // 1. Processamento via Unity New Input System (Gamepad)
-            if (Gamepad.all.Count > 0)
+            var listaGamepads = new System.Collections.Generic.List<Gamepad>(Gamepad.all);
+            if (Gamepad.current != null && !listaGamepads.Contains(Gamepad.current))
             {
-                for (int i = 0; i < Gamepad.all.Count; i++)
-                {
-                    var gp = Gamepad.all[i];
-                    if (gp == null) continue;
+                listaGamepads.Add(Gamepad.current);
+            }
 
-                    // Stick Esquerdo (Locomoção Contínua)
-                    Vector2 stickEsq = gp.leftStick.ReadValue();
-                    if (stickEsq.sqrMagnitude > deadzoneMovimento * deadzoneMovimento)
+            for (int i = 0; i < listaGamepads.Count; i++)
+            {
+                var gp = listaGamepads[i];
+                if (gp == null) continue;
+
+                // Stick Esquerdo (Locomoção Contínua)
+                Vector2 stickEsq = gp.leftStick.ReadValue();
+                if (stickEsq.sqrMagnitude > deadzoneMovimento * deadzoneMovimento)
+                {
+                    if (stickEsq.sqrMagnitude > dados.Movimento2D.sqrMagnitude)
                     {
                         dados.Movimento2D = stickEsq;
-                        dados.TemEntradaAtiva = true;
                     }
+                    dados.TemEntradaAtiva = true;
+                }
 
-                    // D-Pad Direcional
-                    Vector2 dpad = gp.dpad.ReadValue();
-                    if (dpad.sqrMagnitude > 0.05f && dpad.sqrMagnitude > dados.Movimento2D.sqrMagnitude)
-                    {
-                        dados.Movimento2D = dpad;
-                        dados.TemEntradaAtiva = true;
-                    }
+                // D-Pad Direcional
+                Vector2 dpad = gp.dpad.ReadValue();
+                if (dpad.sqrMagnitude > 0.05f && dpad.sqrMagnitude > dados.Movimento2D.sqrMagnitude)
+                {
+                    dados.Movimento2D = dpad;
+                    dados.TemEntradaAtiva = true;
+                }
 
-                    // Stick Direito (Câmera Yaw e Pitch)
-                    Vector2 stickDir = gp.rightStick.ReadValue();
-                    if (Mathf.Abs(stickDir.x) > 0.05f)
-                    {
-                        dados.GiroCameraYaw = stickDir.x;
-                        dados.TemEntradaAtiva = true;
-                    }
-                    if (Mathf.Abs(stickDir.y) > 0.05f)
-                    {
-                        dados.OlharCameraPitch = -stickDir.y;
-                        dados.TemEntradaAtiva = true;
-                    }
+                // Stick Direito (Câmera Yaw e Pitch)
+                Vector2 stickDir = gp.rightStick.ReadValue();
+                if (Mathf.Abs(stickDir.x) > 0.04f)
+                {
+                    dados.GiroCameraYaw = stickDir.x;
+                    dados.TemEntradaAtiva = true;
+                }
+                if (Mathf.Abs(stickDir.y) > 0.04f)
+                {
+                    dados.OlharCameraPitch = -stickDir.y;
+                    dados.TemEntradaAtiva = true;
+                }
 
-                    // Gatilhos Triggers (RT afasta / LT aproxima) & Bumpers
-                    float rt = gp.rightTrigger.ReadValue();
-                    float lt = gp.leftTrigger.ReadValue();
-                    if (rt > 0.12f)
-                    {
-                        dados.ZoomCamera += rt;
-                        dados.TemEntradaAtiva = true;
-                    }
-                    if (lt > 0.12f)
-                    {
-                        dados.ZoomCamera -= lt;
-                        dados.TemEntradaAtiva = true;
-                    }
+                // Gatilhos Triggers (RT afasta / LT aproxima) & Bumpers
+                float rt = gp.rightTrigger.ReadValue();
+                float lt = gp.leftTrigger.ReadValue();
+                if (rt > 0.04f)
+                {
+                    dados.AceleradorGatilho = Mathf.Max(dados.AceleradorGatilho, rt);
+                    dados.TemEntradaAtiva = true;
+                }
+                if (lt > 0.12f)
+                {
+                    dados.ZoomCamera -= lt;
+                    dados.TemEntradaAtiva = true;
+                }
 
-                    if (gp.rightShoulder.isPressed)
-                    {
-                        dados.ZoomCamera += 0.8f;
-                        dados.TemEntradaAtiva = true;
-                    }
-                    if (gp.leftShoulder.isPressed)
-                    {
-                        dados.ZoomCamera -= 0.8f;
-                        dados.TemEntradaAtiva = true;
-                    }
+                if (gp.rightShoulder.isPressed)
+                {
+                    dados.ZoomCamera += 0.8f;
+                    dados.TemEntradaAtiva = true;
+                }
+                if (gp.leftShoulder.isPressed)
+                {
+                    dados.ZoomCamera -= 0.8f;
+                    dados.TemEntradaAtiva = true;
+                }
 
-                    // *** MUDAR CÂMERA: BOTÃO B (Xbox) OU BOLA (PlayStation) -> buttonEast ***
-                    // Também aceita R3 (Right Stick Click)
-                    if (gp.buttonEast.wasPressedThisFrame || gp.rightStickButton.wasPressedThisFrame)
-                    {
-                        dados.AlternarModoCamera = true;
-                        dados.TemEntradaAtiva = true;
-                    }
+                // *** MUDAR CÂMERA: BOTÃO B (Xbox) OU BOLA (PlayStation) -> buttonEast ***
+                // Também aceita R3 (Right Stick Click)
+                if (gp.buttonEast.wasPressedThisFrame || gp.rightStickButton.wasPressedThisFrame)
+                {
+                    dados.AlternarModoCamera = true;
+                    dados.TemEntradaAtiva = true;
+                }
 
-                    // BOTÃO A (Xbox) OU CRUZ (PlayStation) -> buttonSouth: Interagir / Play no Hub
-                    if (gp.buttonSouth.wasPressedThisFrame)
-                    {
-                        dados.Interagir = true;
-                        dados.TemEntradaAtiva = true;
-                    }
+                // BOTÃO A (Xbox) OU CRUZ (PlayStation) -> buttonSouth: Interagir / Play no Hub
+                if (gp.buttonSouth.wasPressedThisFrame)
+                {
+                    dados.Interagir = true;
+                    dados.TemEntradaAtiva = true;
+                }
 
-                    // BOTÃO START / MENU OU SELECT -> Abrir/Fechar Hub Inicial
-                    if (gp.startButton.wasPressedThisFrame || gp.selectButton.wasPressedThisFrame)
-                    {
-                        dados.AlternarMenuHub = true;
-                        dados.TemEntradaAtiva = true;
-                    }
+                // BOTÃO START / MENU OU SELECT -> Abrir/Fechar Hub Inicial
+                if (gp.startButton.wasPressedThisFrame || gp.selectButton.wasPressedThisFrame)
+                {
+                    dados.AlternarMenuHub = true;
+                    dados.TemEntradaAtiva = true;
+                }
 
-                    // BOTÃO X (Xbox) OU QUADRADO (PlayStation) -> buttonWest: Reset Checkpoint (apenas tecla X ou botão oeste)
-                    if (gp.buttonWest.wasPressedThisFrame)
-                    {
-                        dados.ResetCheckpoint = true;
-                        dados.TemEntradaAtiva = true;
-                    }
-
-                    // GATILHO DIREITO (RT / R2): Acelerar para a frente
-                    if (gp.rightTrigger != null && gp.rightTrigger.ReadValue() > 0.05f)
-                    {
-                        float trigVal = gp.rightTrigger.ReadValue();
-                        if (trigVal > dados.AceleradorGatilho)
-                        {
-                            dados.AceleradorGatilho = trigVal;
-                            dados.TemEntradaAtiva = true;
-                        }
-                    }
+                // BOTÃO X (Xbox) OU QUADRADO (PlayStation) -> buttonWest: Reset Checkpoint
+                if (gp.buttonWest.wasPressedThisFrame)
+                {
+                    dados.ResetCheckpoint = true;
+                    dados.TemEntradaAtiva = true;
                 }
             }
 
@@ -440,42 +435,75 @@ namespace PacMan.XR
         {
             DadosEntradaJogador dados = default;
 
-            // 1. Teclas WASD e Setas
+            // 1. Teclas WASD, Setas e Eixos do Teclado
             Vector2 teclado = Vector2.zero;
             if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) teclado.y += 1f;
             if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) teclado.y -= 1f;
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) teclado.x -= 1f;
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) teclado.x += 1f;
 
+            // Fallback para eixos do teclado via Input clássico se teclas não foram lidas
+            if (teclado.sqrMagnitude < 0.01f)
+            {
+                float axisH = Input.GetAxisRaw("Horizontal");
+                float axisV = Input.GetAxisRaw("Vertical");
+                if (Mathf.Abs(axisH) > 0.05f || Mathf.Abs(axisV) > 0.05f)
+                {
+                    teclado = new Vector2(axisH, axisV);
+                }
+            }
+
             if (teclado.sqrMagnitude > 0.01f)
             {
-                dados.Movimento2D = teclado.normalized;
+                dados.Movimento2D = teclado.sqrMagnitude > 1f ? teclado.normalized : teclado;
                 dados.TemEntradaAtiva = true;
             }
 
-            // Shift acelera no simulador desktop
-            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+            // Shift acelera no simulador desktop (equivalente ao Gatilho do Quest)
+            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) || Input.GetKey(KeyCode.Space))
             {
                 dados.AceleradorGatilho = 1.0f;
                 dados.TemEntradaAtiva = true;
             }
 
             // 2. Mouse para Giro de Câmera (Yaw horizontal e Pitch vertical em 1ª pessoa)
-            bool podeGirarMouse = (Cursor.lockState == CursorLockMode.Locked) || Input.GetMouseButton(0) || Input.GetMouseButton(1);
-            if (podeGirarMouse)
+            // Trava o cursor ao clicar na Game View, destrava com ESC
+            if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
             {
-                float mouseX = Input.GetAxis("Mouse X");
-                float mouseY = Input.GetAxis("Mouse Y");
-                if (Mathf.Abs(mouseX) > 0.002f)
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
+            else if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+
+            float mouseX = Input.GetAxis("Mouse X");
+            float mouseY = Input.GetAxis("Mouse Y");
+
+            if (UnityEngine.InputSystem.Mouse.current != null)
+            {
+                Vector2 deltaMouse = UnityEngine.InputSystem.Mouse.current.delta.ReadValue();
+                if (Mathf.Abs(deltaMouse.x) > 0.05f && Mathf.Abs(deltaMouse.x * 0.12f) > Mathf.Abs(mouseX))
                 {
-                    dados.GiroCameraYaw = mouseX;
-                    dados.TemEntradaAtiva = true;
+                    mouseX = deltaMouse.x * 0.12f;
                 }
-                if (Mathf.Abs(mouseY) > 0.002f)
+                if (Mathf.Abs(deltaMouse.y) > 0.05f && Mathf.Abs(deltaMouse.y * 0.12f) > Mathf.Abs(mouseY))
                 {
-                    dados.OlharCameraPitch = -mouseY;
-                    dados.TemEntradaAtiva = true;
+                    mouseY = deltaMouse.y * 0.12f;
                 }
+            }
+
+            if (Mathf.Abs(mouseX) > 0.001f)
+            {
+                dados.GiroCameraYaw = mouseX;
+                dados.TemEntradaAtiva = true;
+            }
+            if (Mathf.Abs(mouseY) > 0.001f)
+            {
+                dados.OlharCameraPitch = -mouseY;
+                dados.TemEntradaAtiva = true;
             }
 
             // Teclas Q e E para giro manual alternativo

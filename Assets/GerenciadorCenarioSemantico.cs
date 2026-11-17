@@ -2013,20 +2013,17 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                            superclasse.IndexOf("Nematod", StringComparison.OrdinalIgnoreCase) >= 0 ||
                            superclasse.IndexOf("Platyhelmint", StringComparison.OrdinalIgnoreCase) >= 0);
 
-        if (!usarEsteticaDarkGrid)
+        // Identidade Clássica do Arcade: Paredes sempre em Azul Clássico Escuro (#1919A6) com contorno Ciano Neon Suave (#00FFFF)
+        Material matParedeArcade = Resources.Load<Material>("Mat_Parede_Labirinto_AzulNeon");
+#if UNITY_EDITOR
+        if (matParedeArcade == null)
         {
-            Shader shWall = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
-            Material matParedeLimpa = new Material(shWall);
-            matParedeLimpa.name = $"Mat_Parede_Metalica_{superclasse}";
-            // Parede cinza metálica clara com acabamento industrial que reflete a luz solar da tarde
-            Color corParedeCinza = new Color(0.55f, 0.58f, 0.62f, 1f);
-            if (matParedeLimpa.HasProperty("_BaseColor")) matParedeLimpa.SetColor("_BaseColor", corParedeCinza);
-            if (matParedeLimpa.HasProperty("_Color")) matParedeLimpa.SetColor("_Color", corParedeCinza);
-            if (matParedeLimpa.HasProperty("_Metallic")) matParedeLimpa.SetFloat("_Metallic", 0.65f);
-            if (matParedeLimpa.HasProperty("_Smoothness")) matParedeLimpa.SetFloat("_Smoothness", 0.35f);
-            matParedeLimpa.DisableKeyword("_EMISSION");
-            if (matParedeLimpa.HasProperty("_EmissionColor")) matParedeLimpa.SetColor("_EmissionColor", Color.black);
-            return matParedeLimpa;
+            matParedeArcade = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Mat_Parede_Labirinto_AzulNeon.mat");
+        }
+#endif
+        if (matParedeArcade != null)
+        {
+            return matParedeArcade;
         }
 
         string nomeAssetMat = ehParasita ? "DarkGridMaterial_Parasitas_Roxo" : "DarkGridMaterial_Hospedeiros_Azul";
@@ -2132,22 +2129,6 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     /// </summary>
     public Material CriarMaterialChaoLaboratorio()
     {
-        if (!usarEsteticaDarkGrid)
-        {
-            Shader shChao = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
-            Material matChaoLimpo = new Material(shChao);
-            matChaoLimpo.name = "Mat_Chao_Grama_Futebol";
-            // Verde vivo como grama de campo de futebol sob a luz da tarde (fosco, natural e agradável)
-            Color corGramaFutebol = new Color(0.22f, 0.58f, 0.25f, 1f);
-            if (matChaoLimpo.HasProperty("_BaseColor")) matChaoLimpo.SetColor("_BaseColor", corGramaFutebol);
-            if (matChaoLimpo.HasProperty("_Color")) matChaoLimpo.SetColor("_Color", corGramaFutebol);
-            if (matChaoLimpo.HasProperty("_Metallic")) matChaoLimpo.SetFloat("_Metallic", 0.0f);
-            if (matChaoLimpo.HasProperty("_Smoothness")) matChaoLimpo.SetFloat("_Smoothness", 0.05f);
-            matChaoLimpo.DisableKeyword("_EMISSION");
-            if (matChaoLimpo.HasProperty("_EmissionColor")) matChaoLimpo.SetColor("_EmissionColor", Color.black);
-            return matChaoLimpo;
-        }
-
         Material matChaoFisico = Resources.Load<Material>("DarkGridMaterial_Chao");
 #if UNITY_EDITOR
         if (matChaoFisico == null)
@@ -2164,38 +2145,9 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         Color corGradeSobia = new Color(0.04f, 0.08f, 0.16f, 1f);
         Vector2 tilingChao = new Vector2(28f, 28f);
 
-        if (s_TexChaoBase == null || s_TexChaoMask == null)
-        {
-            GerarTexturasWireframeGrid(corFundoChao, corGradeSobia, 256, 4, 1, out s_TexChaoBase, out s_TexChaoMask);
-        }
-
-        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
-        if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
-        if (mat.HasProperty("_BaseMap"))
-        {
-            mat.SetTexture("_BaseMap", s_TexChaoBase);
-            mat.SetTextureScale("_BaseMap", tilingChao);
-        }
-        mat.mainTexture = s_TexChaoBase;
-        mat.mainTextureScale = tilingChao;
-
-        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.0f);
-        if (mat.HasProperty("_SpecularHighlights")) mat.SetFloat("_SpecularHighlights", 0.0f);
-        if (mat.HasProperty("_EnvironmentReflections")) mat.SetFloat("_EnvironmentReflections", 0.0f);
-        mat.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
-        mat.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
-
-        if (mat.HasProperty("_EmissionColor"))
-        {
-            mat.EnableKeyword("_EMISSION");
-            if (mat.HasProperty("_EmissionMap"))
-            {
-                mat.SetTexture("_EmissionMap", s_TexChaoMask);
-                mat.SetTextureScale("_EmissionMap", tilingChao);
-            }
-            mat.SetColor("_EmissionColor", corGradeSobia * 0.15f);
-        }
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", corFundoChao);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", corFundoChao);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.70f);
 
         return mat;
     }
@@ -2502,14 +2454,16 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             dirLight.transform.rotation = Quaternion.Euler(34f, 48f, 0f);
         }
 
+        // Fundo absoluto (Skybox preta profunda, #000000)
         RenderSettings.skybox = null;
-        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = new Color(0.72f, 0.83f, 0.95f, 1f);
-        RenderSettings.ambientEquatorColor = new Color(0.95f, 0.86f, 0.74f, 1f);
-        RenderSettings.ambientGroundColor = new Color(0.30f, 0.58f, 0.32f, 1f);
-        RenderSettings.ambientIntensity = 1.35f;
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientLight = Color.black;
+        RenderSettings.ambientSkyColor = Color.black;
+        RenderSettings.ambientEquatorColor = Color.black;
+        RenderSettings.ambientGroundColor = Color.black;
+        RenderSettings.ambientIntensity = 0f;
 
-        Color corCeuTarde = new Color(0.65f, 0.78f, 0.92f, 1f);
+        Color corCeuTarde = Color.black; // #000000
         Camera[] todasCameras = FindObjectsByType<Camera>();
         foreach (Camera cam in todasCameras)
         {
@@ -2581,14 +2535,14 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
             case TipoTemaLabirinto.ClassicoVerdeCinza:
                 usarEsteticaDarkGrid = false;
-                matChao = CriarMaterialChaoLaboratorio(); // Retorna Mat_Chao_Grama_Futebol
-                matParede = CriarMaterialParedePorSuperclasse("Parasitas"); // Retorna Mat_Parede_Metalica_Parasitas
-                ConfigurarIluminacaoTardeClassica();
-                ConfigurarDecoracoesGrid(false);
-                ConfigurarDecoracoesClassico(true);
+                matChao = CriarMaterialChaoLaboratorio();
+                matParede = CriarMaterialParedePorSuperclasse("Parasitas");
+                ConfigurarIluminacaoDarkGrid();
+                ConfigurarDecoracoesGrid(true);
+                ConfigurarDecoracoesClassico(false);
                 ConfigurarDecoracoesNatal(false);
-                ConfigurarModelosTemaClassicoCIn(true);
-                ConfigurarTotemPortaoGrid(false);
+                ConfigurarModelosTemaClassicoCIn(false);
+                ConfigurarTotemPortaoGrid(true);
                 ConfigurarChapeusNatalFantasmas(false);
                 ConfigurarTrenoPacMan(false);
                 break;
@@ -2811,22 +2765,16 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
     public void ConfigurarDecoracoesClassico(bool ativo)
     {
-        if (m_ContainerDecoracoesClassico == null)
-        {
-            Transform tExistente = transform.Find("Decoracoes_Classico_3D");
-            if (tExistente != null)
-            {
-                m_ContainerDecoracoesClassico = tExistente.gameObject;
-            }
-            else if (ativo)
-            {
-                m_ContainerDecoracoesClassico = ConstruirDecoracoesClassico();
-            }
-        }
-
         if (m_ContainerDecoracoesClassico != null)
         {
-            m_ContainerDecoracoesClassico.SetActive(ativo);
+            m_ContainerDecoracoesClassico.SetActive(false);
+        }
+        Transform tExistente = transform.Find("Decoracoes_Classico_3D");
+        if (tExistente != null)
+        {
+            if (Application.isPlaying) Destroy(tExistente.gameObject);
+            else DestroyImmediate(tExistente.gameObject);
+            m_ContainerDecoracoesClassico = null;
         }
     }
 

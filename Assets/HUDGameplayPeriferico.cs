@@ -79,9 +79,12 @@ public class HUDGameplayPeriferico : MonoBehaviour
     {
         if (!exibirHUD || m_PainelRaiz == null) return;
 
-        // Oculta durante o Menu Hub aberto ou telas finais de Vitória/GameOver
+        // Oculta durante o Menu Hub aberto, partida não iniciada ou telas finais de Vitória/GameOver
         if (HubInicialAmbiente.Instancia != null &&
-            (HubInicialAmbiente.Instancia.hubAberto || HubInicialAmbiente.Instancia.GameOverAberto || HubInicialAmbiente.Instancia.VitoriaAberta))
+            (HubInicialAmbiente.Instancia.hubAberto ||
+             HubInicialAmbiente.Instancia.GameOverAberto ||
+             HubInicialAmbiente.Instancia.VitoriaAberta ||
+             !HubInicialAmbiente.Instancia.partidaEmAndamento))
         {
             if (m_PainelRaiz.activeSelf) m_PainelRaiz.SetActive(false);
             return;
@@ -140,6 +143,26 @@ public class HUDGameplayPeriferico : MonoBehaviour
 
             m_CanvasHUD.transform.position = Vector3.Lerp(m_CanvasHUD.transform.position, posAlvo, Time.unscaledDeltaTime * 14f);
             m_CanvasHUD.transform.rotation = Quaternion.Slerp(m_CanvasHUD.transform.rotation, rotAlvo, Time.unscaledDeltaTime * 14f);
+        }
+        else
+        {
+            // No Desktop / Editor PC: Screen Space Overlay ancorado elegantemente no topo esquerdo
+            if (m_CanvasHUD.renderMode != RenderMode.ScreenSpaceOverlay)
+            {
+                m_CanvasHUD.renderMode = RenderMode.ScreenSpaceOverlay;
+                m_CanvasHUD.transform.localScale = Vector3.one;
+            }
+            if (m_PainelRaiz != null)
+            {
+                RectTransform rt = m_PainelRaiz.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.anchorMin = new Vector2(0f, 1f);
+                    rt.anchorMax = new Vector2(0f, 1f);
+                    rt.pivot = new Vector2(0f, 1f);
+                    rt.anchoredPosition = new Vector2(25f, -25f);
+                }
+            }
         }
     }
 
@@ -452,7 +475,7 @@ public class HUDGameplayPeriferico : MonoBehaviour
         texto.color = cor;
         texto.alignment = alinhamento;
         texto.raycastTarget = false;
-        texto.overflowMode = TextOverflowModes.Ellipsis;
+        texto.overflowMode = TextOverflowModes.Truncate;
 
         return texto;
     }

@@ -340,7 +340,7 @@ public class PainelGrafoSemanticoProtege : MonoBehaviour
             new Vector2(0f, 10f), new Vector2(480f, 18f), new Color(0.0f, 1.0f, 0.70f), TextAlignmentOptions.Center);
 
         m_TextoBannerDetalhes = CriarTexto(m_BannerOrbeColetada.transform, "Texto_Banner_Detalhes",
-            "Instância ontológica conectada ao reasoner...", 11, FontStyles.Normal,
+            "Instância ontológica conectada ao reasoner.", 11, FontStyles.Normal,
             new Vector2(0f, -8f), new Vector2(480f, 18f), Color.white, TextAlignmentOptions.Center);
 
         m_BannerOrbeColetada.SetActive(false);
@@ -736,7 +736,7 @@ public class PainelGrafoSemanticoProtege : MonoBehaviour
         texto.color = cor;
         texto.alignment = alinhamento;
         texto.raycastTarget = false;
-        texto.overflowMode = TextOverflowModes.Ellipsis;
+        texto.overflowMode = TextOverflowModes.Truncate;
 
         return texto;
     }

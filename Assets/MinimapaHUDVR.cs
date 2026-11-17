@@ -162,20 +162,64 @@ public class MinimapaHUDVR : MonoBehaviour
         Camera cam = m_CameraPrincipal != null ? m_CameraPrincipal : Camera.main;
         if (cam == null) return;
 
-        Vector3 camPos = cam.transform.position;
-        Vector3 camFwd = cam.transform.forward;
-        Vector3 camUp = cam.transform.up;
-        Vector3 camRight = cam.transform.right;
+        bool emVR = UnityEngine.XR.XRSettings.isDeviceActive || (UnityEngine.XR.XRSettings.enabled && !string.IsNullOrEmpty(UnityEngine.XR.XRSettings.loadedDeviceName)) ||
+                    (UnityEngine.XR.Management.XRGeneralSettings.Instance != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.activeLoader != null) ||
+                    Application.platform == RuntimePlatform.Android;
 
-        // Ancoragem periférica no quadrante inferior esquerdo
-        Vector3 posAlvo = camPos + camFwd * distanciaVisaoVR + camRight * offsetPerifericoVR.x + camUp * offsetPerifericoVR.y;
+        if (emVR)
+        {
+            if (m_CanvasHUD.renderMode != RenderMode.WorldSpace)
+            {
+                m_CanvasHUD.renderMode = RenderMode.WorldSpace;
+            }
+            m_CanvasHUD.transform.localScale = Vector3.one * 0.00085f;
 
-        // Canta a tela levemente em direção aos olhos (cockpit feeling)
-        Vector3 dirParaOlhos = (posAlvo - camPos).normalized;
-        Quaternion rotAlvo = Quaternion.LookRotation(dirParaOlhos, camUp);
+            Vector3 camPos = cam.transform.position;
+            Vector3 camFwd = cam.transform.forward;
+            Vector3 camUp = cam.transform.up;
+            Vector3 camRight = cam.transform.right;
 
-        m_CanvasHUD.transform.position = Vector3.Lerp(m_CanvasHUD.transform.position, posAlvo, Time.unscaledDeltaTime * velocidadeDamping);
-        m_CanvasHUD.transform.rotation = Quaternion.Slerp(m_CanvasHUD.transform.rotation, rotAlvo, Time.unscaledDeltaTime * velocidadeDamping);
+            // Ancoragem periférica no quadrante inferior esquerdo
+            Vector3 posAlvo = camPos + camFwd * distanciaVisaoVR + camRight * offsetPerifericoVR.x + camUp * offsetPerifericoVR.y;
+
+            // Canta a tela levemente em direção aos olhos (cockpit feeling)
+            Vector3 dirParaOlhos = (posAlvo - camPos).normalized;
+            Quaternion rotAlvo = Quaternion.LookRotation(dirParaOlhos, camUp);
+
+            m_CanvasHUD.transform.position = Vector3.Lerp(m_CanvasHUD.transform.position, posAlvo, Time.unscaledDeltaTime * velocidadeDamping);
+            m_CanvasHUD.transform.rotation = Quaternion.Slerp(m_CanvasHUD.transform.rotation, rotAlvo, Time.unscaledDeltaTime * velocidadeDamping);
+        }
+        else
+        {
+            // No Desktop / PC: ScreenSpaceOverlay ancorado com firmeza no canto inferior esquerdo
+            if (m_CanvasHUD.renderMode != RenderMode.ScreenSpaceOverlay)
+            {
+                m_CanvasHUD.renderMode = RenderMode.ScreenSpaceOverlay;
+                m_CanvasHUD.transform.localScale = Vector3.one;
+            }
+            if (painelMinimapaRoot != null)
+            {
+                RectTransform rtRoot = painelMinimapaRoot.GetComponent<RectTransform>();
+                if (rtRoot != null)
+                {
+                    rtRoot.anchorMin = new Vector2(0f, 0f);
+                    rtRoot.anchorMax = new Vector2(0f, 0f);
+                    rtRoot.pivot = new Vector2(0f, 0f);
+                    rtRoot.anchoredPosition = new Vector2(30f, 30f);
+                }
+            }
+            if (m_BannerWarningRoot != null)
+            {
+                RectTransform rtBanner = m_BannerWarningRoot.GetComponent<RectTransform>();
+                if (rtBanner != null)
+                {
+                    rtBanner.anchorMin = new Vector2(0.5f, 1f);
+                    rtBanner.anchorMax = new Vector2(0.5f, 1f);
+                    rtBanner.pivot = new Vector2(0.5f, 1f);
+                    rtBanner.anchoredPosition = new Vector2(0f, -40f);
+                }
+            }
+        }
     }
 
     private Vector2 NormalizarCoordenadas(float mundoX, float mundoZ)
@@ -356,6 +400,7 @@ public class MinimapaHUDVR : MonoBehaviour
         txtLabel.text = "<color=#00FFFF><b>PAC-RADAR VR</b></color>";
         txtLabel.fontSize = 11f;
         txtLabel.alignment = TextAlignmentOptions.Center;
+        txtLabel.overflowMode = TextOverflowModes.Truncate;
 
         // 7. Banner de Aviso Dinâmico de Captura (posicionado no topo central da visão)
         m_BannerWarningRoot = new GameObject("Banner_Warning_Captura", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Outline));
@@ -384,6 +429,7 @@ public class MinimapaHUDVR : MonoBehaviour
         textoWarning.fontSize = 13f;
         textoWarning.alignment = TextAlignmentOptions.Center;
         textoWarning.color = Color.white;
+        textoWarning.overflowMode = TextOverflowModes.Truncate;
 
         m_BannerWarningRoot.SetActive(false);
     }

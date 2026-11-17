@@ -151,26 +151,53 @@ public class PainelInventarioABoxVR : MonoBehaviour
         }
         if (cam == null) return;
 
-        if (m_CanvasInventario.renderMode != RenderMode.WorldSpace)
+        bool emVR = UnityEngine.XR.XRSettings.isDeviceActive || (UnityEngine.XR.XRSettings.enabled && !string.IsNullOrEmpty(UnityEngine.XR.XRSettings.loadedDeviceName)) ||
+                    (UnityEngine.XR.Management.XRGeneralSettings.Instance != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.activeLoader != null) ||
+                    Application.platform == RuntimePlatform.Android;
+
+        if (emVR)
         {
-            m_CanvasInventario.renderMode = RenderMode.WorldSpace;
+            if (m_CanvasInventario.renderMode != RenderMode.WorldSpace)
+            {
+                m_CanvasInventario.renderMode = RenderMode.WorldSpace;
+            }
+            m_CanvasInventario.transform.localScale = Vector3.one * 0.00075f;
+
+            Vector3 camPos = cam.transform.position;
+            Vector3 camFwd = cam.transform.forward;
+            Vector3 camUp = cam.transform.up;
+            Vector3 camRight = cam.transform.right;
+
+            // Posicionado suavemente no campo de visão periférico direito (fora da frente do Pac-Man)
+            Vector3 posAlvo = camPos + camFwd * distanciaVisaoVR + camRight * offsetPerifericoVR.x + camUp * offsetPerifericoVR.y;
+
+            // Canting esférico voltado para os olhos do usuário (cockpit HUD periférico)
+            Vector3 dirOlhar = (posAlvo - camPos).normalized;
+            Quaternion rotAlvo = Quaternion.LookRotation(dirOlhar, camUp);
+
+            m_CanvasInventario.transform.position = Vector3.Lerp(m_CanvasInventario.transform.position, posAlvo, Time.unscaledDeltaTime * 14f);
+            m_CanvasInventario.transform.rotation = Quaternion.Slerp(m_CanvasInventario.transform.rotation, rotAlvo, Time.unscaledDeltaTime * 14f);
         }
-        m_CanvasInventario.transform.localScale = Vector3.one * 0.00075f;
-
-        Vector3 camPos = cam.transform.position;
-        Vector3 camFwd = cam.transform.forward;
-        Vector3 camUp = cam.transform.up;
-        Vector3 camRight = cam.transform.right;
-
-        // Posicionado suavemente no campo de visão periférico direito (fora da frente do Pac-Man)
-        Vector3 posAlvo = camPos + camFwd * distanciaVisaoVR + camRight * offsetPerifericoVR.x + camUp * offsetPerifericoVR.y;
-
-        // Canting esférico voltado para os olhos do usuário (cockpit HUD periférico)
-        Vector3 dirOlhar = (posAlvo - camPos).normalized;
-        Quaternion rotAlvo = Quaternion.LookRotation(dirOlhar, camUp);
-
-        m_CanvasInventario.transform.position = Vector3.Lerp(m_CanvasInventario.transform.position, posAlvo, Time.unscaledDeltaTime * 14f);
-        m_CanvasInventario.transform.rotation = Quaternion.Slerp(m_CanvasInventario.transform.rotation, rotAlvo, Time.unscaledDeltaTime * 14f);
+        else
+        {
+            // No Desktop / PC: ScreenSpaceOverlay ancorado na periferia direita
+            if (m_CanvasInventario.renderMode != RenderMode.ScreenSpaceOverlay)
+            {
+                m_CanvasInventario.renderMode = RenderMode.ScreenSpaceOverlay;
+                m_CanvasInventario.transform.localScale = Vector3.one;
+            }
+            if (m_PainelRaiz != null)
+            {
+                RectTransform rt = m_PainelRaiz.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.anchorMin = new Vector2(1f, 0f);
+                    rt.anchorMax = new Vector2(1f, 0f);
+                    rt.pivot = new Vector2(1f, 0f);
+                    rt.anchoredPosition = new Vector2(-25f, 25f);
+                }
+            }
+        }
     }
 
     private void LocalizarReferencias()
@@ -247,7 +274,7 @@ public class PainelInventarioABoxVR : MonoBehaviour
                 card.imgFundo.color = new Color(0.04f, 0.07f, 0.12f, 0.65f);
                 card.outlineBorda.effectColor = new Color(0.20f, 0.35f, 0.50f, 0.40f);
                 card.txtLinha1Status.text = "<color=#667788><b>[ABox EM ESPERA]</b></color>";
-                card.txtLinha2Tripla.text = "<color=#8899AA><i>Colete orbes no labirinto para sintetizar triplas...</i></color>";
+                card.txtLinha2Tripla.text = "<color=#8899AA><i>Colete orbes no labirinto para sintetizar triplas.</i></color>";
                 card.txtLinha3Axioma.text = "<color=#556677><size=9>Axiomas DL serão validados pelo HermiT em tempo real</size></color>";
             }
             else
@@ -510,7 +537,7 @@ public class PainelInventarioABoxVR : MonoBehaviour
                 new Vector2(8f, -4f), new Vector2(320f, 16f), Color.white, TextAlignmentOptions.Left);
 
             TMP_Text txtL2 = CriarTexto(cardObj.transform, "Linha2_Tripla",
-                "<color=#8899AA><i>Colete orbes no labirinto para sintetizar triplas...</i></color>", 10, FontStyles.Normal,
+                "<color=#8899AA><i>Colete orbes no labirinto para sintetizar triplas.</i></color>", 10, FontStyles.Normal,
                 new Vector2(8f, -20f), new Vector2(320f, 18f), Color.white, TextAlignmentOptions.Left);
 
             TMP_Text txtL3 = CriarTexto(cardObj.transform, "Linha3_Axioma",
@@ -577,7 +604,7 @@ public class PainelInventarioABoxVR : MonoBehaviour
         texto.color = cor;
         texto.alignment = alinhamento;
         texto.raycastTarget = false;
-        texto.overflowMode = TextOverflowModes.Ellipsis;
+        texto.overflowMode = TextOverflowModes.Truncate;
 
         return texto;
     }

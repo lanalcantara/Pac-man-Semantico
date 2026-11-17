@@ -162,26 +162,53 @@ public class MinimapSemanticoVR : MonoBehaviour
         }
         if (cam == null) return;
 
-        if (m_CanvasMinimapa.renderMode != RenderMode.WorldSpace)
+        bool emVR = UnityEngine.XR.XRSettings.isDeviceActive || (UnityEngine.XR.XRSettings.enabled && !string.IsNullOrEmpty(UnityEngine.XR.XRSettings.loadedDeviceName)) ||
+                    (UnityEngine.XR.Management.XRGeneralSettings.Instance != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.activeLoader != null) ||
+                    Application.platform == RuntimePlatform.Android;
+
+        if (emVR)
         {
-            m_CanvasMinimapa.renderMode = RenderMode.WorldSpace;
+            if (m_CanvasMinimapa.renderMode != RenderMode.WorldSpace)
+            {
+                m_CanvasMinimapa.renderMode = RenderMode.WorldSpace;
+            }
+            m_CanvasMinimapa.transform.localScale = Vector3.one * 0.00075f;
+
+            Vector3 camPos = cam.transform.position;
+            Vector3 camFwd = cam.transform.forward;
+            Vector3 camUp = cam.transform.up;
+            Vector3 camRight = cam.transform.right;
+
+            // Posicionado suavemente no campo de visão periférico esquerdo (fora da frente do Pac-Man)
+            Vector3 posAlvo = camPos + camFwd * distanciaVisaoVR + camRight * offsetPerifericoVR.x + camUp * offsetPerifericoVR.y;
+            
+            // Canting esférico voltado para os olhos do usuário (cockpit HUD periférico)
+            Vector3 dirOlhar = (posAlvo - camPos).normalized;
+            Quaternion rotAlvo = Quaternion.LookRotation(dirOlhar, camUp);
+
+            m_CanvasMinimapa.transform.position = Vector3.Lerp(m_CanvasMinimapa.transform.position, posAlvo, Time.unscaledDeltaTime * 14f);
+            m_CanvasMinimapa.transform.rotation = Quaternion.Slerp(m_CanvasMinimapa.transform.rotation, rotAlvo, Time.unscaledDeltaTime * 14f);
         }
-        m_CanvasMinimapa.transform.localScale = Vector3.one * 0.00075f;
-
-        Vector3 camPos = cam.transform.position;
-        Vector3 camFwd = cam.transform.forward;
-        Vector3 camUp = cam.transform.up;
-        Vector3 camRight = cam.transform.right;
-
-        // Posicionado suavemente no campo de visão periférico esquerdo (fora da frente do Pac-Man)
-        Vector3 posAlvo = camPos + camFwd * distanciaVisaoVR + camRight * offsetPerifericoVR.x + camUp * offsetPerifericoVR.y;
-        
-        // Canting esférico voltado para os olhos do usuário (cockpit HUD periférico)
-        Vector3 dirOlhar = (posAlvo - camPos).normalized;
-        Quaternion rotAlvo = Quaternion.LookRotation(dirOlhar, camUp);
-
-        m_CanvasMinimapa.transform.position = Vector3.Lerp(m_CanvasMinimapa.transform.position, posAlvo, Time.unscaledDeltaTime * 14f);
-        m_CanvasMinimapa.transform.rotation = Quaternion.Slerp(m_CanvasMinimapa.transform.rotation, rotAlvo, Time.unscaledDeltaTime * 14f);
+        else
+        {
+            // No Desktop / PC: ScreenSpaceOverlay
+            if (m_CanvasMinimapa.renderMode != RenderMode.ScreenSpaceOverlay)
+            {
+                m_CanvasMinimapa.renderMode = RenderMode.ScreenSpaceOverlay;
+                m_CanvasMinimapa.transform.localScale = Vector3.one;
+            }
+            if (m_PainelRaiz != null)
+            {
+                RectTransform rt = m_PainelRaiz.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.anchorMin = new Vector2(0f, 0.45f);
+                    rt.anchorMax = new Vector2(0f, 0.45f);
+                    rt.pivot = new Vector2(0f, 0.5f);
+                    rt.anchoredPosition = new Vector2(25f, 0f);
+                }
+            }
+        }
     }
 
     private void LocalizarReferencias()
@@ -756,7 +783,7 @@ public class MinimapSemanticoVR : MonoBehaviour
         texto.color = cor;
         texto.alignment = alinhamento;
         texto.raycastTarget = false;
-        texto.overflowMode = TextOverflowModes.Ellipsis;
+        texto.overflowMode = TextOverflowModes.Truncate;
 
         return texto;
     }

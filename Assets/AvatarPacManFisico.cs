@@ -285,22 +285,24 @@ public class AvatarPacManFisico : MonoBehaviour
         Vector2 dir2D = new Vector2(inputX, inputZ);
 
 #if ENABLE_INPUT_SYSTEM
-        if (UnityEngine.InputSystem.Gamepad.all.Count > 0)
+        var listaGP = new System.Collections.Generic.List<UnityEngine.InputSystem.Gamepad>(UnityEngine.InputSystem.Gamepad.all);
+        if (UnityEngine.InputSystem.Gamepad.current != null && !listaGP.Contains(UnityEngine.InputSystem.Gamepad.current))
         {
-            for (int i = 0; i < UnityEngine.InputSystem.Gamepad.all.Count; i++)
+            listaGP.Add(UnityEngine.InputSystem.Gamepad.current);
+        }
+        for (int i = 0; i < listaGP.Count; i++)
+        {
+            var gp = listaGP[i];
+            if (gp == null) continue;
+            Vector2 stickEsq = gp.leftStick.ReadValue();
+            if (stickEsq.sqrMagnitude > 0.02f && stickEsq.sqrMagnitude > dir2D.sqrMagnitude)
             {
-                var gp = UnityEngine.InputSystem.Gamepad.all[i];
-                if (gp == null) continue;
-                Vector2 stickEsq = gp.leftStick.ReadValue();
-                if (stickEsq.sqrMagnitude > 0.02f && stickEsq.sqrMagnitude > dir2D.sqrMagnitude)
-                {
-                    dir2D = stickEsq;
-                }
-                Vector2 dpad = gp.dpad.ReadValue();
-                if (dpad.sqrMagnitude > 0.05f && dpad.sqrMagnitude > dir2D.sqrMagnitude)
-                {
-                    dir2D = dpad;
-                }
+                dir2D = stickEsq;
+            }
+            Vector2 dpad = gp.dpad.ReadValue();
+            if (dpad.sqrMagnitude > 0.05f && dpad.sqrMagnitude > dir2D.sqrMagnitude)
+            {
+                dir2D = dpad;
             }
         }
 #endif

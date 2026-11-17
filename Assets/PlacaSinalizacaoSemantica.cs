@@ -465,7 +465,7 @@ public class PlacaSinalizacaoSemantica : MonoBehaviour
         tmp.lineSpacing = -4f;
         tmp.margin = new Vector4(0.06f, 0.03f, 0.06f, 0.03f);
         tmp.textWrappingMode = TextWrappingModes.NoWrap;
-        tmp.overflowMode = TextOverflowModes.Ellipsis;
+        tmp.overflowMode = TextOverflowModes.Truncate;
 
         tmp.color = Color.white;
         tmp.outlineColor = new Color32(0, 0, 0, 255);

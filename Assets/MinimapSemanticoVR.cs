@@ -36,8 +36,8 @@ public class MinimapSemanticoVR : MonoBehaviour
     public static MinimapSemanticoVR Instancia { get; private set; }
 
     [Header("Configurações Visuais e Ergonomia VR")]
-    public bool exibirMinimapa = true;
-    public Vector2 tamanhoPainel = new Vector2(280f, 280f);
+    public bool exibirMinimapa = false;
+    public Vector2 tamanhoPainel = new Vector2(330f, 350f);
     public float distanciaVisaoVR = 1.35f;
     public Vector2 offsetPerifericoVR = new Vector2(-0.82f, -0.30f); // Rigorosamente na periferia inferior esquerda
 
@@ -118,11 +118,22 @@ public class MinimapSemanticoVR : MonoBehaviour
         ConstruirInterfaceMinimapa();
         InicializarGrafoTaxonomicoTBox();
         LocalizarReferencias();
+        if (m_PainelRaiz != null && (!exibirMinimapa || MinimapaHUDVR.Instancia != null))
+        {
+            m_PainelRaiz.SetActive(false);
+        }
     }
 
     private void Update()
     {
-        if (!exibirMinimapa || m_PainelRaiz == null) return;
+        if (m_PainelRaiz == null) return;
+
+        // Se o Minimapa Circular HUD (MinimapaHUDVR) estiver presente, evita duplicidade de minimapas no lado esquerdo
+        if (!exibirMinimapa || MinimapaHUDVR.Instancia != null)
+        {
+            if (m_PainelRaiz.activeSelf) m_PainelRaiz.SetActive(false);
+            return;
+        }
 
         // Oculta durante Hub Inicial, GameOver ou Vitória
         if (HubInicialAmbiente.Instancia != null &&

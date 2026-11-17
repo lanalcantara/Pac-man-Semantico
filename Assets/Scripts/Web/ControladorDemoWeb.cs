@@ -102,10 +102,13 @@ namespace PacMan.Web
 
             LocalizarElementosCena();
             ConfigurarVisualEPerspectivaCamera();
-            GarantirSemanticHUD();
 
-            estadoAtual = EstadoJogoDemo.Jogando;
-            PausarEntidadesParaMenu(false);
+            if (HubInicialAmbiente.Instancia == null)
+            {
+                GarantirSemanticHUD();
+                estadoAtual = EstadoJogoDemo.Jogando;
+                PausarEntidadesParaMenu(false);
+            }
             Time.timeScale = 1.0f;
 
             Debug.Log("<color=#00E5FF><b>[Interface Espacial OWL]</b></color> SemanticHUDManager ativo e sessão iniciada.");
@@ -314,6 +317,8 @@ namespace PacMan.Web
 
         private void Update()
         {
+            if (FindFirstObjectByType<ControladorXRJogador>() != null) return;
+
             if (Input.GetKeyDown(KeyCode.C)) AlternarModoCamera();
             if (Input.GetKeyDown(KeyCode.H)) hudMinimizado = !hudMinimizado;
             if (Input.GetKeyDown(KeyCode.P)) AlternarPowerPellet();

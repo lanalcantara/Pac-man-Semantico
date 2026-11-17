@@ -210,11 +210,9 @@ public class HubInicialAmbiente : MonoBehaviour
         }
         if (cam == null) return;
 
-        bool emVR = XRSettings.isDeviceActive || (XRSettings.enabled && !string.IsNullOrEmpty(XRSettings.loadedDeviceName)) ||
-                    (UnityEngine.XR.Management.XRGeneralSettings.Instance != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.activeLoader != null) ||
-                    Application.platform == RuntimePlatform.Android;
+        bool modoPC = Application.isEditor || !XRSettings.isDeviceActive;
 
-        if (emVR)
+        if (!modoPC)
         {
             if (m_CanvasHub.renderMode != RenderMode.WorldSpace)
             {
@@ -239,6 +237,14 @@ public class HubInicialAmbiente : MonoBehaviour
             {
                 m_CanvasHub.transform.position = Vector3.Lerp(m_CanvasHub.transform.position, targetPos, Time.unscaledDeltaTime * 14f);
                 m_CanvasHub.transform.rotation = Quaternion.Slerp(m_CanvasHub.transform.rotation, targetRot, Time.unscaledDeltaTime * 14f);
+            }
+        }
+        else
+        {
+            if (m_CanvasHub.renderMode != RenderMode.ScreenSpaceOverlay)
+            {
+                m_CanvasHub.renderMode = RenderMode.ScreenSpaceOverlay;
+                m_CanvasHub.transform.localScale = Vector3.one;
             }
         }
     }
@@ -367,13 +373,33 @@ public class HubInicialAmbiente : MonoBehaviour
         bool botaoCancelar = touchBtnBDown || touchBtnYDown ||
                              Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1);
 
-        // Botão SELECT (JoystickButton6), START (JoystickButton7) ou Menu do Quest
+        // Botão SELECT (JoystickButton6), START (JoystickButton7), Tecla M/Tab ou Menu do Quest
+        // Nota: ESC no PC é reservado para travar/destravar o cursor do mouse durante testes no Editor
         bool botaoSelectMenu = touchMenuDown ||
                                Input.GetKeyDown(KeyCode.JoystickButton6) ||
                                Input.GetKeyDown(KeyCode.JoystickButton7) ||
-                               Input.GetKeyDown(KeyCode.Escape);
+                               Input.GetKeyDown(KeyCode.M);
 
 #if ENABLE_INPUT_SYSTEM
+        if (UnityEngine.InputSystem.Keyboard.current != null)
+        {
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame)
+                botaoConfirmar = true;
+            if (kb.escapeKey.wasPressedThisFrame)
+                botaoCancelar = true;
+            if (kb.mKey.wasPressedThisFrame)
+                botaoSelectMenu = true;
+            if (kb.downArrowKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame)
+                stickConsolidado.y = -1f;
+            else if (kb.upArrowKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame)
+                stickConsolidado.y = 1f;
+            if (kb.rightArrowKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame)
+                stickConsolidado.x = 1f;
+            else if (kb.leftArrowKey.wasPressedThisFrame || kb.aKey.wasPressedThisFrame)
+                stickConsolidado.x = -1f;
+        }
+
         for (int i = 0; i < UnityEngine.InputSystem.Gamepad.all.Count; i++)
         {
             var gp = UnityEngine.InputSystem.Gamepad.all[i];

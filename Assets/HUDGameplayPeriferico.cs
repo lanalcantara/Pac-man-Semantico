@@ -110,21 +110,40 @@ public class HUDGameplayPeriferico : MonoBehaviour
     private void AtualizarAcompanhamentoOlharVR()
     {
         if (m_CanvasHUD == null || !exibirHUD) return;
-        if (m_PainelRaiz == null || !m_PainelRaiz.activeSelf) return;
 
-        Camera cam = Camera.main;
-        if (m_ControladorJogador != null && m_ControladorJogador.cameraPrincipalXR != null)
+        bool modoPC = Application.isEditor || !UnityEngine.XR.XRSettings.isDeviceActive;
+
+        if (modoPC)
         {
-            cam = m_ControladorJogador.cameraPrincipalXR;
+            // No Desktop / Editor PC: Screen Space Overlay ancorado exclusivamente no topo esquerdo
+            if (m_CanvasHUD.renderMode != RenderMode.ScreenSpaceOverlay)
+            {
+                m_CanvasHUD.renderMode = RenderMode.ScreenSpaceOverlay;
+                m_CanvasHUD.transform.localScale = Vector3.one;
+            }
+            if (m_PainelRaiz != null)
+            {
+                RectTransform rt = m_PainelRaiz.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.anchorMin = new Vector2(0f, 1f);
+                    rt.anchorMax = new Vector2(0f, 1f);
+                    rt.pivot = new Vector2(0f, 1f);
+                    rt.anchoredPosition = new Vector2(24f, -24f);
+                }
+            }
         }
-        if (cam == null) return;
-
-        bool emVR = UnityEngine.XR.XRSettings.isDeviceActive || (UnityEngine.XR.XRSettings.enabled && !string.IsNullOrEmpty(UnityEngine.XR.XRSettings.loadedDeviceName)) ||
-                    (UnityEngine.XR.Management.XRGeneralSettings.Instance != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.activeLoader != null) ||
-                    Application.platform == RuntimePlatform.Android;
-
-        if (emVR)
+        else
         {
+            if (m_PainelRaiz == null || !m_PainelRaiz.activeSelf) return;
+
+            Camera cam = Camera.main;
+            if (m_ControladorJogador != null && m_ControladorJogador.cameraPrincipalXR != null)
+            {
+                cam = m_ControladorJogador.cameraPrincipalXR;
+            }
+            if (cam == null) return;
+
             if (m_CanvasHUD.renderMode != RenderMode.WorldSpace)
             {
                 m_CanvasHUD.renderMode = RenderMode.WorldSpace;
@@ -143,26 +162,6 @@ public class HUDGameplayPeriferico : MonoBehaviour
 
             m_CanvasHUD.transform.position = Vector3.Lerp(m_CanvasHUD.transform.position, posAlvo, Time.unscaledDeltaTime * 14f);
             m_CanvasHUD.transform.rotation = Quaternion.Slerp(m_CanvasHUD.transform.rotation, rotAlvo, Time.unscaledDeltaTime * 14f);
-        }
-        else
-        {
-            // No Desktop / Editor PC: Screen Space Overlay ancorado elegantemente no topo esquerdo
-            if (m_CanvasHUD.renderMode != RenderMode.ScreenSpaceOverlay)
-            {
-                m_CanvasHUD.renderMode = RenderMode.ScreenSpaceOverlay;
-                m_CanvasHUD.transform.localScale = Vector3.one;
-            }
-            if (m_PainelRaiz != null)
-            {
-                RectTransform rt = m_PainelRaiz.GetComponent<RectTransform>();
-                if (rt != null)
-                {
-                    rt.anchorMin = new Vector2(0f, 1f);
-                    rt.anchorMax = new Vector2(0f, 1f);
-                    rt.pivot = new Vector2(0f, 1f);
-                    rt.anchoredPosition = new Vector2(25f, -25f);
-                }
-            }
         }
     }
 
@@ -310,30 +309,19 @@ public class HUDGameplayPeriferico : MonoBehaviour
         canvasObj.transform.SetParent(transform, false);
         m_CanvasHUD = canvasObj.GetComponent<Canvas>();
 
-        Camera camTarget = Camera.main;
-        var ctrl = FindAnyObjectByType<ControladorXRJogador>();
-        if (ctrl != null && ctrl.cameraPrincipalXR != null) camTarget = ctrl.cameraPrincipalXR;
+        bool modoPC = Application.isEditor || !UnityEngine.XR.XRSettings.isDeviceActive;
 
-        bool emVR = UnityEngine.XR.XRSettings.isDeviceActive || (UnityEngine.XR.XRSettings.enabled && !string.IsNullOrEmpty(UnityEngine.XR.XRSettings.loadedDeviceName)) ||
-                    (UnityEngine.XR.Management.XRGeneralSettings.Instance != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.activeLoader != null) ||
-                    Application.platform == RuntimePlatform.Android;
-
-        if (emVR)
+        if (modoPC)
         {
-            m_CanvasHUD.renderMode = RenderMode.WorldSpace;
-            m_CanvasHUD.transform.localScale = Vector3.one * 0.0011f;
-        }
-        else if (camTarget != null)
-        {
-            m_CanvasHUD.renderMode = RenderMode.ScreenSpaceCamera;
-            m_CanvasHUD.worldCamera = camTarget;
-            m_CanvasHUD.planeDistance = 1.0f;
+            m_CanvasHUD.renderMode = RenderMode.ScreenSpaceOverlay;
+            m_CanvasHUD.transform.localScale = Vector3.one;
         }
         else
         {
-            m_CanvasHUD.renderMode = RenderMode.ScreenSpaceOverlay;
+            m_CanvasHUD.renderMode = RenderMode.WorldSpace;
+            m_CanvasHUD.transform.localScale = Vector3.one * 0.0008f;
         }
-        m_CanvasHUD.sortingOrder = 30; // Visível sobre o jogo
+        m_CanvasHUD.sortingOrder = 25; // Visível sobre o jogo, abaixo do Hub (50)
 
         CanvasScaler scaler = canvasObj.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;

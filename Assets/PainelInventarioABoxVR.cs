@@ -36,7 +36,7 @@ public class PainelInventarioABoxVR : MonoBehaviour
 
     [Header("Configurações Visuais e Ergonomia VR")]
     public bool exibirInventario = true;
-    public Vector2 tamanhoPainel = new Vector2(300f, 280f);
+    public Vector2 tamanhoPainel = new Vector2(360f, 320f);
     public float distanciaVisaoVR = 1.35f;
     public Vector2 offsetPerifericoVR = new Vector2(0.82f, -0.30f); // Rigorosamente na periferia inferior direita
 
@@ -142,26 +142,59 @@ public class PainelInventarioABoxVR : MonoBehaviour
     private void AtualizarAcompanhamentoOlharVR()
     {
         if (m_CanvasInventario == null || !exibirInventario) return;
-        if (m_PainelRaiz == null || !m_PainelRaiz.activeSelf) return;
 
-        Camera cam = Camera.main;
-        if (m_ControladorJogador != null && m_ControladorJogador.cameraPrincipalXR != null)
+        bool modoPC = Application.isEditor || !UnityEngine.XR.XRSettings.isDeviceActive;
+
+        if (modoPC)
         {
-            cam = m_ControladorJogador.cameraPrincipalXR;
+            // No Desktop / Editor PC: ScreenSpaceOverlay ancorado exclusivamente no canto direito
+            if (m_CanvasInventario.renderMode != RenderMode.ScreenSpaceOverlay)
+            {
+                m_CanvasInventario.renderMode = RenderMode.ScreenSpaceOverlay;
+                m_CanvasInventario.transform.localScale = Vector3.one;
+            }
+            if (m_PainelRaiz != null)
+            {
+                RectTransform rt = m_PainelRaiz.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.anchorMin = new Vector2(1f, 1f);
+                    rt.anchorMax = new Vector2(1f, 1f);
+                    rt.pivot = new Vector2(1f, 1f);
+                    rt.sizeDelta = new Vector2(360f, 320f);
+                    rt.anchoredPosition = new Vector2(-24f, -24f);
+                }
+            }
         }
-        if (cam == null) return;
-
-        bool emVR = UnityEngine.XR.XRSettings.isDeviceActive || (UnityEngine.XR.XRSettings.enabled && !string.IsNullOrEmpty(UnityEngine.XR.XRSettings.loadedDeviceName)) ||
-                    (UnityEngine.XR.Management.XRGeneralSettings.Instance != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.activeLoader != null) ||
-                    Application.platform == RuntimePlatform.Android;
-
-        if (emVR)
+        else
         {
+            if (m_PainelRaiz == null || !m_PainelRaiz.activeSelf) return;
+
+            Camera cam = Camera.main;
+            if (m_ControladorJogador != null && m_ControladorJogador.cameraPrincipalXR != null)
+            {
+                cam = m_ControladorJogador.cameraPrincipalXR;
+            }
+            if (cam == null) return;
+
             if (m_CanvasInventario.renderMode != RenderMode.WorldSpace)
             {
                 m_CanvasInventario.renderMode = RenderMode.WorldSpace;
             }
             m_CanvasInventario.transform.localScale = Vector3.one * 0.00075f;
+
+            if (m_PainelRaiz != null)
+            {
+                RectTransform rt = m_PainelRaiz.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    rt.anchorMin = new Vector2(0.5f, 0.5f);
+                    rt.anchorMax = new Vector2(0.5f, 0.5f);
+                    rt.pivot = new Vector2(0.5f, 0.5f);
+                    rt.sizeDelta = new Vector2(360f, 320f);
+                    rt.anchoredPosition = Vector2.zero;
+                }
+            }
 
             Vector3 camPos = cam.transform.position;
             Vector3 camFwd = cam.transform.forward;
@@ -177,26 +210,6 @@ public class PainelInventarioABoxVR : MonoBehaviour
 
             m_CanvasInventario.transform.position = Vector3.Lerp(m_CanvasInventario.transform.position, posAlvo, Time.unscaledDeltaTime * 14f);
             m_CanvasInventario.transform.rotation = Quaternion.Slerp(m_CanvasInventario.transform.rotation, rotAlvo, Time.unscaledDeltaTime * 14f);
-        }
-        else
-        {
-            // No Desktop / PC: ScreenSpaceOverlay ancorado na periferia direita
-            if (m_CanvasInventario.renderMode != RenderMode.ScreenSpaceOverlay)
-            {
-                m_CanvasInventario.renderMode = RenderMode.ScreenSpaceOverlay;
-                m_CanvasInventario.transform.localScale = Vector3.one;
-            }
-            if (m_PainelRaiz != null)
-            {
-                RectTransform rt = m_PainelRaiz.GetComponent<RectTransform>();
-                if (rt != null)
-                {
-                    rt.anchorMin = new Vector2(1f, 0f);
-                    rt.anchorMax = new Vector2(1f, 0f);
-                    rt.pivot = new Vector2(1f, 0f);
-                    rt.anchoredPosition = new Vector2(-25f, 25f);
-                }
-            }
         }
     }
 
@@ -470,22 +483,51 @@ public class PainelInventarioABoxVR : MonoBehaviour
 
     private void ConstruirInterfaceInventario()
     {
-        // 1. Canvas WorldSpace
+        // 1. Canvas com suporte híbrido PC (ScreenSpaceOverlay) e VR (WorldSpace)
         GameObject canvasObj = new GameObject("Inventario_Canvas_VR", typeof(Canvas), typeof(CanvasScaler));
         canvasObj.transform.SetParent(transform, false);
 
         m_CanvasInventario = canvasObj.GetComponent<Canvas>();
-        m_CanvasInventario.renderMode = RenderMode.WorldSpace;
-        m_CanvasInventario.sortingOrder = 90;
-        canvasObj.transform.localScale = Vector3.one * 0.0011f;
+        m_CanvasInventario.sortingOrder = 25;
+
+        CanvasScaler scaler = canvasObj.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        bool modoPC = Application.isEditor || !UnityEngine.XR.XRSettings.isDeviceActive;
+        if (modoPC)
+        {
+            m_CanvasInventario.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvasObj.transform.localScale = Vector3.one;
+        }
+        else
+        {
+            m_CanvasInventario.renderMode = RenderMode.WorldSpace;
+            canvasObj.transform.localScale = Vector3.one * 0.00075f;
+        }
 
         // 2. Painel Raiz (Dark Grid Frame)
         m_PainelRaiz = new GameObject("Painel_Inventario_Raiz", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Outline));
         m_PainelRaiz.transform.SetParent(canvasObj.transform, false);
 
+        tamanhoPainel = new Vector2(360f, 320f);
         RectTransform rtRaiz = m_PainelRaiz.GetComponent<RectTransform>();
         rtRaiz.sizeDelta = tamanhoPainel;
-        rtRaiz.anchoredPosition = Vector2.zero;
+        if (modoPC)
+        {
+            rtRaiz.anchorMin = new Vector2(1f, 1f);
+            rtRaiz.anchorMax = new Vector2(1f, 1f);
+            rtRaiz.pivot = new Vector2(1f, 1f);
+            rtRaiz.anchoredPosition = new Vector2(-24f, -24f);
+        }
+        else
+        {
+            rtRaiz.anchorMin = new Vector2(0.5f, 0.5f);
+            rtRaiz.anchorMax = new Vector2(0.5f, 0.5f);
+            rtRaiz.pivot = new Vector2(0.5f, 0.5f);
+            rtRaiz.anchoredPosition = Vector2.zero;
+        }
 
         Image imgFundo = m_PainelRaiz.GetComponent<Image>();
         imgFundo.color = new Color(0.03f, 0.06f, 0.09f, 0.92f); // Dark slate

@@ -435,12 +435,27 @@ namespace PacMan.XR
         {
             DadosEntradaJogador dados = default;
 
-            // 1. Teclas WASD, Setas e Eixos do Teclado
+            // 1. Teclas WASD, Setas e Eixos do Teclado (Legacy Input + New Input System)
             Vector2 teclado = Vector2.zero;
-            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) teclado.y += 1f;
-            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) teclado.y -= 1f;
-            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) teclado.x -= 1f;
-            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) teclado.x += 1f;
+            bool w = Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow);
+            bool s = Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow);
+            bool a = Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow);
+            bool d = Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow);
+            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+            if (Keyboard.current != null)
+            {
+                if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) w = true;
+                if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) s = true;
+                if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) a = true;
+                if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) d = true;
+                if (Keyboard.current.leftShiftKey.isPressed || Keyboard.current.rightShiftKey.isPressed) shift = true;
+            }
+
+            if (w) teclado.y += 1f;
+            if (s) teclado.y -= 1f;
+            if (a) teclado.x -= 1f;
+            if (d) teclado.x += 1f;
 
             // Fallback para eixos do teclado via Input clássico se teclas não foram lidas
             if (teclado.sqrMagnitude < 0.01f)
@@ -460,59 +475,51 @@ namespace PacMan.XR
             }
 
             // Shift acelera no simulador desktop (equivalente ao Gatilho do Quest)
-            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) || Input.GetKey(KeyCode.Space))
+            if (shift)
             {
                 dados.AceleradorGatilho = 1.0f;
                 dados.TemEntradaAtiva = true;
             }
 
             // 2. Mouse para Giro de Câmera (Yaw horizontal e Pitch vertical em 1ª pessoa)
-            // Trava o cursor ao clicar na Game View, destrava com ESC
-            if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
+            bool podeGirarMouse = (Cursor.lockState == CursorLockMode.Locked) || Input.GetMouseButton(0) || Input.GetMouseButton(1);
+            if (podeGirarMouse)
             {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
-            else if (Input.GetKeyDown(KeyCode.Escape))
-            {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }
+                float mouseX = Input.GetAxis("Mouse X");
+                float mouseY = Input.GetAxis("Mouse Y");
 
-            float mouseX = Input.GetAxis("Mouse X");
-            float mouseY = Input.GetAxis("Mouse Y");
-
-            if (UnityEngine.InputSystem.Mouse.current != null)
-            {
-                Vector2 deltaMouse = UnityEngine.InputSystem.Mouse.current.delta.ReadValue();
-                if (Mathf.Abs(deltaMouse.x) > 0.05f && Mathf.Abs(deltaMouse.x * 0.12f) > Mathf.Abs(mouseX))
+                if (UnityEngine.InputSystem.Mouse.current != null)
                 {
-                    mouseX = deltaMouse.x * 0.12f;
+                    Vector2 deltaMouse = UnityEngine.InputSystem.Mouse.current.delta.ReadValue();
+                    if (Mathf.Abs(deltaMouse.x) > 0.05f && Mathf.Abs(deltaMouse.x * 0.12f) > Mathf.Abs(mouseX))
+                    {
+                        mouseX = deltaMouse.x * 0.12f;
+                    }
+                    if (Mathf.Abs(deltaMouse.y) > 0.05f && Mathf.Abs(deltaMouse.y * 0.12f) > Mathf.Abs(mouseY))
+                    {
+                        mouseY = deltaMouse.y * 0.12f;
+                    }
                 }
-                if (Mathf.Abs(deltaMouse.y) > 0.05f && Mathf.Abs(deltaMouse.y * 0.12f) > Mathf.Abs(mouseY))
-                {
-                    mouseY = deltaMouse.y * 0.12f;
-                }
-            }
 
-            if (Mathf.Abs(mouseX) > 0.001f)
-            {
-                dados.GiroCameraYaw = mouseX;
-                dados.TemEntradaAtiva = true;
-            }
-            if (Mathf.Abs(mouseY) > 0.001f)
-            {
-                dados.OlharCameraPitch = -mouseY;
-                dados.TemEntradaAtiva = true;
+                if (Mathf.Abs(mouseX) > 0.001f)
+                {
+                    dados.GiroCameraYaw = mouseX;
+                    dados.TemEntradaAtiva = true;
+                }
+                if (Mathf.Abs(mouseY) > 0.001f)
+                {
+                    dados.OlharCameraPitch = -mouseY;
+                    dados.TemEntradaAtiva = true;
+                }
             }
 
             // Teclas Q e E para giro manual alternativo
-            if (Input.GetKey(KeyCode.Q))
+            if (Input.GetKey(KeyCode.Q) || (Keyboard.current != null && Keyboard.current.qKey.isPressed))
             {
                 dados.GiroCameraYaw -= 1f;
                 dados.TemEntradaAtiva = true;
             }
-            if (Input.GetKey(KeyCode.E))
+            if (Input.GetKey(KeyCode.E) || (Keyboard.current != null && Keyboard.current.eKey.isPressed))
             {
                 dados.GiroCameraYaw += 1f;
                 dados.TemEntradaAtiva = true;
@@ -538,28 +545,30 @@ namespace PacMan.XR
             }
 
             // 4. Teclas C ou V para alternar modo de câmera
-            if (Input.GetKeyDown(KeyCode.C) || Input.GetKeyDown(KeyCode.V))
+            if (Input.GetKeyDown(KeyCode.C) || Input.GetKeyDown(KeyCode.V) ||
+                (Keyboard.current != null && (Keyboard.current.cKey.wasPressedThisFrame || Keyboard.current.vKey.wasPressedThisFrame)))
             {
                 dados.AlternarModoCamera = true;
                 dados.TemEntradaAtiva = true;
             }
 
             // 5. Tecla X para Resetar Checkpoint
-            if (Input.GetKeyDown(KeyCode.X))
+            if (Input.GetKeyDown(KeyCode.X) || (Keyboard.current != null && Keyboard.current.xKey.wasPressedThisFrame))
             {
                 dados.ResetCheckpoint = true;
                 dados.TemEntradaAtiva = true;
             }
 
             // 6. Espaço ou Enter para interação / Play
-            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return))
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) ||
+                (Keyboard.current != null && (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.enterKey.wasPressedThisFrame)))
             {
                 dados.Interagir = true;
                 dados.TemEntradaAtiva = true;
             }
 
-            // 7. Tecla ESC para abrir/fechar Hub Inicial
-            if (Input.GetKeyDown(KeyCode.Escape))
+            // 7. Tecla M para abrir/fechar Hub Inicial (ESC fica exclusivo para destravar/travar o cursor no Editor)
+            if (Input.GetKeyDown(KeyCode.M) || (Keyboard.current != null && Keyboard.current.mKey.wasPressedThisFrame))
             {
                 dados.AlternarMenuHub = true;
                 dados.TemEntradaAtiva = true;

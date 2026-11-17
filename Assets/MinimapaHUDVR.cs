@@ -83,6 +83,7 @@ public class MinimapaHUDVR : MonoBehaviour
             ConstruirMinimapaCircularProcedural();
         }
         EsconderWarning();
+        AtualizarAcompanhamentoVisaoVR();
     }
 
     private void Update()
@@ -157,22 +158,64 @@ public class MinimapaHUDVR : MonoBehaviour
     private void AtualizarAcompanhamentoVisaoVR()
     {
         if (m_CanvasHUD == null) return;
-        if (painelMinimapaRoot != null && !painelMinimapaRoot.activeSelf) return;
 
-        Camera cam = m_CameraPrincipal != null ? m_CameraPrincipal : Camera.main;
-        if (cam == null) return;
+        bool modoPC = Application.isEditor || !UnityEngine.XR.XRSettings.isDeviceActive;
 
-        bool emVR = UnityEngine.XR.XRSettings.isDeviceActive || (UnityEngine.XR.XRSettings.enabled && !string.IsNullOrEmpty(UnityEngine.XR.XRSettings.loadedDeviceName)) ||
-                    (UnityEngine.XR.Management.XRGeneralSettings.Instance != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.activeLoader != null) ||
-                    Application.platform == RuntimePlatform.Android;
-
-        if (emVR)
+        if (modoPC)
         {
+            // No Desktop / Editor PC: ScreenSpaceOverlay ancorado exclusivamente no canto inferior esquerdo
+            if (m_CanvasHUD.renderMode != RenderMode.ScreenSpaceOverlay)
+            {
+                m_CanvasHUD.renderMode = RenderMode.ScreenSpaceOverlay;
+                m_CanvasHUD.transform.localScale = Vector3.one;
+            }
+            if (painelMinimapaRoot != null)
+            {
+                RectTransform rtRoot = painelMinimapaRoot.GetComponent<RectTransform>();
+                if (rtRoot != null)
+                {
+                    rtRoot.anchorMin = new Vector2(0f, 0f);
+                    rtRoot.anchorMax = new Vector2(0f, 0f);
+                    rtRoot.pivot = new Vector2(0f, 0f);
+                    rtRoot.anchoredPosition = new Vector2(24f, 24f);
+                }
+            }
+            if (m_BannerWarningRoot != null)
+            {
+                RectTransform rtBanner = m_BannerWarningRoot.GetComponent<RectTransform>();
+                if (rtBanner != null)
+                {
+                    rtBanner.anchorMin = new Vector2(0.5f, 1f);
+                    rtBanner.anchorMax = new Vector2(0.5f, 1f);
+                    rtBanner.pivot = new Vector2(0.5f, 1f);
+                    rtBanner.anchoredPosition = new Vector2(0f, -28f);
+                }
+            }
+        }
+        else
+        {
+            if (painelMinimapaRoot != null && !painelMinimapaRoot.activeSelf) return;
+
+            Camera cam = m_CameraPrincipal != null ? m_CameraPrincipal : Camera.main;
+            if (cam == null) return;
+
             if (m_CanvasHUD.renderMode != RenderMode.WorldSpace)
             {
                 m_CanvasHUD.renderMode = RenderMode.WorldSpace;
             }
             m_CanvasHUD.transform.localScale = Vector3.one * 0.00085f;
+
+            if (painelMinimapaRoot != null)
+            {
+                RectTransform rtRoot = painelMinimapaRoot.GetComponent<RectTransform>();
+                if (rtRoot != null)
+                {
+                    rtRoot.anchorMin = new Vector2(0.5f, 0.5f);
+                    rtRoot.anchorMax = new Vector2(0.5f, 0.5f);
+                    rtRoot.pivot = new Vector2(0.5f, 0.5f);
+                    rtRoot.anchoredPosition = Vector2.zero;
+                }
+            }
 
             Vector3 camPos = cam.transform.position;
             Vector3 camFwd = cam.transform.forward;
@@ -188,37 +231,6 @@ public class MinimapaHUDVR : MonoBehaviour
 
             m_CanvasHUD.transform.position = Vector3.Lerp(m_CanvasHUD.transform.position, posAlvo, Time.unscaledDeltaTime * velocidadeDamping);
             m_CanvasHUD.transform.rotation = Quaternion.Slerp(m_CanvasHUD.transform.rotation, rotAlvo, Time.unscaledDeltaTime * velocidadeDamping);
-        }
-        else
-        {
-            // No Desktop / PC: ScreenSpaceOverlay ancorado com firmeza no canto inferior esquerdo
-            if (m_CanvasHUD.renderMode != RenderMode.ScreenSpaceOverlay)
-            {
-                m_CanvasHUD.renderMode = RenderMode.ScreenSpaceOverlay;
-                m_CanvasHUD.transform.localScale = Vector3.one;
-            }
-            if (painelMinimapaRoot != null)
-            {
-                RectTransform rtRoot = painelMinimapaRoot.GetComponent<RectTransform>();
-                if (rtRoot != null)
-                {
-                    rtRoot.anchorMin = new Vector2(0f, 0f);
-                    rtRoot.anchorMax = new Vector2(0f, 0f);
-                    rtRoot.pivot = new Vector2(0f, 0f);
-                    rtRoot.anchoredPosition = new Vector2(30f, 30f);
-                }
-            }
-            if (m_BannerWarningRoot != null)
-            {
-                RectTransform rtBanner = m_BannerWarningRoot.GetComponent<RectTransform>();
-                if (rtBanner != null)
-                {
-                    rtBanner.anchorMin = new Vector2(0.5f, 1f);
-                    rtBanner.anchorMax = new Vector2(0.5f, 1f);
-                    rtBanner.pivot = new Vector2(0.5f, 1f);
-                    rtBanner.anchoredPosition = new Vector2(0f, -40f);
-                }
-            }
         }
     }
 
@@ -325,29 +337,61 @@ public class MinimapaHUDVR : MonoBehaviour
     /// </summary>
     private void ConstruirMinimapaCircularProcedural()
     {
-        // 1. Canvas WorldSpace
+        // 1. Canvas com suporte híbrido PC (ScreenSpaceOverlay) e VR (WorldSpace)
         GameObject canvasObj = new GameObject("Canvas_MinimapaHUD_Circular", typeof(Canvas), typeof(CanvasScaler));
         canvasObj.transform.SetParent(transform, false);
 
         m_CanvasHUD = canvasObj.GetComponent<Canvas>();
-        m_CanvasHUD.renderMode = RenderMode.WorldSpace;
-        m_CanvasHUD.transform.localScale = Vector3.one * 0.00085f;
+        m_CanvasHUD.sortingOrder = 25;
 
-        // 2. Painel Raiz
+        CanvasScaler scaler = canvasObj.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        bool modoPC = Application.isEditor || !UnityEngine.XR.XRSettings.isDeviceActive;
+        if (modoPC)
+        {
+            m_CanvasHUD.renderMode = RenderMode.ScreenSpaceOverlay;
+            m_CanvasHUD.transform.localScale = Vector3.one;
+        }
+        else
+        {
+            m_CanvasHUD.renderMode = RenderMode.WorldSpace;
+            m_CanvasHUD.transform.localScale = Vector3.one * 0.00085f;
+        }
+
+        // 2. Painel Raiz (ancorado no canto inferior esquerdo no PC)
         painelMinimapaRoot = new GameObject("Painel_Minimapa_Root", typeof(RectTransform));
         painelMinimapaRoot.transform.SetParent(canvasObj.transform, false);
 
         RectTransform rtRoot = painelMinimapaRoot.GetComponent<RectTransform>();
-        rtRoot.sizeDelta = new Vector2(220f, 220f);
-        rtRoot.anchoredPosition = Vector2.zero;
+        rtRoot.sizeDelta = new Vector2(210f, 210f);
+        if (modoPC)
+        {
+            rtRoot.anchorMin = new Vector2(0f, 0f);
+            rtRoot.anchorMax = new Vector2(0f, 0f);
+            rtRoot.pivot = new Vector2(0f, 0f);
+            rtRoot.anchoredPosition = new Vector2(24f, 24f);
+        }
+        else
+        {
+            rtRoot.anchorMin = new Vector2(0.5f, 0.5f);
+            rtRoot.anchorMax = new Vector2(0.5f, 0.5f);
+            rtRoot.pivot = new Vector2(0.5f, 0.5f);
+            rtRoot.anchoredPosition = Vector2.zero;
+        }
 
         // 3. Fundo Circular do Minimapa com textura de grade wireframe
         GameObject bgObj = new GameObject("Radar_Circular_BG", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Outline));
         bgObj.transform.SetParent(painelMinimapaRoot.transform, false);
 
         RectTransform rtBg = bgObj.GetComponent<RectTransform>();
+        rtBg.anchorMin = new Vector2(0.5f, 0.5f);
+        rtBg.anchorMax = new Vector2(0.5f, 0.5f);
+        rtBg.pivot = new Vector2(0.5f, 0.5f);
         rtBg.sizeDelta = new Vector2(170f, 170f);
-        rtBg.anchoredPosition = Vector2.zero;
+        rtBg.anchoredPosition = new Vector2(0f, 8f);
 
         Image imgBg = bgObj.GetComponent<Image>();
         imgBg.color = new Color(0.015f, 0.035f, 0.08f, 0.92f);
@@ -394,8 +438,11 @@ public class MinimapaHUDVR : MonoBehaviour
         GameObject labelObj = new GameObject("Label_Minimapa", typeof(RectTransform), typeof(TextMeshProUGUI));
         labelObj.transform.SetParent(painelMinimapaRoot.transform, false);
         RectTransform rtLabel = labelObj.GetComponent<RectTransform>();
+        rtLabel.anchorMin = new Vector2(0.5f, 0f);
+        rtLabel.anchorMax = new Vector2(0.5f, 0f);
+        rtLabel.pivot = new Vector2(0.5f, 0f);
         rtLabel.sizeDelta = new Vector2(180f, 22f);
-        rtLabel.anchoredPosition = new Vector2(0f, -98f);
+        rtLabel.anchoredPosition = new Vector2(0f, 0f);
         TextMeshProUGUI txtLabel = labelObj.GetComponent<TextMeshProUGUI>();
         txtLabel.text = "<color=#00FFFF><b>PAC-RADAR VR</b></color>";
         txtLabel.fontSize = 11f;
@@ -407,9 +454,18 @@ public class MinimapaHUDVR : MonoBehaviour
         m_BannerWarningRoot.transform.SetParent(canvasObj.transform, false);
 
         RectTransform rtBanner = m_BannerWarningRoot.GetComponent<RectTransform>();
-        rtBanner.sizeDelta = new Vector2(340f, 54f);
-        // Deslocado para o topo central em relação ao canvas do HUD
-        rtBanner.anchoredPosition = new Vector2(420f, 360f);
+        rtBanner.sizeDelta = new Vector2(360f, 54f);
+        if (modoPC)
+        {
+            rtBanner.anchorMin = new Vector2(0.5f, 1f);
+            rtBanner.anchorMax = new Vector2(0.5f, 1f);
+            rtBanner.pivot = new Vector2(0.5f, 1f);
+            rtBanner.anchoredPosition = new Vector2(0f, -28f);
+        }
+        else
+        {
+            rtBanner.anchoredPosition = new Vector2(420f, 360f);
+        }
 
         Image imgBanner = m_BannerWarningRoot.GetComponent<Image>();
         imgBanner.color = new Color(0.02f, 0.05f, 0.12f, 0.94f);

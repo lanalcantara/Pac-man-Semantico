@@ -262,8 +262,9 @@ public class ControladorXRJogador : MonoBehaviour
             }
         }
 
-        // 2.1 Atalho do Botão SELECT (JoystickButton6) ou Botão MENU do Quest durante gameplay -> Volta ao Menu
-        if (entrada.AlternarMenuHub || Input.GetKeyDown(KeyCode.JoystickButton6) || Input.GetKeyDown(KeyCode.Escape))
+        // 2.1 Atalho do Botão SELECT (JoystickButton6), Tecla M ou Botão MENU do Quest durante gameplay -> Volta ao Menu
+        // Nota: A tecla ESC no PC é reservada exclusivamente para travar/destravar o cursor do mouse no Editor
+        if (entrada.AlternarMenuHub || Input.GetKeyDown(KeyCode.JoystickButton6) || Input.GetKeyDown(KeyCode.M))
         {
             if (HubInicialAmbiente.Instancia != null)
             {
@@ -426,22 +427,52 @@ public class ControladorXRJogador : MonoBehaviour
         }
     }
 
+    private float m_MultiplicadorVelocidadeAtual = 1.0f;
+
     /// <summary>
-    /// Trava o cursor do mouse na janela ao clicar, liberando com ESC.
+    /// Trava/destrava o cursor do mouse com a tecla ESC para testes fluidos no Editor do Unity.
+    /// Durante menus abertos, garante que o cursor permaneça sempre livre e visível.
     /// </summary>
     private void ProcessarTravaCursor()
     {
-        if (travarCursorAoClicar)
+        bool menuAberto = HubInicialAmbiente.Instancia != null &&
+                          (HubInicialAmbiente.Instancia.hubAberto ||
+                           HubInicialAmbiente.Instancia.GameOverAberto ||
+                           HubInicialAmbiente.Instancia.VitoriaAberta ||
+                           !HubInicialAmbiente.Instancia.partidaEmAndamento);
+
+        if (menuAberto)
         {
-            if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
             {
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
+            }
+            return;
+        }
+
+        if (travarCursorAoClicar)
+        {
+            bool escPressed = Input.GetKeyDown(KeyCode.Escape) ||
+                              (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame);
+
+            if (escPressed)
+            {
+                if (Cursor.lockState == CursorLockMode.Locked)
+                {
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
+                }
+                else
+                {
+                    Cursor.lockState = CursorLockMode.Locked;
+                    Cursor.visible = false;
+                }
+            }
+            else if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
             }
         }
     }
@@ -450,7 +481,7 @@ public class ControladorXRJogador : MonoBehaviour
     /// Processa entradas de locomoção e orientação de forma desacoplada via IProvedorEntradaXR:
     /// - Meta Quest Touch Plus (VR)
     /// - Gamepad Xbox (New Input System / Legacy)
-    /// - Teclado & Mouse (Desktop FPS)
+    /// - Teclado & Mouse (Desktop FPS) com fallback direto quando não há XR ativo.
     /// Zero alocações de Heap por frame (0 B GC Alloc).
     /// </summary>
     private void ProcessarEntradasMovimento(DadosEntradaJogador entrada)
@@ -458,16 +489,73 @@ public class ControladorXRJogador : MonoBehaviour
         if (!controlesHabilitados)
         {
             m_VetorMovimentoDesejado = Vector3.zero;
+            m_MultiplicadorVelocidadeAtual = 1.0f;
             return;
         }
 
+        bool modoPC = Application.isEditor || !XRSettings.isDeviceActive;
         Vector2 dir2D = entrada.Movimento2D;
+        float acelerador = entrada.AceleradorGatilho;
+
+        // Fallback direto para teclado no PC quando não houver XR ativo
+        if (modoPC)
+        {
+            Vector2 dirTeclado = Vector2.zero;
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow) ||
+                (Keyboard.current != null && (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed)))
+            {
+                dirTeclado.y += 1f;
+            }
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow) ||
+                (Keyboard.current != null && (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed)))
+            {
+                dirTeclado.y -= 1f;
+            }
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow) ||
+                (Keyboard.current != null && (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)))
+            {
+                dirTeclado.x -= 1f;
+            }
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow) ||
+                (Keyboard.current != null && (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)))
+            {
+                dirTeclado.x += 1f;
+            }
+
+            if (dirTeclado.sqrMagnitude < 0.01f)
+            {
+                float axisH = Input.GetAxisRaw("Horizontal");
+                float axisV = Input.GetAxisRaw("Vertical");
+                if (Mathf.Abs(axisH) > 0.05f || Mathf.Abs(axisV) > 0.05f)
+                {
+                    dirTeclado = new Vector2(axisH, axisV);
+                }
+            }
+
+            if (dirTeclado.sqrMagnitude > dir2D.sqrMagnitude)
+            {
+                dir2D = dirTeclado;
+            }
+
+            bool shiftAtivo = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ||
+                              (Keyboard.current != null && (Keyboard.current.leftShiftKey.isPressed || Keyboard.current.rightShiftKey.isPressed));
+            if (shiftAtivo)
+            {
+                acelerador = Mathf.Max(acelerador, 1.0f);
+            }
+        }
+
         if (dir2D.sqrMagnitude > 1f) dir2D.Normalize();
 
         // Rotação horizontal livre da visão (Yaw) via Stick Direito, Mouse X ou Q/E
         if (Mathf.Abs(entrada.GiroCameraYaw) > 0.005f)
         {
             m_CameraYaw += entrada.GiroCameraYaw * sensibilidadeOlharYaw * Time.deltaTime;
+        }
+        else if (modoPC && modoCameraAtual == ModoCameraJogador.PrimeiraPessoa && Mathf.Abs(dir2D.x) > 0.1f)
+        {
+            // Permite girar também com A/D ou Setas Esquerda/Direita em 1ª pessoa no PC quando o mouse está parado
+            m_CameraYaw += dir2D.x * 95f * Time.deltaTime;
         }
 
         // Inclinação vertical da visão (Pitch - olhar para cima/baixo) via Mouse Y ou Stick Direito Y
@@ -482,8 +570,7 @@ public class ControladorXRJogador : MonoBehaviour
         Vector3 camFwd;
         Vector3 camRgt;
 
-        bool emVR = XRSettings.isDeviceActive || (XRSettings.enabled && !string.IsNullOrEmpty(XRSettings.loadedDeviceName));
-        if (emVR && modoCameraAtual == ModoCameraJogador.PrimeiraPessoa && cameraPrincipalXR != null)
+        if (!modoPC && modoCameraAtual == ModoCameraJogador.PrimeiraPessoa && cameraPrincipalXR != null)
         {
             camFwd = cameraPrincipalXR.transform.forward;
             camFwd.y = 0f;
@@ -504,11 +591,20 @@ public class ControladorXRJogador : MonoBehaviour
 
         m_VetorMovimentoDesejado = (camFwd * dir2D.y + camRgt * dir2D.x);
 
-        // COMBO CONTROLE DIREITO META QUEST: Gatilho Indicador (Index Trigger) Acelera para a Frente
-        // O analógico direito controla a rotação/câmera e o gatilho acelera na direção apontada!
-        if (entrada.AceleradorGatilho > 0.02f)
+        // COMBO CONTROLE DIREITO META QUEST & TECLA SHIFT NO PC:
+        // Se nenhuma tecla direcional estiver pressionada, impulsiona para a frente;
+        // e aplica multiplicador de aceleração (Sprint 1.65x).
+        if (acelerador > 0.02f)
         {
-            m_VetorMovimentoDesejado += camFwd * entrada.AceleradorGatilho;
+            m_MultiplicadorVelocidadeAtual = 1.0f + 0.65f * Mathf.Clamp01(acelerador);
+            if (dir2D.sqrMagnitude < 0.01f)
+            {
+                m_VetorMovimentoDesejado += camFwd * acelerador;
+            }
+        }
+        else
+        {
+            m_MultiplicadorVelocidadeAtual = 1.0f;
         }
 
         if (m_VetorMovimentoDesejado.sqrMagnitude > 1f) m_VetorMovimentoDesejado.Normalize();
@@ -538,7 +634,7 @@ public class ControladorXRJogador : MonoBehaviour
             return;
         }
 
-        Vector3 vel = m_VetorMovimentoDesejado * velocidadeMovimento;
+        Vector3 vel = m_VetorMovimentoDesejado * (velocidadeMovimento * m_MultiplicadorVelocidadeAtual);
 
         m_Rigidbody.linearVelocity = new Vector3(vel.x, 0f, vel.z);
 #pragma warning disable CS0618
@@ -617,8 +713,13 @@ public class ControladorXRJogador : MonoBehaviour
         }
         if (cameraPrincipalXR == null) return;
 
-        bool emVR = XRSettings.isDeviceActive || (XRSettings.enabled && !string.IsNullOrEmpty(XRSettings.loadedDeviceName)) ||
-                    (UnityEngine.XR.Management.XRGeneralSettings.Instance != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager != null && UnityEngine.XR.Management.XRGeneralSettings.Instance.Manager.activeLoader != null);
+        bool emVR = !Application.isEditor && XRSettings.isDeviceActive;
+
+        var tpd = cameraPrincipalXR.GetComponent<UnityEngine.InputSystem.XR.TrackedPoseDriver>();
+        if (tpd != null && tpd.enabled != emVR)
+        {
+            tpd.enabled = emVR;
+        }
 
         switch (modoCameraAtual)
         {

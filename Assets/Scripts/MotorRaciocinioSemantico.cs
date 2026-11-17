@@ -633,6 +633,12 @@ namespace PacMan.Semantics
         {
             if (!moverFantasmasDinamicamente || ghostObj == null) return;
 
+            var obsCiclo = ghostObj.GetComponent<ObstaculoInvalidoSemantico>() ?? ghostObj.GetComponentInParent<ObstaculoInvalidoSemantico>();
+            if (obsCiclo != null && obsCiclo.estadoCicloVida != ObstaculoInvalidoSemantico.EstadoCicloVidaFantasma.NavegandoAtivo)
+            {
+                return;
+            }
+
             Transform tr = ghostObj.transform;
             Vector3 posAtual = tr.position;
 
@@ -680,11 +686,19 @@ namespace PacMan.Semantics
                         if (ctrlPadrao != null) ctrlPadrao.ExecutarDanoPacMan(ghostObj);
                     }
 
-                    // Recuo tático de 6.0 metros para trás
+                    // Recuo tático seguro dentro dos limites do NavMesh e do labirinto
                     Vector3 dirRecuo = (posAtual - posPacMan).normalized;
                     dirRecuo.y = 0f;
                     if (dirRecuo.sqrMagnitude < 0.01f) dirRecuo = -ghostObj.transform.forward;
-                    ghostObj.transform.position += dirRecuo * 6.0f;
+                    Vector3 alvoRecuo = posAtual + dirRecuo * 5.0f;
+                    alvoRecuo.x = Mathf.Clamp(alvoRecuo.x, -11.0f, 11.0f);
+                    alvoRecuo.z = Mathf.Clamp(alvoRecuo.z, -11.0f, 11.0f);
+                    var navRecuo = ghostObj.GetComponent<UnityEngine.AI.NavMeshAgent>();
+                    if (UnityEngine.AI.NavMesh.SamplePosition(alvoRecuo, out var hitRecuo, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
+                    {
+                        if (navRecuo != null && navRecuo.isOnNavMesh) navRecuo.Warp(hitRecuo.position);
+                        else ghostObj.transform.position = hitRecuo.position;
+                    }
                     return;
                 }
             }
@@ -711,18 +725,22 @@ namespace PacMan.Semantics
                     if (estado == GameEntityState.Vulnerable)
                     {
                         Vector3 fleeDir = (posAtual - posPacMan).normalized;
-                        navAgent.SetDestination(posAtual + fleeDir * 6.0f);
+                        Vector3 fleeDest = posAtual + fleeDir * 6.0f;
+                        fleeDest.x = Mathf.Clamp(fleeDest.x, -11.0f, 11.0f);
+                        fleeDest.z = Mathf.Clamp(fleeDest.z, -11.0f, 11.0f);
+                        if (UnityEngine.AI.NavMesh.SamplePosition(fleeDest, out var hitFlee, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
+                        {
+                            navAgent.SetDestination(hitFlee.position);
+                        }
                     }
                     else
                     {
                         Vector3 destino = CalcularDestinoTaticoFantasma(ghostObj, id, posPacMan, posAtual, m_ListaFantasmasAtivos);
+                        destino.x = Mathf.Clamp(destino.x, -11.0f, 11.0f);
+                        destino.z = Mathf.Clamp(destino.z, -11.0f, 11.0f);
                         if (UnityEngine.AI.NavMesh.SamplePosition(destino, out var hitDest, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
                         {
                             navAgent.SetDestination(hitDest.position);
-                        }
-                        else
-                        {
-                            navAgent.SetDestination(destino);
                         }
                     }
                     return;

@@ -410,10 +410,13 @@ public class ObstaculoInvalidoSemantico : InstanciaSemanticaBase
                 if (m_AlvoPatrulhaProcedural == Vector3.zero || Vector3.Distance(transform.position, m_AlvoPatrulhaProcedural) < 1.8f)
                 {
                     Vector2 rand = Random.insideUnitCircle * 9.5f;
-                    Vector3 candidato = new Vector3(rand.x, transform.position.y, rand.y);
-                    if (UnityEngine.AI.NavMesh.SamplePosition(candidato, out UnityEngine.AI.NavMeshHit hit, 4.0f, UnityEngine.AI.NavMesh.AllAreas))
+                    Vector3 candidato = new Vector3(Mathf.Clamp(rand.x, -10.8f, 10.8f), transform.position.y, Mathf.Clamp(rand.y, -10.8f, 10.8f));
+                    if (UnityEngine.AI.NavMesh.SamplePosition(candidato, out UnityEngine.AI.NavMeshHit hit, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
                     {
-                        m_AlvoPatrulhaProcedural = hit.position;
+                        Vector3 p = hit.position;
+                        p.x = Mathf.Clamp(p.x, -11.0f, 11.0f);
+                        p.z = Mathf.Clamp(p.z, -11.0f, 11.0f);
+                        m_AlvoPatrulhaProcedural = p;
                     }
                 }
                 if (m_AlvoPatrulhaProcedural != Vector3.zero)
@@ -560,7 +563,9 @@ public class ObstaculoInvalidoSemantico : InstanciaSemanticaBase
         dirRecuo.y = 0f;
         if (dirRecuo.sqrMagnitude < 0.01f) dirRecuo = -transform.forward;
 
-        Vector3 novaPos = transform.position + dirRecuo * 6.0f;
+        Vector3 novaPos = transform.position + dirRecuo * 5.0f;
+        novaPos.x = Mathf.Clamp(novaPos.x, -11.0f, 11.0f);
+        novaPos.z = Mathf.Clamp(novaPos.z, -11.0f, 11.0f);
         if (m_NavAgent != null && m_NavAgent.isOnNavMesh)
         {
             m_NavAgent.isStopped = true;
@@ -568,7 +573,10 @@ public class ObstaculoInvalidoSemantico : InstanciaSemanticaBase
 
             if (UnityEngine.AI.NavMesh.SamplePosition(novaPos, out UnityEngine.AI.NavMeshHit hit, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
             {
-                m_NavAgent.Warp(hit.position);
+                Vector3 posSegura = hit.position;
+                posSegura.x = Mathf.Clamp(posSegura.x, -11.0f, 11.0f);
+                posSegura.z = Mathf.Clamp(posSegura.z, -11.0f, 11.0f);
+                m_NavAgent.Warp(posSegura);
             }
             else
             {
@@ -578,6 +586,36 @@ public class ObstaculoInvalidoSemantico : InstanciaSemanticaBase
         else
         {
             transform.position = novaPos;
+        }
+    }
+
+    private void LateUpdate()
+    {
+        if (estadoCicloVida != EstadoCicloVidaFantasma.NavegandoAtivo) return;
+
+        // Guarda de perímetro: impede definitivamente que qualquer fantasma ultrapasse os limites do labirinto
+        const float LIMITE_PERIMETRO = 11.4f;
+        Vector3 p = transform.position;
+        if (Mathf.Abs(p.x) > LIMITE_PERIMETRO || Mathf.Abs(p.z) > LIMITE_PERIMETRO)
+        {
+            Vector3 clamped = new Vector3(
+                Mathf.Clamp(p.x, -LIMITE_PERIMETRO, LIMITE_PERIMETRO),
+                p.y,
+                Mathf.Clamp(p.z, -LIMITE_PERIMETRO, LIMITE_PERIMETRO));
+
+            if (UnityEngine.AI.NavMesh.SamplePosition(clamped, out UnityEngine.AI.NavMeshHit hit, 2.5f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                clamped = hit.position;
+            }
+
+            if (m_NavAgent != null && m_NavAgent.isActiveAndEnabled && m_NavAgent.isOnNavMesh)
+            {
+                m_NavAgent.Warp(clamped);
+            }
+            else
+            {
+                transform.position = clamped;
+            }
         }
     }
 }

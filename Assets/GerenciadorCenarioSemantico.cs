@@ -325,7 +325,10 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         {
             surface = gameObject.AddComponent<NavMeshSurface>();
         }
-        surface.collectObjects = CollectObjects.All;
+        // Restringe o Bake estritamente ao volume interno do labirinto para nunca vazar além das paredes externas
+        surface.collectObjects = CollectObjects.Volume;
+        surface.center = new Vector3(0f, 1.0f, 0f);
+        surface.size = new Vector3(tamanhoLabirinto - 0.4f, 4.0f, tamanhoLabirinto - 0.4f);
         surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
         return surface;
     }
@@ -651,16 +654,11 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         }
 
         // 0.1 BAKE DINÂMICO DO NAVMESH EM TEMPO DE EXECUÇÃO
-        // Chamado exatamente após todas as paredes e chão serem instanciados, mas antes de instanciar ou habilitar os NavMeshAgents (Fantasmas).
-        NavMeshSurface navSurface = GetComponent<NavMeshSurface>();
-        if (navSurface == null)
-        {
-            navSurface = gameObject.AddComponent<NavMeshSurface>();
-            navSurface.collectObjects = CollectObjects.All;
-        navSurface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
-        }
+        // Sincroniza todos os BoxColliders recém-criados antes do Bake e limita o volume ao interior do labirinto
+        Physics.SyncTransforms();
+        NavMeshSurface navSurface = GarantirNavMeshSurface();
         navSurface.BuildNavMesh();
-        Debug.Log("<color=#00FF99><b>[NavMesh Dinâmico]</b></color> Malha de navegação gerada em tempo de execução com BuildNavMesh() após instanciação de paredes e chão.");
+        Debug.Log("<color=#00FF99><b>[NavMesh Dinâmico]</b></color> Malha de navegação gerada com volume contido no labirinto (BuildNavMesh).");
 
         // 1. Espelhamento formal: Constrói e indexa o Grafo Ontológico a partir do DTO
         GrafoOntologico.BuildFromCenarioDTO(cenario);
@@ -3591,6 +3589,14 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         CriarBlocoParede(m_ContainerParedes.transform, new Vector3(-10.5f, yCentro, 0f), new Vector3(espessuraParedes, alturaParedes, 4.5f), matParede, "Parede_Loop_Oeste");
         CriarBlocoParede(m_ContainerParedes.transform, new Vector3(10.5f, yCentro, 0f), new Vector3(espessuraParedes, alturaParedes, 4.5f), matParede, "Parede_Loop_Leste");
 
+        // 3.5 BARREIRAS INVISÍVEIS DE CONTENÇÃO PERIMETRAL (Impede qualquer fuga do Pac-Man ou Fantasmas além do mapa)
+        float posBarreira = metade + (espessuraParedes * 0.5f) + 0.35f;
+        float compBarreira = tamanhoLabirinto + espessuraParedes * 2f + 1.5f;
+        CriarBarreiraInvisivelPerimetro(m_ContainerParedes.transform, new Vector3(0f, yCentro, posBarreira), new Vector3(compBarreira, alturaParedes + 1.0f, 0.8f), "Barreira_Invisivel_Norte");
+        CriarBarreiraInvisivelPerimetro(m_ContainerParedes.transform, new Vector3(0f, yCentro, -posBarreira), new Vector3(compBarreira, alturaParedes + 1.0f, 0.8f), "Barreira_Invisivel_Sul");
+        CriarBarreiraInvisivelPerimetro(m_ContainerParedes.transform, new Vector3(posBarreira, yCentro, 0f), new Vector3(0.8f, alturaParedes + 1.0f, compBarreira), "Barreira_Invisivel_Leste");
+        CriarBarreiraInvisivelPerimetro(m_ContainerParedes.transform, new Vector3(-posBarreira, yCentro, 0f), new Vector3(0.8f, alturaParedes + 1.0f, compBarreira), "Barreira_Invisivel_Oeste");
+
         // 3. WAYFINDING SEMÂNTICO: Detecta bifurcações e inícios de corredores para instanciar Placas de Sinalização TBox
         if (instanciarPlacasSinalizacao)
         {
@@ -4017,15 +4023,31 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         // Colisor sólido estritamente não-trigger para bloquear 100% a travessia de jogadores e agentes
         // Atrito zero e Minimum combine para permitir deslizamento suave pelas quinas sem travar
         BoxCollider col = parede.GetComponent<BoxCollider>();
-        if (col != null)
-        {
-            col.isTrigger = false;
-            col.size = new Vector3(1f, 1.6f, 1f);
-            col.center = Vector3.zero;
-            col.sharedMaterial = ObterMaterialParedeZeroAtrito();
-        }
+        if (col == null) col = parede.AddComponent<BoxCollider>();
+        col.isTrigger = false;
+        col.size = new Vector3(1f, 1.6f, 1f);
+        col.center = Vector3.zero;
+        col.sharedMaterial = ObterMaterialParedeZeroAtrito();
 
         return parede;
+    }
+
+    private void CriarBarreiraInvisivelPerimetro(Transform pai, Vector3 pos, Vector3 tamanho, string nome)
+    {
+        GameObject barreira = new GameObject(nome);
+        barreira.transform.SetParent(pai, false);
+        barreira.transform.position = pos;
+        barreira.isStatic = true;
+
+        BoxCollider col = barreira.AddComponent<BoxCollider>();
+        col.isTrigger = false;
+        col.size = tamanho;
+        col.sharedMaterial = ObterMaterialParedeZeroAtrito();
+
+        UnityEngine.AI.NavMeshObstacle obs = barreira.AddComponent<UnityEngine.AI.NavMeshObstacle>();
+        obs.shape = UnityEngine.AI.NavMeshObstacleShape.Box;
+        obs.size = tamanho;
+        obs.carving = true;
     }
 
     // =========================================================================

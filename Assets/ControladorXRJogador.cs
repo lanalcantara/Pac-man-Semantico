@@ -621,9 +621,8 @@ public class ControladorXRJogador : MonoBehaviour
     }
 
     /// <summary>
-    /// Aplica a velocidade de movimento diretamente ao Rigidbody nos eixos X e Z.
-    /// Com o PhysicMaterial sem atrito no CapsuleCollider, o jogador desliza naturalmente
-    /// em qualquer parede sem travar ou grudar nas esquinas.
+    /// Aplica o movimento físico usando Rigidbody.MovePosition com varredura preventiva (SweepTest / CapsuleCast)
+    /// e deslizamento tangencial em paredes (Wall Sliding), garantindo que o Pac-Man nunca atravesse colisores.
     /// </summary>
     private void ProcessarMovimentoFisico()
     {
@@ -635,28 +634,117 @@ public class ControladorXRJogador : MonoBehaviour
                                   RigidbodyConstraints.FreezeRotationY |
                                   RigidbodyConstraints.FreezeRotationZ;
 
-        if (!controlesHabilitados)
-        {
-            m_Rigidbody.linearVelocity = Vector3.zero;
+        // Zera velocidade linear residual para que a movimentação seja 100% controlada por MovePosition sem penetração
+        m_Rigidbody.linearVelocity = Vector3.zero;
 #pragma warning disable CS0618
-            m_Rigidbody.velocity = Vector3.zero;
+        m_Rigidbody.velocity = Vector3.zero;
 #pragma warning restore CS0618
+
+        if (!controlesHabilitados || m_VetorMovimentoDesejado.sqrMagnitude < 0.0001f)
+        {
             return;
         }
 
-        Vector3 vel = m_VetorMovimentoDesejado * (velocidadeMovimento * m_MultiplicadorVelocidadeAtual);
+        Vector3 dirDesejada = new Vector3(m_VetorMovimentoDesejado.x, 0f, m_VetorMovimentoDesejado.z);
+        float distanciaPasso = dirDesejada.magnitude * (velocidadeMovimento * m_MultiplicadorVelocidadeAtual) * Time.fixedDeltaTime;
+        if (distanciaPasso <= 0.00001f) return;
 
-        m_Rigidbody.linearVelocity = new Vector3(vel.x, 0f, vel.z);
-#pragma warning disable CS0618
-        m_Rigidbody.velocity = new Vector3(vel.x, 0f, vel.z);
-#pragma warning restore CS0618
+        Vector3 dirNorm = dirDesejada.normalized;
+        Vector3 posAtual = m_Rigidbody.position;
+        posAtual.y = 0f;
 
-        // Trava absoluta de segurança: y = 0.0f rente ao chão
-        Vector3 posAtual = transform.position;
-        if (Mathf.Abs(posAtual.y - 0.0f) > 0.001f)
+        float raioCapsula = m_CapsuleCollider != null ? m_CapsuleCollider.radius : 0.38f;
+        float margemPele = 0.03f;
+        Vector3 p1 = posAtual + Vector3.up * (raioCapsula + 0.05f);
+        Vector3 p2 = posAtual + Vector3.up * 1.35f;
+
+        Vector3 deslocamentoFinal = Vector3.zero;
+
+        // 1. Testa caminho livre na direção desejada ignorando Triggers (gemas/zonas)
+        int hits = Physics.CapsuleCastNonAlloc(
+            p1, p2, raioCapsula, dirNorm, m_BufferHitsParedes,
+            distanciaPasso + margemPele, ~0, QueryTriggerInteraction.Ignore);
+
+        RaycastHit? hitValido = ObterHitParedeMaisProximo(hits);
+
+        if (!hitValido.HasValue)
         {
-            transform.position = new Vector3(posAtual.x, 0.0f, posAtual.z);
+            deslocamentoFinal = dirNorm * distanciaPasso;
         }
+        else
+        {
+            // Move apenas até a margem segura antes da parede e aplica deslizamento tangencial (Wall Slide)
+            float distLivre = Mathf.Max(0f, hitValido.Value.distance - margemPele);
+            Vector3 passoParcial = dirNorm * distLivre;
+
+            Vector3 normalParede = hitValido.Value.normal;
+            normalParede.y = 0f;
+            if (normalParede.sqrMagnitude > 0.0001f)
+            {
+                normalParede.Normalize();
+                Vector3 dirDeslize = Vector3.ProjectOnPlane(dirNorm, normalParede);
+                dirDeslize.y = 0f;
+
+                float restDist = distanciaPasso - distLivre;
+                if (restDist > 0.0001f && dirDeslize.sqrMagnitude > 0.001f)
+                {
+                    float fatorDeslize = dirDeslize.magnitude;
+                    Vector3 dirDeslizeNorm = dirDeslize.normalized;
+                    float distDeslize = restDist * fatorDeslize;
+
+                    Vector3 p1Deslize = p1 + passoParcial;
+                    Vector3 p2Deslize = p2 + passoParcial;
+                    int hitsDeslize = Physics.CapsuleCastNonAlloc(
+                        p1Deslize, p2Deslize, raioCapsula, dirDeslizeNorm, m_BufferHitsParedes,
+                        distDeslize + margemPele, ~0, QueryTriggerInteraction.Ignore);
+
+                    RaycastHit? hitDeslize = ObterHitParedeMaisProximo(hitsDeslize);
+                    if (!hitDeslize.HasValue)
+                    {
+                        passoParcial += dirDeslizeNorm * distDeslize;
+                    }
+                    else
+                    {
+                        float livreDeslize = Mathf.Max(0f, hitDeslize.Value.distance - margemPele);
+                        passoParcial += dirDeslizeNorm * livreDeslize;
+                    }
+                }
+            }
+
+            deslocamentoFinal = passoParcial;
+        }
+
+        Vector3 destino = posAtual + deslocamentoFinal;
+        destino.y = 0f;
+
+        // Trava de segurança nos limites internos do labirinto (evita fuga do perímetro)
+        float limiteSeguro = 11.4f;
+        if (GerenciadorCenarioSemantico.Instancia != null)
+        {
+            limiteSeguro = (GerenciadorCenarioSemantico.Instancia.tamanhoLabirinto * 0.5f) - 0.6f;
+        }
+        destino.x = Mathf.Clamp(destino.x, -limiteSeguro, limiteSeguro);
+        destino.z = Mathf.Clamp(destino.z, -limiteSeguro, limiteSeguro);
+
+        m_Rigidbody.MovePosition(destino);
+    }
+
+    private RaycastHit? ObterHitParedeMaisProximo(int count)
+    {
+        RaycastHit? melhor = null;
+        float menorDist = float.MaxValue;
+        for (int i = 0; i < count; i++)
+        {
+            RaycastHit h = m_BufferHitsParedes[i];
+            if (h.collider == null || h.collider.isTrigger) continue;
+            if (h.collider.gameObject == gameObject || h.collider.transform.IsChildOf(transform)) continue;
+            if (h.distance < menorDist)
+            {
+                menorDist = h.distance;
+                melhor = h;
+            }
+        }
+        return melhor;
     }
 
     /// <summary>

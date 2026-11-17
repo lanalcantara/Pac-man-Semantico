@@ -288,7 +288,7 @@ public class PainelInventarioABoxVR : MonoBehaviour
                 if (card.imgFundo != null) card.imgFundo.color = new Color(0.04f, 0.07f, 0.12f, 0.65f);
                 if (card.outlineBorda != null) card.outlineBorda.effectColor = new Color(0.20f, 0.35f, 0.50f, 0.40f);
                 if (card.txtLinha1Status != null) card.txtLinha1Status.text = "<color=#667788><b>[ABox EM ESPERA]</b></color>";
-                if (card.txtLinha2Tripla != null) card.txtLinha2Tripla.text = "<color=#8899AA><i>Colete orbes no labirinto para sintetizar triplas.</i></color>";
+                if (card.txtLinha2Tripla != null) card.txtLinha2Tripla.text = "<color=#8899AA><i>Explore o labirinto para coletar Triplas RDF (ABox).</i></color>";
                 if (card.txtLinha3Axioma != null) card.txtLinha3Axioma.text = "<color=#556677><size=9>Axiomas DL serão validados pelo HermiT em tempo real</size></color>";
             }
             else
@@ -351,12 +351,12 @@ public class PainelInventarioABoxVR : MonoBehaviour
     private void AtualizarCabecalhoERodape()
     {
         int coletadas = m_HistoricoTriplas.Count;
-        int totalMissao = 12;
+        int totalMissao = 38;
 
         if (GerenciadorCenarioSemantico.Instancia != null)
         {
-            // Pega o total real da missão
-            totalMissao = 12;
+            // Pega o total real de Triplas RDF da missão
+            totalMissao = GerenciadorCenarioSemantico.Instancia.TotalTriplasMissao;
         }
 
         bool temInconsistencia = false;
@@ -371,12 +371,12 @@ public class PainelInventarioABoxVR : MonoBehaviour
 
         if (m_TextoMetricasABox != null)
         {
-            m_TextoMetricasABox.text = $"Instâncias: <color=#00E5FF><b>{coletadas} / {totalMissao}</b></color>   |   Reasoner: {reasonerStatus}";
+            m_TextoMetricasABox.text = $"Triplas RDF: <color=#00E5FF><b>{coletadas} / {totalMissao}</b></color>   |   Reasoner: {reasonerStatus}";
         }
 
         if (m_TextoRodape != null)
         {
-            m_TextoRodape.text = $"ABox Ativa: <b>{coletadas} Indivíduos</b>  •  OWL 2 DL  •  CIn-UFPE";
+            m_TextoRodape.text = $"ABox Ativa: <b>{coletadas} Triplas RDF</b>  •  OWL 2 DL  •  CIn-UFPE";
         }
     }
 
@@ -544,7 +544,7 @@ public class PainelInventarioABoxVR : MonoBehaviour
             new Color(0.0f, 1.0f, 0.65f), TextAlignmentOptions.Left);
 
         m_TextoMetricasABox = CriarTexto(m_PainelRaiz.transform, "Texto_Metricas",
-            "Instâncias: <color=#00E5FF><b>0 / 12</b></color>   |   Reasoner: <color=#00FF99><b>HermiT [OK]</b></color>", 10, FontStyles.Normal,
+            "Triplas RDF: <color=#00E5FF><b>0 / 38</b></color>   |   Reasoner: <color=#00FF99><b>HermiT [OK]</b></color>", 10, FontStyles.Normal,
             new Vector2(12f, -30f), new Vector2(336f, 18f),
             new Color(0.80f, 0.90f, 1.0f), TextAlignmentOptions.Left);
 
@@ -580,7 +580,7 @@ public class PainelInventarioABoxVR : MonoBehaviour
                 new Vector2(8f, -4f), new Vector2(320f, 16f), Color.white, TextAlignmentOptions.Left);
 
             TMP_Text txtL2 = CriarTexto(cardObj.transform, "Linha2_Tripla",
-                "<color=#8899AA><i>Colete orbes no labirinto para sintetizar triplas.</i></color>", 10, FontStyles.Normal,
+                "<color=#8899AA><i>Explore o labirinto para coletar Triplas RDF (ABox).</i></color>", 10, FontStyles.Normal,
                 new Vector2(8f, -20f), new Vector2(320f, 18f), Color.white, TextAlignmentOptions.Left);
 
             TMP_Text txtL3 = CriarTexto(cardObj.transform, "Linha3_Axioma",
@@ -605,7 +605,7 @@ public class PainelInventarioABoxVR : MonoBehaviour
         CriarLinhaDivisoria(m_PainelRaiz.transform, new Vector2(12f, -316f), 336f);
 
         m_TextoRodape = CriarTexto(m_PainelRaiz.transform, "Texto_Rodape",
-            "ABox Ativa: <b>0 Indivíduos</b>  •  OWL 2 DL  •  CIn-UFPE", 9, FontStyles.Normal,
+            "ABox Ativa: <b>0 Triplas RDF</b>  •  OWL 2 DL  •  CIn-UFPE", 9, FontStyles.Normal,
             new Vector2(12f, -324f), new Vector2(336f, 18f),
             new Color(0.60f, 0.70f, 0.85f), TextAlignmentOptions.Center);
     }

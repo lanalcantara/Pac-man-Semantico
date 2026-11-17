@@ -207,12 +207,13 @@ public class HUDGameplayPeriferico : MonoBehaviour
             m_TextoPontos.text = $"PONTOS:  <color=#00FF99><b>{pontos:D5}</b></color>";
         }
 
-        // 3. Orbes Coletados
+        // 3. Triplas RDF Coletadas
         int orbes = InstanciaSemanticaBase.totalColetadas;
+        int totalTriplas = GerenciadorCenarioSemantico.Instancia != null ? GerenciadorCenarioSemantico.Instancia.TotalTriplasMissao : 38;
         if (orbes != m_UltimasOrbes && m_TextoOrbes != null)
         {
             m_UltimasOrbes = orbes;
-            m_TextoOrbes.text = $"ORBES:  <color=#00E5FF><b>{orbes} / 12</b></color>";
+            m_TextoOrbes.text = $"TRIPLAS RDF:  <color=#00E5FF><b>{orbes} / {totalTriplas}</b></color>";
         }
     }
 
@@ -379,9 +380,9 @@ public class HUDGameplayPeriferico : MonoBehaviour
             new Vector2(15f, -74f), new Vector2(290f, 24f),
             Color.white, TextAlignmentOptions.Left);
 
-        // 6. Linha de Orbes
+        // 6. Linha de Triplas RDF
         m_TextoOrbes = CriarTexto(painel.transform, "Txt_Orbes",
-            "ORBES:  <color=#00E5FF><b>0 / 12</b></color>",
+            "TRIPLAS RDF:  <color=#00E5FF><b>0 / 38</b></color>",
             14, FontStyles.Bold,
             new Vector2(15f, -102f), new Vector2(290f, 24f),
             new Color(0.85f, 0.92f, 1.0f), TextAlignmentOptions.Left);

@@ -87,9 +87,9 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     public float distanciaMinimaEntreInstancias = 1.8f;
 
     [Header("Geração Procedural")]
-    [Tooltip("Quantidade de instâncias válidas (Gemas que satisfazem regras de Description Logic).")]
+    [Tooltip("Quantidade de Triplas RDF válidas (Instâncias ABox que satisfazem regras de Description Logic).")]
     [Range(1, 100)]
-    public int quantidadeValidos = 12;
+    public int quantidadeValidos = 38;
 
     [Tooltip("Quantidade de instâncias inválidas (Obstáculos / Violações Semânticas).")]
     [Range(0, 50)]
@@ -270,24 +270,31 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     // Coordenadas verificadas de corredores navegáveis do labirinto clássico
     public static readonly Vector2[] s_CorredoresLabirinto = new Vector2[]
     {
-        new Vector2(0f, 3.5f),
-        new Vector2(0f, 7.0f),
-        new Vector2(0f, -7.0f),
-        new Vector2(-5.5f, 0f),
-        new Vector2(5.5f, 0f),
-        new Vector2(-5.5f, 3.5f),
-        new Vector2(5.5f, 3.5f),
-        new Vector2(-5.5f, -4.0f),
-        new Vector2(5.5f, -4.0f),
-        new Vector2(-8.5f, 3.5f),
-        new Vector2(8.5f, 3.5f),
-        new Vector2(-8.5f, -3.5f),
-        new Vector2(8.5f, -3.5f),
-        new Vector2(-3.5f, 8.5f),
-        new Vector2(3.5f, 8.5f),
-        new Vector2(-3.5f, -8.5f),
-        new Vector2(3.5f, -8.5f)
+        // Corredor Horizontal Norte (Z = 4.0) - 7 pontos
+        new Vector2(-9.0f, 4.0f), new Vector2(-6.0f, 4.0f), new Vector2(-3.0f, 4.0f),
+        new Vector2(0.0f, 4.0f),  new Vector2(3.0f, 4.0f),  new Vector2(6.0f, 4.0f),  new Vector2(9.0f, 4.0f),
+
+        // Corredor Horizontal Sul (Z = -4.0) - 6 pontos (poupando o spawn do Pac-Man em 0, -5)
+        new Vector2(-9.0f, -4.0f), new Vector2(-6.0f, -4.0f), new Vector2(-3.0f, -4.0f),
+        new Vector2(3.0f, -4.0f),  new Vector2(6.0f, -4.0f),  new Vector2(9.0f, -4.0f),
+
+        // Corredor Vertical Interno Oeste (X = -4.5) - 7 pontos
+        new Vector2(-4.5f, -9.5f), new Vector2(-4.5f, -6.5f), new Vector2(-4.5f, -2.0f),
+        new Vector2(-4.5f, 0.0f),  new Vector2(-4.5f, 2.0f),  new Vector2(-4.5f, 6.5f),  new Vector2(-4.5f, 9.5f),
+
+        // Corredor Vertical Interno Leste (X = 4.5) - 7 pontos
+        new Vector2(4.5f, -9.5f), new Vector2(4.5f, -6.5f), new Vector2(4.5f, -2.0f),
+        new Vector2(4.5f, 0.0f),  new Vector2(4.5f, 2.0f),  new Vector2(4.5f, 6.5f),  new Vector2(4.5f, 9.5f),
+
+        // Corredores Perimetrais Norte e Sul (Z = 11.2 e Z = -11.2) - 8 pontos
+        new Vector2(-9.5f, 11.2f), new Vector2(-4.5f, 11.2f), new Vector2(0.0f, 11.2f), new Vector2(4.5f, 11.2f), new Vector2(9.5f, 11.2f),
+        new Vector2(-9.5f, -11.2f), new Vector2(0.0f, -11.2f), new Vector2(9.5f, -11.2f),
+
+        // Corredores Laterais Oeste/Leste e Eixo Norte - 3 pontos (Total = 38 Triplas RDF)
+        new Vector2(-8.8f, 0.0f), new Vector2(8.8f, 0.0f), new Vector2(0.0f, 6.2f)
     };
+
+    public int TotalTriplasMissao => m_TotalOrbesSequencia > 0 ? m_TotalOrbesSequencia : 38;
 
     // Coleções ativas do labirinto
     private readonly List<IInstanciaSemantica> m_InstanciasSemanticas = new List<IInstanciaSemantica>();
@@ -710,6 +717,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             }
         }
 
+        GarantirDensidadeTriplasRDF(38);
         m_TotalOrbesSequencia = m_FilaNodosOrbes.Count;
         InstanciaSemanticaBase.instanciasValidasRestantes = m_TotalOrbesSequencia;
         m_IndiceOrbeAtual = 0;
@@ -717,7 +725,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         if (instanciarGemas && m_FilaNodosOrbes.Count > 0)
         {
             SpawnarOrbeAtual();
-            contadorValidos = 1;
+            contadorValidos = m_FilaNodosOrbes.Count;
         }
 
         InstanciarCerejasEPowerPellets();
@@ -746,20 +754,55 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         AplicarMaterialChaoLaboratorio();
 
         Debug.Log($"<color=#00FF99><b>[Pac-Man Semântico CIn-UFPE]</b></color> Cenário '<b>{m_NomeOntologiaAtiva}</b>' ({m_VersaoAxiomas}) instanciado com sucesso!\n" +
-                  $"• Instâncias Físicas: {m_TotalInstanciasInstanciadas} ({contadorValidos} Gemas Válidas / {contadorInvalidos} Obstáculos/Fantasmas)\n" +
+                  $"• Instâncias Físicas: {m_TotalInstanciasInstanciadas} ({contadorValidos} Triplas RDF / {contadorInvalidos} Obstáculos/Fantasmas)\n" +
                   $"• Grafo Ontológico: {m_TotalNosGrafo} Nós (Classes TBox + Indivíduos ABox) / {m_TotalArestasGrafo} Arestas (OWL/SWRL).");
     }
 
     /// <summary>
-    /// Spawna a orbe ontológica da etapa atual da missão sequencial.
-    /// Spawna 1 orbe por vez em um corredor aleatório do labirinto afastado do Pac-Man.
-    /// Aplica a regra: estritamente 1 a cada 3 orbes concede o poder de devorar fantasmas!
+    /// Garante alta densidade de instâncias ABox (38 Triplas RDF mockadas) para validar
+    /// escalabilidade do parser e do motor gráfico em RV sem quedas de performance.
+    /// </summary>
+    private void GarantirDensidadeTriplasRDF(int metaTriplas = 38)
+    {
+        var catalogoClasses = new (string classe, string dl, string desc)[]
+        {
+            ("AscarisLumbricoides", "Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine", "Tripla RDF ABox: Ascaris lumbricoides em SmallIntestine"),
+            ("EnterobiusVermicularis", "Nematoda ⊓ ∃has_host.Human ⊓ ∃has_habitat.PerianalRegion", "Tripla RDF ABox: Enterobius vermicularis em PerianalRegion"),
+            ("TaeniaSolium", "Platyhelminthes ⊓ ∃has_host.Human ⊓ ∃has_transmission.UndercookedPork", "Tripla RDF ABox: Taenia solium via UndercookedPork"),
+            ("Nematoda", "Parasite ⊓ ∃has_morphology.Cylindrical", "Tripla RDF TBox/ABox: Nematoda subClassOf Parasite"),
+            ("Platyhelminthes", "Parasite ⊓ ∃has_morphology.FlatSegments", "Tripla RDF TBox/ABox: Platyhelminthes subClassOf Parasite"),
+            ("AntiparasiticTreatment", "Treatment ⊓ ∃neutralizes.InfectionVector", "Tripla RDF SWRL: AntiparasiticTreatment neutralizes InfectionVector")
+        };
+
+        while (m_FilaNodosOrbes.Count < metaTriplas)
+        {
+            int idx = m_FilaNodosOrbes.Count;
+            var item = catalogoClasses[idx % catalogoClasses.Length];
+            Node novoNodo = new Node($"tripla_rdf_{idx + 1:D2}", item.classe, NodeType.INDIVIDUAL)
+            {
+                ConceptClass = item.classe,
+                DLExpression = item.dl,
+                SemanticDescription = item.desc,
+                IsValid = true,
+                ScoreValue = ((idx + 1) % 7 == 0) ? 50 : 20,
+                HighlightColor = ((idx + 1) % 7 == 0) ? new Color(1.0f, 0.85f, 0.0f, 1.0f) : new Color(0.0f, 0.90f, 1.0f, 0.8f)
+            };
+            m_FilaNodosOrbes.Add(novoNodo);
+        }
+    }
+
+    /// <summary>
+    /// Distribui todas as 38 Triplas RDF pelos corredores do labirinto em wireframe simultaneamente,
+    /// ou atualiza o radar para apontar para a Tripla RDF ativa mais próxima do pesquisador.
     /// </summary>
     public void SpawnarOrbeAtual()
     {
-        if (m_IndiceOrbeAtual >= m_FilaNodosOrbes.Count)
+        GarantirDensidadeTriplasRDF(38);
+        m_TotalOrbesSequencia = m_FilaNodosOrbes.Count;
+
+        if (m_IndiceOrbeAtual >= m_TotalOrbesSequencia)
         {
-            Debug.Log("<color=#00FF99><b>[VITÓRIA COMPLETA]</b></color> Todas as 12 orbes foram coletadas com sucesso!");
+            Debug.Log($"<color=#00FF99><b>[VITÓRIA COMPLETA]</b></color> Todas as {m_TotalOrbesSequencia} Triplas RDF foram sintetizadas na ABox com sucesso!");
             if (HubInicialAmbiente.Instancia != null)
             {
                 HubInicialAmbiente.Instancia.ExibirVitoria(InstanciaSemanticaBase.pontuacaoLogica, m_TotalOrbesSequencia);
@@ -771,107 +814,146 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             return;
         }
 
-        Node node = m_FilaNodosOrbes[m_IndiceOrbeAtual];
-        bool ehOrbeDePoder = ((m_IndiceOrbeAtual + 1) % 3 == 0);
+        // Verifica se já existem Triplas RDF ativas espalhadas no labirinto
+        var triplasExistentes = FindObjectsByType<GemaValidaSemantica>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        bool temTriplasAtivasNoMapa = false;
+        for (int i = 0; i < triplasExistentes.Length; i++)
+        {
+            if (triplasExistentes[i] != null && triplasExistentes[i].gameObject.activeInHierarchy)
+            {
+                var col = triplasExistentes[i].GetComponentInChildren<Collider>();
+                if (col != null && col.enabled)
+                {
+                    temTriplasAtivasNoMapa = true;
+                    break;
+                }
+            }
+        }
 
-        // Seleciona um corredor seguro aleatório a pelo menos 5 metros do Pac-Man
+        // Se o mapa estiver vazio (início/reinício de partida), distribui todas as 38 Triplas RDF pelo labirinto!
+        if (!temTriplasAtivasNoMapa)
+        {
+            for (int i = 0; i < m_FilaNodosOrbes.Count; i++)
+            {
+                Node node = m_FilaNodosOrbes[i];
+                bool ehTriplaDePoder = ((i + 1) % 7 == 0);
+                Vector2 coordCorredor = s_CorredoresLabirinto[i % s_CorredoresLabirinto.Length];
+                Vector3 posSpawn = new Vector3(coordCorredor.x, 0.42f, coordCorredor.y);
+
+                DadoInstanciaSemantica dado = new DadoInstanciaSemantica
+                {
+                    id = node.Id,
+                    classeOntologica = string.IsNullOrEmpty(node.ConceptClass) ? node.Label : node.ConceptClass,
+                    expressaoDL = node.DLExpression,
+                    ehValida = true,
+                    posicao = posSpawn,
+                    valorPontuacao = ehTriplaDePoder ? 50 : 20,
+                    descricaoSemantica = node.SemanticDescription,
+                    corDestaque = ehTriplaDePoder ? new Color(1.0f, 0.85f, 0.0f, 1.0f) : new Color(0.0f, 0.90f, 1.0f, 0.8f)
+                };
+
+                GameObject objInstanciado = InstanciarObjetoSemantico(dado);
+                if (objInstanciado != null)
+                {
+                    objInstanciado.name = $"TriplaRDF_{i + 1:D2}_{dado.classeOntologica}";
+                    objInstanciado.transform.position = posSpawn;
+                    m_ObjetosInstanciados.Add(objInstanciado);
+                    node.GameObjectInstance = objInstanciado;
+                    node.Position = posSpawn;
+
+                    var gema = objInstanciado.GetComponent<GemaValidaSemantica>();
+                    if (gema != null)
+                    {
+                        gema.ehOrbeDePoder = ehTriplaDePoder;
+                        gema.indiceOrbe = i + 1;
+                        gema.totalOrbes = m_TotalOrbesSequencia;
+                        gema.raioCaptura = 0.38f;
+                    }
+
+                    // Otimização VR 90 FPS: mantém luz dinâmica apenas nas Triplas de Poder; as demais usam emissão pura URP
+                    var luz = objInstanciado.GetComponentInChildren<Light>();
+                    if (luz != null)
+                    {
+                        if (ehTriplaDePoder)
+                        {
+                            luz.enabled = true;
+                            luz.color = new Color(1.0f, 0.85f, 0.0f);
+                            luz.intensity = 3.2f;
+                            luz.range = 4.0f;
+                        }
+                        else
+                        {
+                            luz.enabled = false;
+                        }
+                    }
+
+                    if (ehTriplaDePoder)
+                    {
+                        var rend = objInstanciado.GetComponentInChildren<Renderer>();
+                        if (rend != null)
+                        {
+                            rend.material = CriarMaterialTranslúcidoNodo(new Color(1.0f, 0.82f, 0.0f, 1.0f), 0.92f);
+                        }
+                    }
+
+                    IInstanciaSemantica instSemantica = objInstanciado.GetComponent<IInstanciaSemantica>();
+                    if (instSemantica != null)
+                    {
+                        m_InstanciasSemanticas.Add(instSemantica);
+                    }
+                }
+            }
+            Debug.Log($"<color=#00E5FF><b>[Grande Grafo ABox]</b></color> {m_FilaNodosOrbes.Count} Triplas RDF distribuídas por todo o labirinto em wireframe!");
+        }
+
+        AtualizarAlvoTriplaMaisProxima();
+    }
+
+    private void AtualizarAlvoTriplaMaisProxima()
+    {
         Vector3 posPac = new Vector3(0f, 0f, -5f);
         var ctrl = FindFirstObjectByType<ControladorXRJogador>();
         if (ctrl != null) posPac = ctrl.transform.position;
 
-        List<Vector2> corredoresCandidatos = new List<Vector2>();
-        for (int i = 0; i < s_CorredoresLabirinto.Length; i++)
+        var triplas = FindObjectsByType<GemaValidaSemantica>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        GemaValidaSemantica maisProxima = null;
+        float menorDist = float.MaxValue;
+
+        for (int i = 0; i < triplas.Length; i++)
         {
-            Vector2 c = s_CorredoresLabirinto[i];
-            float dist = Vector2.Distance(new Vector2(posPac.x, posPac.z), c);
-            if (dist >= 4.8f)
+            var t = triplas[i];
+            if (t == null || !t.gameObject.activeInHierarchy) continue;
+            var col = t.GetComponentInChildren<Collider>();
+            if (col == null || !col.enabled) continue;
+
+            float d = Vector3.Distance(posPac, t.transform.position);
+            if (d < menorDist)
             {
-                corredoresCandidatos.Add(c);
+                menorDist = d;
+                maisProxima = t;
             }
         }
-        if (corredoresCandidatos.Count == 0)
+
+        if (maisProxima != null)
         {
-            corredoresCandidatos.AddRange(s_CorredoresLabirinto);
-        }
-
-        Vector2 corredorEscolhido = corredoresCandidatos[UnityEngine.Random.Range(0, corredoresCandidatos.Count)];
-        Vector3 posSpawn = new Vector3(corredorEscolhido.x, 0.42f, corredorEscolhido.y);
-
-        DadoInstanciaSemantica dado = new DadoInstanciaSemantica
-        {
-            id = node.Id,
-            classeOntologica = string.IsNullOrEmpty(node.ConceptClass) ? node.Label : node.ConceptClass,
-            expressaoDL = node.DLExpression,
-            ehValida = true,
-            posicao = posSpawn,
-            valorPontuacao = ehOrbeDePoder ? 50 : 20,
-            descricaoSemantica = node.SemanticDescription,
-            corDestaque = ehOrbeDePoder ? new Color(1.0f, 0.85f, 0.0f, 1.0f) : new Color(0.0f, 0.90f, 1.0f, 0.8f)
-        };
-
-        GameObject objInstanciado = InstanciarObjetoSemantico(dado);
-        if (objInstanciado != null)
-        {
-            objInstanciado.transform.position = posSpawn;
-            m_OrbeAtivaAtual = objInstanciado;
-            m_ObjetosInstanciados.Add(objInstanciado);
-            node.GameObjectInstance = objInstanciado;
-            node.Position = posSpawn;
-
-            var gema = objInstanciado.GetComponent<GemaValidaSemantica>();
-            if (gema != null)
-            {
-                gema.ehOrbeDePoder = ehOrbeDePoder;
-                gema.indiceOrbe = m_IndiceOrbeAtual + 1;
-                gema.totalOrbes = m_TotalOrbesSequencia;
-                gema.raioCaptura = 0.35f;
-
-                if (ehOrbeDePoder)
-                {
-                    // Visual radiante dourado / aura especial de poder
-                    var rend = objInstanciado.GetComponentInChildren<Renderer>();
-                    if (rend != null)
-                    {
-                        rend.material = CriarMaterialTranslúcidoNodo(new Color(1.0f, 0.82f, 0.0f, 1.0f), 0.92f);
-                    }
-                    var luz = objInstanciado.GetComponentInChildren<Light>();
-                    if (luz != null)
-                    {
-                        luz.color = new Color(1.0f, 0.85f, 0.0f);
-                        luz.intensity = 4.0f;
-                        luz.range = 4.5f;
-                    }
-                }
-            }
-
-            IInstanciaSemantica instSemantica = objInstanciado.GetComponent<IInstanciaSemantica>();
-            if (instSemantica != null)
-            {
-                m_InstanciasSemanticas.Add(instSemantica);
-            }
-
-            if (PainelGrafoSemanticoProtege.Instancia != null)
-            {
-                string label = string.IsNullOrEmpty(node.Label) ? node.Id : node.Label;
-                PainelGrafoSemanticoProtege.Instancia.DefinirAlvoOrbe(objInstanciado.transform, m_IndiceOrbeAtual + 1, m_TotalOrbesSequencia, ehOrbeDePoder, label);
-            }
-
-            if (MinimapSemanticoVR.Instancia != null)
-            {
-                MinimapSemanticoVR.Instancia.DefinirAlvoOrbeAtiva(posSpawn, m_IndiceOrbeAtual + 1, m_TotalOrbesSequencia);
-            }
-
+            m_OrbeAtivaAtual = maisProxima.gameObject;
             if (MinimapaHUDVR.Instancia != null)
             {
-                MinimapaHUDVR.Instancia.DefinirAlvoOrbe(objInstanciado.transform);
+                MinimapaHUDVR.Instancia.DefinirAlvoOrbe(maisProxima.transform);
             }
-
-            Debug.Log($"<color=#00E5FF><b>[Missão Sequencial]</b></color> Orbe #{m_IndiceOrbeAtual + 1} / {m_TotalOrbesSequencia} spawnada em {posSpawn} (Orbe de Poder: {ehOrbeDePoder})");
+            if (MinimapSemanticoVR.Instancia != null)
+            {
+                MinimapSemanticoVR.Instancia.DefinirAlvoOrbeAtiva(maisProxima.transform.position, m_IndiceOrbeAtual + 1, m_TotalOrbesSequencia);
+            }
+            if (PainelGrafoSemanticoProtege.Instancia != null)
+            {
+                PainelGrafoSemanticoProtege.Instancia.DefinirAlvoOrbe(maisProxima.transform, m_IndiceOrbeAtual + 1, m_TotalOrbesSequencia, maisProxima.ehOrbeDePoder, maisProxima.NomeClasse);
+            }
         }
     }
 
     /// <summary>
-    /// Notificação recebida ao capturar uma orbe ontológica válida: avança para a próxima da lista!
+    /// Notificação recebida ao coletar uma Tripla RDF válida no labirinto.
     /// </summary>
     public void NotificarOrbeColetada(GemaValidaSemantica gema)
     {
@@ -4089,24 +4171,29 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     /// </summary>
     public void ReiniciarLabirintoEInstancias()
     {
-        // 1. Destrói qualquer orbe remanescente de partidas anteriores (Zero Cache / Estado Limpo)
+        // 1. Destrói qualquer Tripla RDF remanescente de partidas anteriores (Zero Cache / Estado Limpo)
         var gemas = FindObjectsByType<GemaValidaSemantica>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int i = 0; i < gemas.Length; i++)
         {
             if (gemas[i] != null)
             {
-                Destroy(gemas[i].gameObject);
+                gemas[i].gameObject.SetActive(false);
+                if (Application.isPlaying) Destroy(gemas[i].gameObject);
+                else DestroyImmediate(gemas[i].gameObject);
             }
         }
         if (m_OrbeAtivaAtual != null)
         {
-            Destroy(m_OrbeAtivaAtual);
+            m_OrbeAtivaAtual.SetActive(false);
+            if (Application.isPlaying) Destroy(m_OrbeAtivaAtual);
+            else DestroyImmediate(m_OrbeAtivaAtual);
             m_OrbeAtivaAtual = null;
         }
 
-        // 2. Reseta integralmente os contadores estáticos e a fila sequencial
+        // 2. Reseta integralmente os contadores estáticos e garante alta densidade de 38 Triplas RDF
+        GarantirDensidadeTriplasRDF(38);
         m_IndiceOrbeAtual = 0;
-        m_TotalOrbesSequencia = m_FilaNodosOrbes.Count > 0 ? m_FilaNodosOrbes.Count : 12;
+        m_TotalOrbesSequencia = m_FilaNodosOrbes.Count > 0 ? m_FilaNodosOrbes.Count : 38;
         InstanciaSemanticaBase.instanciasValidasRestantes = m_TotalOrbesSequencia;
         InstanciaSemanticaBase.totalColetadas = 0;
         InstanciaSemanticaBase.pontuacaoLogica = 0;

@@ -83,10 +83,10 @@ public class HubInicialAmbiente : MonoBehaviour
     };
     private readonly string[] m_DescricoesOntologias = new string[]
     {
-        "18 Classes OWL • 12 Instâncias ABox • 6 Regras SWRL • 4 Propriedades de Objeto (Taxonomia Médica CIn-UFPE)",
-        "24 Classes OWL • 16 Instâncias ABox • 8 Restrições DL • Modelo Espacial e Sensores Smart Campus",
-        "30 Classes OWL • 20 Instâncias ABox • 10 Axiomas de Inconsistência • Detecção de Ameaças Cibernéticas",
-        "16 Classes OWL • 10 Instâncias ABox • 5 Restrições de Cardinalidade • Triagem Clínica Automatizada"
+        "18 Classes OWL • 38 Triplas RDF (ABox) • 6 Regras SWRL • 4 Propriedades de Objeto (Taxonomia Médica CIn-UFPE)",
+        "24 Classes OWL • 38 Triplas RDF (ABox) • 8 Restrições DL • Modelo Espacial e Sensores Smart Campus",
+        "30 Classes OWL • 38 Triplas RDF (ABox) • 10 Axiomas de Inconsistência • Detecção de Ameaças Cibernéticas",
+        "16 Classes OWL • 38 Triplas RDF (ABox) • 5 Restrições de Cardinalidade • Triagem Clínica Automatizada"
     };
     private readonly string[] m_StatusOntologias = new string[]
     {
@@ -980,9 +980,10 @@ public class HubInicialAmbiente : MonoBehaviour
         PosicionarCanvasParaVRSeNecessario();
         if (m_PainelFundoEscuro != null) m_PainelFundoEscuro.SetActive(true);
 
+        int totalMissao = GerenciadorCenarioSemantico.Instancia != null ? GerenciadorCenarioSemantico.Instancia.TotalTriplasMissao : 38;
         if (PainelGrafoSemanticoProtege.Instancia != null)
         {
-            PainelGrafoSemanticoProtege.Instancia.ExibirGrafoFinal(false, gemasComidas, 12, pontuacaoFinal);
+            PainelGrafoSemanticoProtege.Instancia.ExibirGrafoFinal(false, gemasComidas, totalMissao, pontuacaoFinal);
         }
         else
         {
@@ -990,7 +991,7 @@ public class HubInicialAmbiente : MonoBehaviour
             if (m_TextoInfoGameOver != null)
             {
                 m_TextoInfoGameOver.text = $"Pontuação Final: <color=#00FF99><b>{pontuacaoFinal} pts</b></color>\n" +
-                                           $"Nós Ontológicos Coletados: <b>{gemasComidas}</b>\n\n" +
+                                           $"Triplas RDF Coletadas (ABox): <b>{gemasComidas} / {totalMissao}</b>\n\n" +
                                            $"<color=#FF99AA>Seus elos de consistência foram partidos pelos fantasmas.</color>\n" +
                                            $"<color=#00E5FF>Pressione [A], [START] ou [SELECT] para voltar ao Menu Inicial.</color>";
             }
@@ -1030,7 +1031,7 @@ public class HubInicialAmbiente : MonoBehaviour
             if (m_PainelJanelaVitoria == null) ConstruirInterfaceVitoria();
             if (m_TextoInfoVitoria != null)
             {
-                m_TextoInfoVitoria.text = $"PONTUAÇÃO FINAL: <color=#FFD700><b>{pontuacaoFinal} pts</b></color>   |   ORBES ONTOLÓGICAS: <color=#00FF99><b>{totalOrbes} / {totalOrbes} (100%)</b></color>   |   REASONER: <color=#00E5FF><b>100% CONSISTENTE</b></color>";
+                m_TextoInfoVitoria.text = $"PONTUAÇÃO FINAL: <color=#FFD700><b>{pontuacaoFinal} pts</b></color>   |   TRIPLAS RDF (ABox): <color=#00FF99><b>{totalOrbes} / {totalOrbes} (100%)</b></color>   |   REASONER: <color=#00E5FF><b>100% CONSISTENTE</b></color>";
             }
             if (m_PainelJanelaVitoria != null) m_PainelJanelaVitoria.SetActive(true);
         }

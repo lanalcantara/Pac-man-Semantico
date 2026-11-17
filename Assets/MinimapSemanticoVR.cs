@@ -558,7 +558,7 @@ public class MinimapSemanticoVR : MonoBehaviour
         CriarLinhaDivisoria(m_PainelRaiz.transform, new Vector2(10f, -200f), 310f);
 
         CriarTexto(m_PainelRaiz.transform, "Rotulo_Radar",
-            "<color=#00E5FF>RADAR TÁTICO</color>  <size=9><color=#88AACC>(● Pac-Man  ◆ Orbe  ▲ Fantasma)</color></size>",
+            "<color=#00E5FF>RADAR TÁTICO</color>  <size=9><color=#88AACC>(● Pac-Man  ◆ Tripla RDF  ▲ Fantasma)</color></size>",
             10, FontStyles.Bold, new Vector2(10f, -204f), new Vector2(310f, 16f),
             Color.white, TextAlignmentOptions.Left);
 

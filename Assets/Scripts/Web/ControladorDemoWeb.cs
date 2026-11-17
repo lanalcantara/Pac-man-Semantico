@@ -64,7 +64,7 @@ namespace PacMan.Web
 
         [Header("Feedback de Captura Semântica (Tempo Real)")]
         public string ultimaInstanciaCapturada = "Nenhuma";
-        public string ultimaClasseCapturada = "Aguardando item...";
+        public string ultimaClasseCapturada = "Aguardando Tripla RDF...";
         public string ultimoAxiomaDL = "";
         public bool ultimoItemValido = true;
         public int pontuacaoAcumulada = 0;

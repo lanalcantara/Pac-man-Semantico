@@ -23,14 +23,14 @@ public class GemaValidaSemantica : InstanciaSemanticaBase
     public float raioCaptura = 0.35f;
 
     [Header("Missão Sequencial e Poder")]
-    [Tooltip("Se verdadeiro, esta orbe concede o poder de devorar fantasmas (estritamente 1 a cada 3 orbes).")]
+    [Tooltip("Se verdadeiro, esta Tripla RDF concede o poder de devorar fantasmas.")]
     public bool ehOrbeDePoder = false;
 
-    [Tooltip("Índice sequencial desta orbe na missão.")]
+    [Tooltip("Índice sequencial desta Tripla RDF na missão.")]
     public int indiceOrbe = 1;
 
-    [Tooltip("Total de orbes da missão ontológica.")]
-    public int totalOrbes = 12;
+    [Tooltip("Total de Triplas RDF da missão ontológica.")]
+    public int totalOrbes = 38;
 
     protected override void Awake()
     {
@@ -165,7 +165,7 @@ public class GemaValidaSemantica : InstanciaSemanticaBase
         // 2. Atualiza o HUD em tempo real com a classe em foco
         AtualizarHUDs(m_Id, nomeClasseFormatado, m_ValorPontuacao, m_ExpressaoDL, m_DescricaoSemantica);
 
-        // 3. REGRA DE PODER: estritamente 1 a cada 3 orbes concede o poder de devorar fantasmas!
+        // 3. REGRA DE PODER: Tripla RDF de Poder concede o modo Power Pellet de devorar fantasmas!
         if (ehOrbeDePoder)
         {
             var motor = FindFirstObjectByType<PacMan.Semantics.MotorRaciocinioSemantico>();
@@ -173,7 +173,7 @@ public class GemaValidaSemantica : InstanciaSemanticaBase
             {
                 motor.AtivarPowerPellet(8.0f);
             }
-            Debug.Log($"<color=#FFD700><b>[PODER ESPECIAL (1 A CADA 3)]</b></color> Orbe #{indiceOrbe} concedeu modo Power Pellet por 8s!");
+            Debug.Log($"<color=#FFD700><b>[TRIPLA RDF DE PODER]</b></color> Tripla RDF #{indiceOrbe} concedeu modo Power Pellet por 8s!");
         }
 
         // 4. Notifica o Gerenciador de Cenário para avançar a sequência e spawnar a próxima orbe

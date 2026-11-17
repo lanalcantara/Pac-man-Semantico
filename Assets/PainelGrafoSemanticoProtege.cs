@@ -66,7 +66,7 @@ public class PainelGrafoSemanticoProtege : MonoBehaviour
 
     // Dados da partida
     private int m_OrbesColetadas = 0;
-    private int m_TotalOrbesMissao = 12;
+    private int m_TotalOrbesMissao = 38;
     private bool m_ExibindoTelaFinal = false;
 
     private readonly Dictionary<string, NoGrafoUI> m_Nos = new Dictionary<string, NoGrafoUI>();
@@ -500,13 +500,13 @@ public class PainelGrafoSemanticoProtege : MonoBehaviour
         }
     }
 
-    public void ExibirBannerOrbeColetada(string nomeClasse, string idInstancia, string expressaoDL, bool ehOrbeDePoder, int indiceOrbe = 0, int totalOrbes = 12)
+    public void ExibirBannerOrbeColetada(string nomeClasse, string idInstancia, string expressaoDL, bool ehOrbeDePoder, int indiceOrbe = 0, int totalOrbes = 38)
     {
         if (m_BannerOrbeColetada == null) return;
 
         if (m_TextoBannerTitulo != null)
         {
-            string tipo = ehOrbeDePoder ? "✦ ORBE DE PODER ONTOLÓGICO ✦" : "✦ NÓ ONTOLÓGICO SINTETIZADO ✦";
+            string tipo = ehOrbeDePoder ? "✦ TRIPLA RDF DE PODER (ABox) ✦" : "✦ TRIPLA RDF SINTETIZADA (ABox) ✦";
             string cor = ehOrbeDePoder ? "#FFD700" : "#00FF99";
             m_TextoBannerTitulo.text = $"<color={cor}><b>{tipo}</b></color>";
         }
@@ -551,12 +551,12 @@ public class PainelGrafoSemanticoProtege : MonoBehaviour
 
             if (m_TextoMetricas != null)
             {
-                m_TextoMetricas.text = $"Pontuação: <color=#00FF99><b>{pontuacao:D5} pts</b></color>   |   Orbes: <color=#00FF99><b>{totalOrbes} / {totalOrbes} (100%)</b></color>   |   Reasoner HermiT: <color=#00FF99><b>CONSISTENTE</b></color>";
+                m_TextoMetricas.text = $"Pontuação: <color=#00FF99><b>{pontuacao:D5} pts</b></color>   |   Triplas RDF: <color=#00FF99><b>{totalOrbes} / {totalOrbes} (100%)</b></color>   |   Reasoner HermiT: <color=#00FF99><b>CONSISTENTE</b></color>";
             }
 
             if (m_TextoConceitoFoco != null)
             {
-                m_TextoConceitoFoco.text = "<color=#00FF99>Todos os 12 nós ontológicos foram conectados e validados pelo Reasoner HermiT!</color>";
+                m_TextoConceitoFoco.text = $"<color=#00FF99>Todas as {totalOrbes} Triplas RDF (ABox) foram conectadas e validadas pelo Reasoner HermiT!</color>";
             }
 
             // Ilumina 100% dos nós
@@ -599,7 +599,7 @@ public class PainelGrafoSemanticoProtege : MonoBehaviour
             if (m_TextoMetricas != null)
             {
                 int faltam = Mathf.Max(0, totalOrbes - orbesColetadas);
-                m_TextoMetricas.text = $"Pontuação: <color=#FFD700><b>{pontuacao:D5} pts</b></color>   |   Orbes: <color=#FFCC00><b>{orbesColetadas} / {totalOrbes}</b></color> (Faltaram: {faltam})   |   Reasoner HermiT: <color=#FF4466><b>VIOLAÇÃO AXIOMÁTICA</b></color>";
+                m_TextoMetricas.text = $"Pontuação: <color=#FFD700><b>{pontuacao:D5} pts</b></color>   |   Triplas RDF: <color=#FFCC00><b>{orbesColetadas} / {totalOrbes}</b></color> (Faltaram: {faltam})   |   Reasoner HermiT: <color=#FF4466><b>VIOLAÇÃO AXIOMÁTICA</b></color>";
             }
 
             if (m_TextoConceitoFoco != null)

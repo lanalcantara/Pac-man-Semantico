@@ -249,7 +249,7 @@ public class MinimapaHUDVR : MonoBehaviour
     }
 
     /// <summary>
-    /// Dispara o aviso flutuante de orbe capturada com contagem regressiva de 3.5s.
+    /// Dispara o aviso flutuante de Tripla RDF coletada com contagem regressiva de 3.5s.
     /// </summary>
     public void DispararWarningCaptura(string nomeOrbe)
     {
@@ -261,7 +261,7 @@ public class MinimapaHUDVR : MonoBehaviour
         if (textoWarning != null)
         {
             textoWarning.gameObject.SetActive(true);
-            textoWarning.text = $"<color=#00FFFF>[✓] CAPTUROU ORBE:</color>\n<size=16><color=#FFFF00><b>{nomeOrbe}</b></color></size>";
+            textoWarning.text = $"<color=#00FFFF>[✓] TRIPLA RDF COLETADA:</color>\n<size=16><color=#FFFF00><b>{nomeOrbe}</b></color></size>";
             warningTimer = 3.5f; // Fica visível por 3.5 segundos
         }
     }
@@ -321,13 +321,28 @@ public class MinimapaHUDVR : MonoBehaviour
             m_CameraPrincipal = Camera.main;
         }
 
-        if (orbeAtualTransform == null)
+        // Sempre rastreia a Tripla RDF ativa mais próxima do Pac-Man no labirinto
+        if (orbeAtualTransform == null || !orbeAtualTransform.gameObject.activeInHierarchy)
         {
-            var gema = FindAnyObjectByType<GemaValidaSemantica>();
-            if (gema != null && gema.gameObject.activeInHierarchy)
+            var gemas = FindObjectsByType<GemaValidaSemantica>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            Transform melhor = null;
+            float menorDistSqr = float.MaxValue;
+            Vector3 posRef = playerTransform != null ? playerTransform.position : Vector3.zero;
+            for (int i = 0; i < gemas.Length; i++)
             {
-                orbeAtualTransform = gema.transform;
+                if (gemas[i] != null && gemas[i].gameObject.activeInHierarchy)
+                {
+                    Collider col = gemas[i].GetComponent<Collider>();
+                    if (col != null && !col.enabled) continue;
+                    float d = (gemas[i].transform.position - posRef).sqrMagnitude;
+                    if (d < menorDistSqr)
+                    {
+                        menorDistSqr = d;
+                        melhor = gemas[i].transform;
+                    }
+                }
             }
+            orbeAtualTransform = melhor;
         }
     }
 
@@ -481,7 +496,7 @@ public class MinimapaHUDVR : MonoBehaviour
         rtTxt.anchoredPosition = Vector2.zero;
 
         textoWarning = txtWarnObj.GetComponent<TextMeshProUGUI>();
-        textoWarning.text = "[✓] ORBE CAPTURADA!";
+        textoWarning.text = "[✓] TRIPLA RDF COLETADA!";
         textoWarning.fontSize = 13f;
         textoWarning.alignment = TextAlignmentOptions.Center;
         textoWarning.color = Color.white;

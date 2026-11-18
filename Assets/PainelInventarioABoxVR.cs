@@ -36,7 +36,7 @@ public class PainelInventarioABoxVR : MonoBehaviour
 
     [Header("Configurações Visuais e Ergonomia VR")]
     public bool exibirInventario = true;
-    public Vector2 tamanhoPainel = new Vector2(360f, 320f);
+    public Vector2 tamanhoPainel = new Vector2(460f, 365f);
     public float distanciaVisaoVR = 1.35f;
     public Vector2 offsetPerifericoVR = new Vector2(0.82f, -0.30f); // Rigorosamente na periferia inferior direita
 
@@ -74,7 +74,7 @@ public class PainelInventarioABoxVR : MonoBehaviour
 
     private readonly List<CardTriplaUI> m_CardsUI = new List<CardTriplaUI>();
     private readonly List<EntradaTriplaABox> m_HistoricoTriplas = new List<EntradaTriplaABox>();
-    private const int MAX_CARDS_EXIBIDOS = 4;
+    private const int MAX_CARDS_EXIBIDOS = 3;
 
     public IReadOnlyList<EntradaTriplaABox> HistoricoTriplas => m_HistoricoTriplas;
 
@@ -171,7 +171,7 @@ public class PainelInventarioABoxVR : MonoBehaviour
                     rt.anchorMin = new Vector2(1f, 1f);
                     rt.anchorMax = new Vector2(1f, 1f);
                     rt.pivot = new Vector2(1f, 1f);
-                    rt.sizeDelta = new Vector2(360f, 320f);
+                    rt.sizeDelta = tamanhoPainel;
                     rt.anchoredPosition = new Vector2(-24f, -24f);
                 }
             }
@@ -201,7 +201,7 @@ public class PainelInventarioABoxVR : MonoBehaviour
                     rt.anchorMin = new Vector2(0.5f, 0.5f);
                     rt.anchorMax = new Vector2(0.5f, 0.5f);
                     rt.pivot = new Vector2(0.5f, 0.5f);
-                    rt.sizeDelta = new Vector2(360f, 320f);
+                    rt.sizeDelta = tamanhoPainel;
                     rt.anchoredPosition = Vector2.zero;
                 }
             }
@@ -295,11 +295,11 @@ public class PainelInventarioABoxVR : MonoBehaviour
             if (i == 0)
             {
                 card.objCard.SetActive(true);
-                if (card.imgFundo != null) card.imgFundo.color = new Color(0.04f, 0.07f, 0.12f, 0.65f);
+                if (card.imgFundo != null) card.imgFundo.color = new Color(0.027f, 0.063f, 0.094f, 0.92f);
                 if (card.outlineBorda != null) card.outlineBorda.effectColor = new Color(0.20f, 0.35f, 0.50f, 0.40f);
-                if (card.txtLinha1Status != null) card.txtLinha1Status.text = "<color=#667788><b>[ABox EM ESPERA]</b></color>";
-                if (card.txtLinha2Tripla != null) card.txtLinha2Tripla.text = "<color=#8899AA><i>Explore o labirinto para coletar Triplas RDF (ABox).</i></color>";
-                if (card.txtLinha3Axioma != null) card.txtLinha3Axioma.text = "<color=#556677><size=9>Axiomas DL serão validados pelo HermiT em tempo real</size></color>";
+                if (card.txtLinha1Status != null) card.txtLinha1Status.text = "<color=#64748B><b>[ABox EM ESPERA]</b></color>";
+                if (card.txtLinha2Tripla != null) card.txtLinha2Tripla.text = "<color=#94A3B8><i>Explore o labirinto para coletar Triplas RDF (ABox).</i></color>";
+                if (card.txtLinha3Axioma != null) card.txtLinha3Axioma.text = "";
             }
             else
             {
@@ -326,22 +326,22 @@ public class PainelInventarioABoxVR : MonoBehaviour
 
                 if (t.consistente)
                 {
-                    card.imgFundo.color = new Color(0.02f, 0.08f, 0.05f, 0.90f);
-                    card.outlineBorda.effectColor = new Color(0.0f, 1.0f, 0.60f, (i == 0) ? 0.95f : 0.65f);
+                    card.imgFundo.color = new Color(0.027f, 0.063f, 0.094f, 0.92f); // #071018 92% alpha
+                    card.outlineBorda.effectColor = new Color(0.0f, 1.0f, 0.60f, (i == 0) ? 0.95f : 0.55f);
 
                     string ptsStr = (t.pontos >= 0) ? $"+{t.pontos}" : $"{t.pontos}";
-                    card.txtLinha1Status.text = $"#{t.indice:D2}  <color=#00FF99><b>[OK CONSISTENTE]</b></color>   <color=#FFD700><b>{ptsStr} pts</b></color>";
-                    card.txtLinha2Tripla.text = $"<b>{t.sujeito}</b> <color=#00E5FF>--[{t.predicado}]-></color> <b>{t.objeto}</b>";
-                    card.txtLinha3Axioma.text = $"<color=#88CCAA><size=9>Axioma DL: {t.axiomaDL}</size></color>";
+                    card.txtLinha1Status.text = $"#{t.indice:D2}  <color=#4ADE80><b>[OK CONSISTENTE]</b></color>   <color=#FACC15><b>{ptsStr} pts</b></color>";
+                    card.txtLinha2Tripla.text = $"<color=#FFFFFF><b>{t.sujeito}</b></color> <color=#67E8F9>--[{t.predicado}]-></color> <color=#FFFFFF><b>{t.objeto}</b></color>";
+                    if (card.txtLinha3Axioma != null) card.txtLinha3Axioma.text = "";
                 }
                 else
                 {
-                    card.imgFundo.color = new Color(0.12f, 0.02f, 0.04f, 0.92f);
-                    card.outlineBorda.effectColor = new Color(1.0f, 0.20f, 0.30f, (i == 0) ? 0.95f : 0.65f);
+                    card.imgFundo.color = new Color(0.027f, 0.063f, 0.094f, 0.92f); // #071018 92% alpha
+                    card.outlineBorda.effectColor = new Color(1.0f, 0.25f, 0.30f, (i == 0) ? 0.95f : 0.55f);
 
-                    card.txtLinha1Status.text = $"#{t.indice:D2}  <color=#FF3344><b>[ERRO INCONSISTENCIA]</b></color>   <color=#FF8899><b>{t.pontos} pts</b></color>";
-                    card.txtLinha2Tripla.text = $"<b>{t.sujeito}</b> <color=#FF4466>--[{t.predicado}]-></color> <b>{t.objeto}</b>";
-                    card.txtLinha3Axioma.text = $"<color=#FFAAAA><size=9>Violacao: {t.axiomaDL}</size></color>";
+                    card.txtLinha1Status.text = $"#{t.indice:D2}  <color=#FF4D4D><b>[ERRO INCONSISTÊNCIA]</b></color>   <color=#FFAAAA><b>{t.pontos} pts</b></color>";
+                    card.txtLinha2Tripla.text = $"<color=#FFFFFF><b>{t.sujeito}</b></color> <color=#FF6B81>--[{t.predicado}]-></color> <color=#FFFFFF><b>{t.objeto}</b></color>";
+                    if (card.txtLinha3Axioma != null) card.txtLinha3Axioma.text = "";
                 }
             }
             else
@@ -376,12 +376,12 @@ public class PainelInventarioABoxVR : MonoBehaviour
         }
 
         string reasonerStatus = temInconsistencia
-            ? "<color=#FF4466><b>HermiT [VIOLAÇÃO]</b></color>"
-            : "<color=#00FF99><b>HermiT [OK]</b></color>";
+            ? "<color=#FF4D4D><b>HermiT [VIOLAÇÃO]</b></color>"
+            : "<color=#4ADE80><b>HermiT [OK]</b></color>";
 
         if (m_TextoMetricasABox != null)
         {
-            m_TextoMetricasABox.text = $"Triplas RDF: <color=#00E5FF><b>{coletadas} / {totalMissao}</b></color>   |   Reasoner: {reasonerStatus}";
+            m_TextoMetricasABox.text = $"Triplas RDF: <color=#67E8F9><b>{coletadas} / {totalMissao}</b></color>   |   Reasoner: {reasonerStatus}";
         }
 
         if (m_TextoRodape != null)
@@ -522,7 +522,7 @@ public class PainelInventarioABoxVR : MonoBehaviour
         m_PainelRaiz = new GameObject("Painel_Inventario_Raiz", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Outline));
         m_PainelRaiz.transform.SetParent(canvasObj.transform, false);
 
-        tamanhoPainel = new Vector2(360f, 320f);
+        tamanhoPainel = new Vector2(460f, 365f);
         RectTransform rtRaiz = m_PainelRaiz.GetComponent<RectTransform>();
         rtRaiz.sizeDelta = tamanhoPainel;
         if (modoPC)
@@ -541,30 +541,30 @@ public class PainelInventarioABoxVR : MonoBehaviour
         }
 
         Image imgFundo = m_PainelRaiz.GetComponent<Image>();
-        imgFundo.color = new Color(0.03f, 0.06f, 0.09f, 0.92f); // Dark slate
+        imgFundo.color = new Color(0.020f, 0.035f, 0.055f, 0.95f); // Fundo escuro de alta opacidade
 
         Outline outline = m_PainelRaiz.GetComponent<Outline>();
-        outline.effectColor = new Color(0.0f, 1.0f, 0.65f, 0.80f); // Verde esmeralda neon
-        outline.effectDistance = new Vector2(2f, -2f);
+        outline.effectColor = new Color(0.0f, 1.0f, 0.65f, 0.85f); // Verde esmeralda neon
+        outline.effectDistance = new Vector2(1.5f, -1.5f);
 
         // 3. Cabeçalho
         m_TextoTitulo = CriarTexto(m_PainelRaiz.transform, "Titulo_Inventario",
-            "<b>INVENTÁRIO ABox (TRIPLAS ATIVAS)</b>", 12, FontStyles.Bold,
-            new Vector2(12f, -10f), new Vector2(336f, 20f),
+            "<b>INVENTÁRIO ABox (TRIPLAS ATIVAS)</b>", 14, FontStyles.Bold,
+            new Vector2(14f, -12f), new Vector2(432f, 22f),
             new Color(0.0f, 1.0f, 0.65f), TextAlignmentOptions.Left);
 
         m_TextoMetricasABox = CriarTexto(m_PainelRaiz.transform, "Texto_Metricas",
-            "Triplas RDF: <color=#00E5FF><b>0 / 38</b></color>   |   Reasoner: <color=#00FF99><b>HermiT [OK]</b></color>", 10, FontStyles.Normal,
-            new Vector2(12f, -30f), new Vector2(336f, 18f),
-            new Color(0.80f, 0.90f, 1.0f), TextAlignmentOptions.Left);
+            "Triplas RDF: <color=#67E8F9><b>0 / 38</b></color>   |   Reasoner: <color=#4ADE80><b>HermiT [OK]</b></color>", 12.5f, FontStyles.Normal,
+            new Vector2(14f, -36f), new Vector2(432f, 20f),
+            new Color(0.85f, 0.92f, 1.0f), TextAlignmentOptions.Left);
 
         // Linha divisória
-        CriarLinhaDivisoria(m_PainelRaiz.transform, new Vector2(12f, -48f), 336f);
+        CriarLinhaDivisoria(m_PainelRaiz.transform, new Vector2(12f, -60f), 436f);
 
-        // 4. Feed de 4 Cards de Triplas
-        float yInicial = -56f;
-        float alturaCard = 58f;
-        float espacamento = 6f;
+        // 4. Feed de 3 Cards de Triplas
+        float yInicial = -68f;
+        float alturaCard = 74f;
+        float espacamento = 8f;
 
         for (int i = 0; i < MAX_CARDS_EXIBIDOS; i++)
         {
@@ -576,26 +576,27 @@ public class PainelInventarioABoxVR : MonoBehaviour
             rtCard.anchorMax = new Vector2(0.5f, 1f);
             rtCard.pivot = new Vector2(0.5f, 1f);
             rtCard.anchoredPosition = new Vector2(0f, yInicial - i * (alturaCard + espacamento));
-            rtCard.sizeDelta = new Vector2(336f, alturaCard);
+            rtCard.sizeDelta = new Vector2(436f, alturaCard);
 
             Image imgCard = cardObj.GetComponent<Image>();
-            imgCard.color = new Color(0.04f, 0.07f, 0.12f, 0.75f);
+            imgCard.color = new Color(0.027f, 0.063f, 0.094f, 0.92f); // #071018 92% alpha
 
             Outline outlineCard = cardObj.GetComponent<Outline>();
-            outlineCard.effectDistance = new Vector2(1f, -1f);
+            outlineCard.effectDistance = new Vector2(1.5f, -1.5f);
             outlineCard.effectColor = new Color(0.20f, 0.35f, 0.50f, 0.40f);
 
             TMP_Text txtL1 = CriarTexto(cardObj.transform, "Linha1_Status",
-                "<color=#667788><b>[ABox EM ESPERA]</b></color>", 9, FontStyles.Bold,
-                new Vector2(8f, -4f), new Vector2(320f, 16f), Color.white, TextAlignmentOptions.Left);
+                "<color=#64748B><b>[ABox EM ESPERA]</b></color>", 13.5f, FontStyles.Bold,
+                new Vector2(12f, -8f), new Vector2(412f, 22f), Color.white, TextAlignmentOptions.Left);
 
             TMP_Text txtL2 = CriarTexto(cardObj.transform, "Linha2_Tripla",
-                "<color=#8899AA><i>Explore o labirinto para coletar Triplas RDF (ABox).</i></color>", 10, FontStyles.Normal,
-                new Vector2(8f, -20f), new Vector2(320f, 18f), Color.white, TextAlignmentOptions.Left);
+                "<color=#94A3B8><i>Explore o labirinto para coletar Triplas RDF (ABox).</i></color>", 16.5f, FontStyles.Bold,
+                new Vector2(12f, -32f), new Vector2(412f, 38f), Color.white, TextAlignmentOptions.Left);
 
             TMP_Text txtL3 = CriarTexto(cardObj.transform, "Linha3_Axioma",
-                "<color=#556677><size=8.5>Axiomas DL serão validados pelo HermiT em tempo real</size></color>", 8.5f, FontStyles.Normal,
-                new Vector2(8f, -38f), new Vector2(320f, 16f), Color.white, TextAlignmentOptions.Left);
+                "", 9f, FontStyles.Normal,
+                new Vector2(12f, -54f), new Vector2(412f, 16f), Color.white, TextAlignmentOptions.Left);
+            txtL3.gameObject.SetActive(false); // Oculto no HUD em tempo real para eliminar corte e poluição
 
             CardTriplaUI cardUI = new CardTriplaUI
             {
@@ -612,12 +613,12 @@ public class PainelInventarioABoxVR : MonoBehaviour
         }
 
         // 5. Rodapé
-        CriarLinhaDivisoria(m_PainelRaiz.transform, new Vector2(12f, -316f), 336f);
+        CriarLinhaDivisoria(m_PainelRaiz.transform, new Vector2(12f, -318f), 436f);
 
         m_TextoRodape = CriarTexto(m_PainelRaiz.transform, "Texto_Rodape",
-            "ABox Ativa: <b>0 Triplas RDF</b>  •  OWL 2 DL  •  CIn-UFPE", 9, FontStyles.Normal,
-            new Vector2(12f, -324f), new Vector2(336f, 18f),
-            new Color(0.60f, 0.70f, 0.85f), TextAlignmentOptions.Center);
+            "ABox Ativa: <b>0 Triplas RDF</b>  •  OWL 2 DL  •  CIn-UFPE", 11.5f, FontStyles.Normal,
+            new Vector2(14f, -328f), new Vector2(432f, 22f),
+            new Color(0.65f, 0.75f, 0.90f), TextAlignmentOptions.Center);
     }
 
     private static void CriarLinhaDivisoria(Transform pai, Vector2 pos, float largura)
@@ -657,6 +658,7 @@ public class PainelInventarioABoxVR : MonoBehaviour
         texto.color = cor;
         texto.alignment = alinhamento;
         texto.raycastTarget = false;
+        texto.textWrappingMode = TextWrappingModes.Normal;
         texto.overflowMode = TextOverflowModes.Truncate;
 
         return texto;

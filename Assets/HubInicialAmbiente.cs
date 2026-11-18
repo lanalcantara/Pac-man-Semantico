@@ -98,12 +98,23 @@ public class HubInicialAmbiente : MonoBehaviour
     private GameObject[] m_CardsOntologia = new GameObject[4];
     private Outline[] m_OutlinesOntologia = new Outline[4];
 
-    // Elementos do Carrossel de Mapas
-    private int m_IndiceMapaAtual = 0; // 0: Arcade Neon Clássico, 1: Clássico CIn-UFPE, 2: Especial Natal
+    // Elementos da Seleção de Mapas (Showcase 3D de Alta Resolução)
+    private int m_IndiceMapaAtual = 0; // 0: Dark Neon Grid, 1: Floresta, 2: Especial Natal
     private RawImage m_ImgPreviewMapa;
     private TMP_Text m_TextoTituloMapa;
     private TMP_Text m_TextoDescricaoMapa;
     private TMP_Text m_TextoIndicadorMapa;
+    private Outline m_OutlineDestaque;
+
+    private RawImage m_ImgPreviewSecundario1;
+    private TMP_Text m_TextoTituloSecundario1;
+    private Outline m_OutlineSecundario1;
+    private int m_IndiceSecundario1 = 2;
+
+    private RawImage m_ImgPreviewSecundario2;
+    private TMP_Text m_TextoTituloSecundario2;
+    private Outline m_OutlineSecundario2;
+    private int m_IndiceSecundario2 = 1;
 
     // Elementos do Carrossel de Câmeras
     private int m_IndiceCameraAtual = 0; // 0: 1ª Pessoa VR 360°, 1: 3ª Pessoa, 2: Aérea Tática
@@ -137,6 +148,9 @@ public class HubInicialAmbiente : MonoBehaviour
     private Texture2D m_TexMapaNeon;
     private Texture2D m_TexMapaDia;
     private Texture2D m_TexMapaNatal;
+    private Texture2D m_TexPacManIcon;
+    private Texture2D m_TexBordaArcade;
+    private Sprite m_SpriteCardArredondado;
     private Texture2D m_TexCam1P;
     private Texture2D m_TexCam3P;
     private Texture2D m_TexCamAerea;
@@ -252,13 +266,45 @@ public class HubInicialAmbiente : MonoBehaviour
 
     private void CarregarTexturasEmCache()
     {
-        m_TexMapaNeon = Resources.Load<Texture2D>("Textures/Preview_Mapa_Neon");
-        m_TexMapaDia = GerarPreviewMapaFloresta();
-        m_TexMapaNatal = Resources.Load<Texture2D>("Textures/Preview_Mapa_Natal");
+        m_TexMapaNeon = CarregarTexturaComFallback("Textures/Preview_Gameplay_Neon", "Preview_Gameplay_Neon.png");
+        if (m_TexMapaNeon == null) m_TexMapaNeon = CarregarTexturaComFallback("Textures/Preview_Mapa_Neon", "Preview_Mapa_Neon.png");
+
+        m_TexMapaDia = CarregarTexturaComFallback("Textures/Preview_Gameplay_Floresta", "Preview_Gameplay_Floresta.png");
+        if (m_TexMapaDia == null) m_TexMapaDia = CarregarTexturaComFallback("Textures/Preview_Mapa_Dia", "Preview_Mapa_Dia.png");
+        if (m_TexMapaDia == null) m_TexMapaDia = GerarPreviewMapaFloresta();
+
+        m_TexMapaNatal = CarregarTexturaComFallback("Textures/Preview_Gameplay_Natal", "Preview_Gameplay_Natal.png");
+        if (m_TexMapaNatal == null) m_TexMapaNatal = CarregarTexturaComFallback("Textures/Preview_Mapa_Natal", "Preview_Mapa_Natal.png");
+
+        m_TexPacManIcon = CarregarTexturaComFallback("Textures/Icon_PacMan_UI", "Icon_PacMan_UI.png");
+        m_TexBordaArcade = CarregarTexturaComFallback("Textures/Borda_Arcade_Inferior", "Borda_Arcade_Inferior.png");
+        m_SpriteCardArredondado = Resources.Load<Sprite>("Textures/Sprite_Card_Arredondado");
 
         m_TexCam1P = Resources.Load<Texture2D>("Textures/Preview_Camera_1Pessoa");
         m_TexCam3P = Resources.Load<Texture2D>("Textures/Preview_Camera_3Pessoa");
         m_TexCamAerea = Resources.Load<Texture2D>("Textures/Preview_Camera_Aerea");
+    }
+
+    private static Texture2D CarregarTexturaComFallback(string resourcePath, string fileName)
+    {
+        Texture2D tex = Resources.Load<Texture2D>(resourcePath);
+        if (tex != null) return tex;
+
+        try
+        {
+            string fullPath = System.IO.Path.Combine(Application.dataPath, "Resources", "Textures", fileName);
+            if (System.IO.File.Exists(fullPath))
+            {
+                byte[] bytes = System.IO.File.ReadAllBytes(fullPath);
+                Texture2D diskTex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (diskTex.LoadImage(bytes))
+                {
+                    return diskTex;
+                }
+            }
+        }
+        catch { }
+        return null;
     }
 
     /// <summary>
@@ -526,21 +572,35 @@ public class HubInicialAmbiente : MonoBehaviour
                         TocarSomBeepProcedural(440f);
                     }
                 }
-                // Navegação horizontal (para carrossel de mapas e câmeras)
-                else if (m_EstadoTela == EstadoTelaHub.EscolhaMapa || m_EstadoTela == EstadoTelaHub.EscolhaCamera)
+                // Navegação por analógico / setas para Escolha de Mapa
+                else if (m_EstadoTela == EstadoTelaHub.EscolhaMapa)
+                {
+                    if (stickConsolidado.x > 0.45f || stickConsolidado.y < -0.45f || Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
+                    {
+                        m_TimerCooldownStick = 0.25f;
+                        AvancarMapaCarrossel();
+                        TocarSomBeepProcedural(520f);
+                    }
+                    else if (stickConsolidado.x < -0.45f || stickConsolidado.y > 0.45f || Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
+                    {
+                        m_TimerCooldownStick = 0.25f;
+                        VoltarMapaCarrossel();
+                        TocarSomBeepProcedural(520f);
+                    }
+                }
+                // Navegação horizontal para Escolha de Câmera
+                else if (m_EstadoTela == EstadoTelaHub.EscolhaCamera)
                 {
                     if (stickConsolidado.x > 0.45f || Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D))
                     {
                         m_TimerCooldownStick = 0.25f;
-                        if (m_EstadoTela == EstadoTelaHub.EscolhaMapa) AvancarMapaCarrossel();
-                        else if (m_EstadoTela == EstadoTelaHub.EscolhaCamera) AvancarCameraCarrossel();
+                        AvancarCameraCarrossel();
                         TocarSomBeepProcedural(520f);
                     }
                     else if (stickConsolidado.x < -0.45f || Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
                     {
                         m_TimerCooldownStick = 0.25f;
-                        if (m_EstadoTela == EstadoTelaHub.EscolhaMapa) VoltarMapaCarrossel();
-                        else if (m_EstadoTela == EstadoTelaHub.EscolhaCamera) VoltarCameraCarrossel();
+                        VoltarCameraCarrossel();
                         TocarSomBeepProcedural(520f);
                     }
                 }
@@ -615,6 +675,51 @@ public class HubInicialAmbiente : MonoBehaviour
         if (m_PainelEscolhaMapa != null) m_PainelEscolhaMapa.SetActive(estado == EstadoTelaHub.EscolhaMapa);
         if (m_PainelEscolhaCamera != null) m_PainelEscolhaCamera.SetActive(estado == EstadoTelaHub.EscolhaCamera);
         if (m_PainelConfiguracoes != null) m_PainelConfiguracoes.SetActive(estado == EstadoTelaHub.Configuracoes);
+
+        // Ajusta as dimensões da janela modal para o showcase de alta definição na escolha de mapa
+        if (m_PainelJanelaHub != null)
+        {
+            RectTransform rtJanela = m_PainelJanelaHub.GetComponent<RectTransform>();
+            Image imgJanela = m_PainelJanelaHub.GetComponent<Image>();
+            Outline outlJanela = m_PainelJanelaHub.GetComponent<Outline>();
+
+            if (estado == EstadoTelaHub.EscolhaMapa)
+            {
+                rtJanela.sizeDelta = new Vector2(1480f, 780f);
+                if (imgJanela != null)
+                {
+                    imgJanela.color = new Color(0.145f, 0.086f, 0.271f, 0.98f); // Roxo escuro #251645
+                    if (m_SpriteCardArredondado != null)
+                    {
+                        imgJanela.sprite = m_SpriteCardArredondado;
+                        imgJanela.type = Image.Type.Sliced;
+                    }
+                }
+                if (outlJanela != null)
+                {
+                    outlJanela.effectColor = new Color(0.40f, 0.20f, 0.70f, 0.85f);
+                    outlJanela.effectDistance = new Vector2(3f, -3f);
+                }
+            }
+            else
+            {
+                rtJanela.sizeDelta = new Vector2(920f, 650f);
+                if (imgJanela != null)
+                {
+                    imgJanela.color = new Color(0.04f, 0.08f, 0.16f, 0.98f);
+                    if (m_SpriteCardArredondado != null)
+                    {
+                        imgJanela.sprite = m_SpriteCardArredondado;
+                        imgJanela.type = Image.Type.Sliced;
+                    }
+                }
+                if (outlJanela != null)
+                {
+                    outlJanela.effectColor = new Color(0.0f, 0.85f, 1.0f, 0.85f);
+                    outlJanela.effectDistance = new Vector2(2f, -2f);
+                }
+            }
+        }
 
         if (estado == EstadoTelaHub.SelecaoOntologia)
         {
@@ -855,8 +960,15 @@ public class HubInicialAmbiente : MonoBehaviour
     }
 
     // =========================================================================
-    // CARROSSEL DE MAPAS (INFINITO)
+    // SELEÇÃO DE MAPAS (SHOWCASE 3D DE ALTA RESOLUÇÃO)
     // =========================================================================
+
+    public void SelecionarMapaDireto(int indice)
+    {
+        m_IndiceMapaAtual = Mathf.Clamp(indice, 0, 2);
+        TocarSomBeepProcedural(560f);
+        AtualizarVisualCarrosselMapa();
+    }
 
     public void AvancarMapaCarrossel()
     {
@@ -872,28 +984,121 @@ public class HubInicialAmbiente : MonoBehaviour
 
     private void AtualizarVisualCarrosselMapa()
     {
-        switch (m_IndiceMapaAtual)
+        // Define o mapa em destaque e os dois secundários
+        // Padrão de layout idêntico à imagem de referência do usuário:
+        // Se 0 (Neon): Secundário 1 = 2 (Natal), Secundário 2 = 1 (Floresta)
+        // Se 1 (Floresta): Secundário 1 = 0 (Neon), Secundário 2 = 2 (Natal)
+        // Se 2 (Natal): Secundário 1 = 0 (Neon), Secundário 2 = 1 (Floresta)
+        int idxSec1 = 2;
+        int idxSec2 = 1;
+        if (m_IndiceMapaAtual == 1)
         {
-            case 0: // Dark Grid Neon
-                if (m_ImgPreviewMapa != null && m_TexMapaNeon != null) m_ImgPreviewMapa.texture = m_TexMapaNeon;
-                if (m_TextoTituloMapa != null) m_TextoTituloMapa.text = "MAPA 1: DARK NEON GRID";
-                if (m_TextoDescricaoMapa != null) m_TextoDescricaoMapa.text = "Grade cibernética escura com linhas neon ciano e magenta. Visual futurista ideal para alto contraste no Quest 3.";
-                if (m_TextoIndicadorMapa != null) m_TextoIndicadorMapa.text = "● ○ ○  (1 de 3)";
-                break;
+            idxSec1 = 0;
+            idxSec2 = 2;
+        }
+        else if (m_IndiceMapaAtual == 2)
+        {
+            idxSec1 = 0;
+            idxSec2 = 1;
+        }
+        m_IndiceSecundario1 = idxSec1;
+        m_IndiceSecundario2 = idxSec2;
 
-            case 1: // Mapa Floresta
-                if (m_ImgPreviewMapa != null && m_TexMapaDia != null) m_ImgPreviewMapa.texture = m_TexMapaDia;
-                if (m_TextoTituloMapa != null) m_TextoTituloMapa.text = "MAPA 2: FLORESTA";
-                if (m_TextoDescricaoMapa != null) m_TextoDescricaoMapa.text = "Chão de grama, paredes de cerca-viva e uma floresta de pinheiros e carvalhos ao redor do labirinto, com luz de dia.";
-                if (m_TextoIndicadorMapa != null) m_TextoIndicadorMapa.text = "○ ● ○  (2 de 3)";
-                break;
+        // 1. Card em Destaque (Esquerda - Visual 3D em Alta Resolução)
+        Texture2D texDestaque = ObterTexturaMapa(m_IndiceMapaAtual);
+        if (m_ImgPreviewMapa != null && texDestaque != null)
+        {
+            m_ImgPreviewMapa.texture = texDestaque;
+        }
 
-            case 2: // Especial Natal
-                if (m_ImgPreviewMapa != null && m_TexMapaNatal != null) m_ImgPreviewMapa.texture = m_TexMapaNatal;
-                if (m_TextoTituloMapa != null) m_TextoTituloMapa.text = "MAPA 3: ESPECIAL DE NATAL";
-                if (m_TextoDescricaoMapa != null) m_TextoDescricaoMapa.text = "Chão nevado, pinheiros decorados com estrelas, presentes natalinos, bengalas doces e neve suave caindo no labirinto.";
-                if (m_TextoIndicadorMapa != null) m_TextoIndicadorMapa.text = "○ ○ ●  (3 de 3)";
-                break;
+        if (m_TextoTituloMapa != null)
+        {
+            m_TextoTituloMapa.text = ObterTituloMapa(m_IndiceMapaAtual);
+        }
+        if (m_TextoDescricaoMapa != null)
+        {
+            m_TextoDescricaoMapa.text = ObterDescricaoMapa(m_IndiceMapaAtual);
+        }
+        if (m_TextoIndicadorMapa != null)
+        {
+            m_TextoIndicadorMapa.text = ObterIndicadorMapa(m_IndiceMapaAtual);
+        }
+
+        // 2. Card Secundário 1 (Topo Direita)
+        Texture2D texSec1 = ObterTexturaMapa(idxSec1);
+        if (m_ImgPreviewSecundario1 != null && texSec1 != null)
+        {
+            m_ImgPreviewSecundario1.texture = texSec1;
+        }
+        if (m_TextoTituloSecundario1 != null)
+        {
+            m_TextoTituloSecundario1.text = ObterRotuloCurtoMapa(idxSec1);
+        }
+
+        // 3. Card Secundário 2 (Baixo Direita)
+        Texture2D texSec2 = ObterTexturaMapa(idxSec2);
+        if (m_ImgPreviewSecundario2 != null && texSec2 != null)
+        {
+            m_ImgPreviewSecundario2.texture = texSec2;
+        }
+        if (m_TextoTituloSecundario2 != null)
+        {
+            m_TextoTituloSecundario2.text = ObterRotuloCurtoMapa(idxSec2);
+        }
+    }
+
+    private Texture2D ObterTexturaMapa(int idx)
+    {
+        switch (idx)
+        {
+            case 0: return m_TexMapaNeon;
+            case 1: return m_TexMapaDia; // Mapa Floresta
+            case 2: return m_TexMapaNatal;
+            default: return m_TexMapaNeon;
+        }
+    }
+
+    private string ObterTituloMapa(int idx)
+    {
+        switch (idx)
+        {
+            case 0: return "<color=#00FFFF><b>MAPA 1: DARK NEON GRID</b></color>";
+            case 1: return "<color=#4ADE80><b>MAPA 2: FLORESTA</b></color>";
+            case 2: return "<color=#F43F5E><b>MAPA 3: ESPECIAL DE NATAL</b></color>";
+            default: return "MAPA";
+        }
+    }
+
+    private string ObterDescricaoMapa(int idx)
+    {
+        switch (idx)
+        {
+            case 0: return "Grade cibernética escura com linhas neon ciano e magenta. Visual futurista com alto contraste, ideal para VR (Quest 3) e WebGL.";
+            case 1: return "Chão de grama natural, paredes de cerca-viva verde densa e floresta perimetral com árvores 3D sob iluminação diurna estável.";
+            case 2: return "Chão nevado brilhante, labirinto com paredes vermelhas, pinheiros decorados com estrelas, presentes e neve suave caindo.";
+            default: return "";
+        }
+    }
+
+    private string ObterRotuloCurtoMapa(int idx)
+    {
+        switch (idx)
+        {
+            case 0: return "<b>MAPA 1: DARK NEON GRID</b>  <color=#38BDF8>[CLIQUE P/ SELECIONAR]</color>";
+            case 1: return "<b>MAPA 2: FLORESTA</b>  <color=#4ADE80>[CLIQUE P/ SELECIONAR]</color>";
+            case 2: return "<b>MAPA 3: ESPECIAL DE NATAL</b>  <color=#F43F5E>[CLIQUE P/ SELECIONAR]</color>";
+            default: return "";
+        }
+    }
+
+    private string ObterIndicadorMapa(int idx)
+    {
+        switch (idx)
+        {
+            case 0: return "<color=#00E5FF>●</color> ○ ○  (1 de 3)";
+            case 1: return "○ <color=#4ADE80>●</color> ○  (2 de 3)";
+            case 2: return "○ ○ <color=#F43F5E>●</color>  (3 de 3)";
+            default: return "";
         }
     }
 
@@ -1134,7 +1339,23 @@ public class HubInicialAmbiente : MonoBehaviour
         rtFundo.anchorMax = Vector2.one;
         rtFundo.sizeDelta = Vector2.zero;
         Image imgFundo = painelFundo.GetComponent<Image>();
-        imgFundo.color = new Color(0f, 0f, 0f, 0.76f);
+        imgFundo.color = new Color(0.027f, 0.031f, 0.141f, 0.88f); // Deep space navy #070824
+
+        // Borda Arcade Inferior (Estilo Retrô da Imagem de Referência)
+        GameObject bordaArcade = new GameObject("Borda_Arcade_Inferior", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
+        bordaArcade.transform.SetParent(painelFundo.transform, false);
+        RectTransform rtBorda = bordaArcade.GetComponent<RectTransform>();
+        rtBorda.anchorMin = new Vector2(0f, 0f);
+        rtBorda.anchorMax = new Vector2(1f, 0f);
+        rtBorda.pivot = new Vector2(0.5f, 0f);
+        rtBorda.anchoredPosition = Vector2.zero;
+        rtBorda.sizeDelta = new Vector2(0f, 65f);
+        RawImage imgBorda = bordaArcade.GetComponent<RawImage>();
+        if (m_TexBordaArcade != null)
+        {
+            imgBorda.texture = m_TexBordaArcade;
+        }
+        imgBorda.raycastTarget = false;
 
         // 3. Janela Central do Hub
         GameObject janela = new GameObject("Janela_Central_Hub", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
@@ -1278,7 +1499,7 @@ public class HubInicialAmbiente : MonoBehaviour
     }
 
     // -------------------------------------------------------------------------
-    // TELA 3: ESCOLHA DE MAPA (CARROSSEL)
+    // TELA 3: ESCOLHA DE MAPA (SHOWCASE 3D DE ALTA RESOLUÇÃO)
     // -------------------------------------------------------------------------
     private void ConstruirTelaEscolhaMapa(Transform pai)
     {
@@ -1290,59 +1511,215 @@ public class HubInicialAmbiente : MonoBehaviour
         rt.anchorMax = Vector2.one;
         rt.sizeDelta = Vector2.zero;
 
-        CriarTexto(tela.transform, "Titulo_EM", "PASSO 1 DE 2: SELEÇÃO DE MAPA", 26, FontStyles.Bold,
-            new Vector2(0f, 245f), new Vector2(820f, 40f), new Color(1.0f, 0.85f, 0.10f));
+        // -------------------------------------------------------------
+        // 1. CABEÇALHO DO CARD (Estilo Arcade Moderno / Imagem de Referência)
+        // -------------------------------------------------------------
+        GameObject cabecalho = new GameObject("Cabecalho_Mapa", typeof(RectTransform));
+        cabecalho.transform.SetParent(tela.transform, false);
+        RectTransform rtCab = cabecalho.GetComponent<RectTransform>();
+        rtCab.anchoredPosition = new Vector2(0f, 335f);
+        rtCab.sizeDelta = new Vector2(1420f, 54f);
 
-        CriarTexto(tela.transform, "Sub_EM", "Escolha o cenário visual e ambiente temático para jogar:", 15, FontStyles.Normal,
-            new Vector2(0f, 208f), new Vector2(820f, 28f), new Color(0.0f, 0.90f, 1.0f));
+        // Ícone Pac-Man
+        GameObject iconGO = new GameObject("Icon_PacMan", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
+        iconGO.transform.SetParent(cabecalho.transform, false);
+        RectTransform rtIcon = iconGO.GetComponent<RectTransform>();
+        rtIcon.anchoredPosition = new Vector2(-660f, 0f);
+        rtIcon.sizeDelta = new Vector2(46f, 46f);
+        RawImage imgIcon = iconGO.GetComponent<RawImage>();
+        if (m_TexPacManIcon != null)
+        {
+            imgIcon.texture = m_TexPacManIcon;
+        }
+        else
+        {
+            imgIcon.color = new Color(1f, 0.85f, 0f);
+        }
 
-        // Área Central do Carrossel (Card com imagem e descrição)
-        GameObject card = new GameObject("Card_Carrossel_Mapa", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        card.transform.SetParent(tela.transform, false);
-        RectTransform rtCard = card.GetComponent<RectTransform>();
-        rtCard.anchoredPosition = new Vector2(0f, 25f);
-        rtCard.sizeDelta = new Vector2(540f, 280f);
-        card.GetComponent<Image>().color = new Color(0.02f, 0.05f, 0.10f, 0.95f);
-        card.AddComponent<Outline>().effectColor = new Color(0.0f, 0.85f, 1.0f, 0.50f);
+        // Reticências "..."
+        CriarTexto(cabecalho.transform, "Dots_PacMan", "...", 26, FontStyles.Bold,
+            new Vector2(-615f, -2f), new Vector2(40f, 46f), Color.white);
 
-        // Imagem Preview
-        GameObject imgGO = new GameObject("Preview_Image", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
-        imgGO.transform.SetParent(card.transform, false);
-        RectTransform rtImg = imgGO.GetComponent<RectTransform>();
-        rtImg.anchoredPosition = new Vector2(0f, 50f);
-        rtImg.sizeDelta = new Vector2(480f, 150f);
-        m_ImgPreviewMapa = imgGO.GetComponent<RawImage>();
+        // Título Principal
+        var txtTituloPrincipal = CriarTexto(cabecalho.transform, "Titulo_EM", "PAC-MAN SEMÂNTICO", 30, FontStyles.Bold,
+            new Vector2(-380f, 0f), new Vector2(420f, 46f), Color.white);
+        txtTituloPrincipal.alignment = TextAlignmentOptions.Left;
 
-        m_TextoTituloMapa = CriarTexto(card.transform, "Titulo_Mapa_Card", "MAPA", 18, FontStyles.Bold,
-            new Vector2(0f, -48f), new Vector2(500f, 30f), Color.white);
+        // Subtítulo / Passo Indicador à direita
+        var txtPasso = CriarTexto(cabecalho.transform, "Sub_EM",
+            "<color=#00E5FF><b>PASSO 1 DE 2: SELEÇÃO DE MAPA</b></color>  •  Escolha o cenário visual e ambiente temático:",
+            15, FontStyles.Normal,
+            new Vector2(240f, 0f), new Vector2(800f, 36f), new Color(0.75f, 0.85f, 1.0f));
+        txtPasso.alignment = TextAlignmentOptions.Right;
 
-        m_TextoDescricaoMapa = CriarTexto(card.transform, "Desc_Mapa_Card", "Descrição do mapa.", 12, FontStyles.Normal,
-            new Vector2(0f, -85f), new Vector2(500f, 45f), new Color(0.80f, 0.88f, 0.95f));
+        // Linha divisória fina sutil
+        GameObject div = new GameObject("Linha_Divisoria", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        div.transform.SetParent(tela.transform, false);
+        RectTransform rtDiv = div.GetComponent<RectTransform>();
+        rtDiv.anchoredPosition = new Vector2(0f, 298f);
+        rtDiv.sizeDelta = new Vector2(1420f, 2f);
+        div.GetComponent<Image>().color = new Color(0.35f, 0.20f, 0.55f, 0.50f);
 
-        m_TextoIndicadorMapa = CriarTexto(card.transform, "Indicador_Mapa", "● ○ ○  (1 de 3)", 13, FontStyles.Bold,
-            new Vector2(0f, -120f), new Vector2(500f, 22f), new Color(0.0f, 0.90f, 1.0f));
+        // -------------------------------------------------------------
+        // 2. CARD EM DESTAQUE (ESQUERDA - MAPA SELECIONADO EM ALTA RESOLUÇÃO)
+        // -------------------------------------------------------------
+        GameObject cardDestaque = new GameObject("Card_Mapa_Destaque", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        cardDestaque.transform.SetParent(tela.transform, false);
+        RectTransform rtCardDest = cardDestaque.GetComponent<RectTransform>();
+        rtCardDest.anchoredPosition = new Vector2(-275f, 35f);
+        rtCardDest.sizeDelta = new Vector2(790f, 460f);
 
-        // Botões de navegação lateral do carrossel
-        CriarBotao(tela.transform, "Btn_Ant_Mapa", "◄", 28, FontStyles.Bold,
-            new Vector2(-330f, 25f), new Vector2(80f, 160f),
-            new Color(0.10f, 0.35f, 0.55f), Color.white, VoltarMapaCarrossel);
+        Image imgCardDest = cardDestaque.GetComponent<Image>();
+        imgCardDest.color = new Color(0.04f, 0.05f, 0.10f, 0.98f);
+        if (m_SpriteCardArredondado != null)
+        {
+            imgCardDest.sprite = m_SpriteCardArredondado;
+            imgCardDest.type = Image.Type.Sliced;
+        }
 
-        CriarBotao(tela.transform, "Btn_Prox_Mapa", "►", 28, FontStyles.Bold,
-            new Vector2(330f, 25f), new Vector2(80f, 160f),
-            new Color(0.10f, 0.35f, 0.55f), Color.white, AvancarMapaCarrossel);
+        m_OutlineDestaque = cardDestaque.AddComponent<Outline>();
+        m_OutlineDestaque.effectColor = new Color(0.0f, 1.0f, 1.0f, 0.95f); // Ciano neon brilhante
+        m_OutlineDestaque.effectDistance = new Vector2(3f, -3f);
 
-        // Botões Inferiores
-        CriarBotao(tela.transform, "Btn_Voltar_EM", "◄ VOLTAR", 16, FontStyles.Normal,
-            new Vector2(-170f, -180f), new Vector2(260f, 50f),
-            new Color(0.35f, 0.15f, 0.20f), Color.white, () => DefinirEstadoTela(EstadoTelaHub.BoasVindas));
+        // Imagem Preview Destaque
+        GameObject imgDestGO = new GameObject("Preview_Image_Destaque", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
+        imgDestGO.transform.SetParent(cardDestaque.transform, false);
+        RectTransform rtImgDest = imgDestGO.GetComponent<RectTransform>();
+        rtImgDest.anchoredPosition = new Vector2(0f, 38f);
+        rtImgDest.sizeDelta = new Vector2(770f, 364f);
+        m_ImgPreviewMapa = imgDestGO.GetComponent<RawImage>();
 
-        CriarBotao(tela.transform, "Btn_Confirmar_EM", "> ESCOLHER CÂMERA >", 18, FontStyles.Bold,
-            new Vector2(170f, -180f), new Vector2(340f, 50f),
-            new Color(0.0f, 0.60f, 0.85f), Color.white, AcaoConfirmarMapaEAvancar);
+        // Badge [✓ SELECIONADO] no canto superior do preview
+        GameObject badgeGO = new GameObject("Badge_Selecionado", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        badgeGO.transform.SetParent(imgDestGO.transform, false);
+        RectTransform rtBadge = badgeGO.GetComponent<RectTransform>();
+        rtBadge.anchorMin = new Vector2(0f, 1f);
+        rtBadge.anchorMax = new Vector2(0f, 1f);
+        rtBadge.pivot = new Vector2(0f, 1f);
+        rtBadge.anchoredPosition = new Vector2(10f, -10f);
+        rtBadge.sizeDelta = new Vector2(170f, 32f);
+        badgeGO.GetComponent<Image>().color = new Color(0.02f, 0.25f, 0.12f, 0.92f);
+        var outBadge = badgeGO.AddComponent<Outline>();
+        outBadge.effectColor = new Color(0.2f, 0.95f, 0.45f, 0.9f);
+        outBadge.effectDistance = new Vector2(1.5f, -1.5f);
+
+        CriarTexto(badgeGO.transform, "Txt_Badge", "<b>[✓ SELECIONADO]</b>", 13, FontStyles.Bold,
+            Vector2.zero, new Vector2(160f, 28f), new Color(0.3f, 1.0f, 0.55f));
+
+        // Faixa de Informações Inferior do Card Destaque
+        GameObject infoDestaque = new GameObject("Faixa_Info_Destaque", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        infoDestaque.transform.SetParent(cardDestaque.transform, false);
+        RectTransform rtInfoDest = infoDestaque.GetComponent<RectTransform>();
+        rtInfoDest.anchoredPosition = new Vector2(0f, -190f);
+        rtInfoDest.sizeDelta = new Vector2(770f, 72f);
+        infoDestaque.GetComponent<Image>().color = new Color(0.06f, 0.09f, 0.16f, 0.95f);
+
+        m_TextoTituloMapa = CriarTexto(infoDestaque.transform, "Titulo_Mapa_Card", "MAPA 1: DARK NEON GRID", 18, FontStyles.Bold,
+            new Vector2(-60f, 14f), new Vector2(620f, 28f), Color.white);
+        m_TextoTituloMapa.alignment = TextAlignmentOptions.Left;
+
+        m_TextoDescricaoMapa = CriarTexto(infoDestaque.transform, "Desc_Mapa_Card", "Descrição do mapa.", 12, FontStyles.Normal,
+            new Vector2(-60f, -14f), new Vector2(620f, 26f), new Color(0.85f, 0.90f, 0.98f));
+        m_TextoDescricaoMapa.alignment = TextAlignmentOptions.Left;
+
+        m_TextoIndicadorMapa = CriarTexto(infoDestaque.transform, "Indicador_Mapa", "● ○ ○  (1 de 3)", 13, FontStyles.Bold,
+            new Vector2(310f, 0f), new Vector2(120f, 30f), new Color(0.0f, 0.90f, 1.0f));
+
+        // -------------------------------------------------------------
+        // 3. CARDS SECUNDÁRIOS (DIREITA - STACK VERTICAL DE 2 MAPAS)
+        // -------------------------------------------------------------
+        // Card Secundário 1 (Topo Direita)
+        GameObject cardSec1 = new GameObject("Card_Secundario_1", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        cardSec1.transform.SetParent(tela.transform, false);
+        RectTransform rtSec1 = cardSec1.GetComponent<RectTransform>();
+        rtSec1.anchoredPosition = new Vector2(400f, 155f);
+        rtSec1.sizeDelta = new Vector2(490f, 218f);
+
+        Image imgSec1 = cardSec1.GetComponent<Image>();
+        imgSec1.color = new Color(0.04f, 0.05f, 0.10f, 0.98f);
+        if (m_SpriteCardArredondado != null)
+        {
+            imgSec1.sprite = m_SpriteCardArredondado;
+            imgSec1.type = Image.Type.Sliced;
+        }
+
+        m_OutlineSecundario1 = cardSec1.AddComponent<Outline>();
+        m_OutlineSecundario1.effectColor = new Color(0.35f, 0.25f, 0.65f, 0.65f);
+        m_OutlineSecundario1.effectDistance = new Vector2(2f, -2f);
+
+        GameObject imgSec1GO = new GameObject("Preview_Secundario_1", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
+        imgSec1GO.transform.SetParent(cardSec1.transform, false);
+        RectTransform rtImgSec1 = imgSec1GO.GetComponent<RectTransform>();
+        rtImgSec1.anchoredPosition = new Vector2(0f, 18f);
+        rtImgSec1.sizeDelta = new Vector2(474f, 168f);
+        m_ImgPreviewSecundario1 = imgSec1GO.GetComponent<RawImage>();
+
+        GameObject bannerSec1 = new GameObject("Banner_Secundario_1", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        bannerSec1.transform.SetParent(cardSec1.transform, false);
+        RectTransform rtBan1 = bannerSec1.GetComponent<RectTransform>();
+        rtBan1.anchoredPosition = new Vector2(0f, -88f);
+        rtBan1.sizeDelta = new Vector2(474f, 36f);
+        bannerSec1.GetComponent<Image>().color = new Color(0.08f, 0.06f, 0.18f, 0.95f);
+
+        m_TextoTituloSecundario1 = CriarTexto(bannerSec1.transform, "Txt_Sec1", "MAPA 3: ESPECIAL DE NATAL", 13, FontStyles.Bold,
+            Vector2.zero, new Vector2(460f, 30f), Color.white);
+
+        Button btnSec1 = cardSec1.GetComponent<Button>();
+        btnSec1.onClick.AddListener(() => SelecionarMapaDireto(m_IndiceSecundario1));
+
+        // Card Secundário 2 (Baixo Direita)
+        GameObject cardSec2 = new GameObject("Card_Secundario_2", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        cardSec2.transform.SetParent(tela.transform, false);
+        RectTransform rtSec2 = cardSec2.GetComponent<RectTransform>();
+        rtSec2.anchoredPosition = new Vector2(400f, -85f);
+        rtSec2.sizeDelta = new Vector2(490f, 218f);
+
+        Image imgSec2 = cardSec2.GetComponent<Image>();
+        imgSec2.color = new Color(0.04f, 0.05f, 0.10f, 0.98f);
+        if (m_SpriteCardArredondado != null)
+        {
+            imgSec2.sprite = m_SpriteCardArredondado;
+            imgSec2.type = Image.Type.Sliced;
+        }
+
+        m_OutlineSecundario2 = cardSec2.AddComponent<Outline>();
+        m_OutlineSecundario2.effectColor = new Color(0.35f, 0.25f, 0.65f, 0.65f);
+        m_OutlineSecundario2.effectDistance = new Vector2(2f, -2f);
+
+        GameObject imgSec2GO = new GameObject("Preview_Secundario_2", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
+        imgSec2GO.transform.SetParent(cardSec2.transform, false);
+        RectTransform rtImgSec2 = imgSec2GO.GetComponent<RectTransform>();
+        rtImgSec2.anchoredPosition = new Vector2(0f, 18f);
+        rtImgSec2.sizeDelta = new Vector2(474f, 168f);
+        m_ImgPreviewSecundario2 = imgSec2GO.GetComponent<RawImage>();
+
+        GameObject bannerSec2 = new GameObject("Banner_Secundario_2", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        bannerSec2.transform.SetParent(cardSec2.transform, false);
+        RectTransform rtBan2 = bannerSec2.GetComponent<RectTransform>();
+        rtBan2.anchoredPosition = new Vector2(0f, -88f);
+        rtBan2.sizeDelta = new Vector2(474f, 36f);
+        bannerSec2.GetComponent<Image>().color = new Color(0.08f, 0.06f, 0.18f, 0.95f);
+
+        m_TextoTituloSecundario2 = CriarTexto(bannerSec2.transform, "Txt_Sec2", "MAPA 2: FLORESTA", 13, FontStyles.Bold,
+            Vector2.zero, new Vector2(460f, 30f), Color.white);
+
+        Button btnSec2 = cardSec2.GetComponent<Button>();
+        btnSec2.onClick.AddListener(() => SelecionarMapaDireto(m_IndiceSecundario2));
+
+        // -------------------------------------------------------------
+        // 4. BOTÕES INFERIORES DE AÇÃO & GUIA DE ATALHOS
+        // -------------------------------------------------------------
+        CriarBotao(tela.transform, "Btn_Voltar_EM", "◄ VOLTAR", 17, FontStyles.Bold,
+            new Vector2(-280f, -260f), new Vector2(260f, 50f),
+            new Color(0.40f, 0.12f, 0.18f), Color.white, () => DefinirEstadoTela(EstadoTelaHub.BoasVindas));
+
+        CriarBotao(tela.transform, "Btn_Confirmar_EM", "> ESCOLHER CÂMERA >", 19, FontStyles.Bold,
+            new Vector2(280f, -260f), new Vector2(380f, 50f),
+            new Color(0.0f, 0.55f, 0.85f), Color.white, AcaoConfirmarMapaEAvancar);
 
         CriarTexto(tela.transform, "Atalhos_EM",
-            "[◄ / ►] Mudar Mapa   •   [A / ENTER] Confirmar   •   [B / ESC] Voltar",
-            13, FontStyles.Italic, new Vector2(0f, -245f), new Vector2(800f, 25f), new Color(0.65f, 0.75f, 0.90f));
+            "[Clique / A / Gatilho] Selecionar Mapa   •   [◄ / ► / Analógico] Mudar Mapa   •   [Enter] Confirmar   •   [B / ESC] Voltar",
+            13, FontStyles.Italic, new Vector2(0f, -320f), new Vector2(1300f, 26f), new Color(0.65f, 0.75f, 0.90f));
     }
 
     // -------------------------------------------------------------------------

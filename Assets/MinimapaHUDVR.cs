@@ -100,12 +100,22 @@ public class MinimapaHUDVR : MonoBehaviour
                           !HubInicialAmbiente.Instancia.VitoriaAberta;
         }
 
+        // Oculta estritamente se a tela de Resultado Final estiver sendo exibida
+        if (PainelGrafoSemanticoProtege.Instancia != null && PainelGrafoSemanticoProtege.Instancia.ExibindoTelaFinal)
+        {
+            partidaAtiva = false;
+        }
+
         if (painelMinimapaRoot != null && painelMinimapaRoot.activeSelf != partidaAtiva)
         {
             painelMinimapaRoot.SetActive(partidaAtiva);
         }
 
-        if (!partidaAtiva) return;
+        if (!partidaAtiva)
+        {
+            EsconderWarning();
+            return;
+        }
 
         // 1. Atualiza a posição do Pac-Man no minimapa em tempo real
         if (playerTransform != null && iconePacMan != null)
@@ -266,7 +276,7 @@ public class MinimapaHUDVR : MonoBehaviour
         }
     }
 
-    private void EsconderWarning()
+    public void EsconderWarning()
     {
         if (textoWarning != null)
         {
@@ -294,6 +304,10 @@ public class MinimapaHUDVR : MonoBehaviour
         if (painelMinimapaRoot != null)
         {
             painelMinimapaRoot.SetActive(ativo);
+        }
+        if (!ativo)
+        {
+            EsconderWarning();
         }
     }
 

@@ -26,8 +26,8 @@ public class VinhetaDinamicaVR : MonoBehaviour
     public static VinhetaDinamicaVR Instancia { get; private set; }
 
     [Header("1. Configurações de Conforto VR")]
-    [Tooltip("Ativa a vinheta dinâmica durante giros da visão.")]
-    public bool habilitarVinheta = true;
+    [Tooltip("Desativada por padrao para evitar escurecimento/oscilacao ao girar a camera.")]
+    public bool habilitarVinheta = false;
 
     [Range(0.2f, 0.95f)]
     [Tooltip("Opacidade máxima da vinheta nos giros mais rápidos (recomendado Quest 3: 0.70).")]
@@ -40,7 +40,7 @@ public class VinhetaDinamicaVR : MonoBehaviour
     public float limiarGiroAngular = 12.0f;
 
     [Tooltip("Também fecha levemente a vinheta ao acelerar bruscamente para frente.")]
-    public bool ativarAoAcelerar = true;
+    public bool ativarAoAcelerar = false;
 
     private Camera m_CameraAlvo;
     private Canvas m_CanvasVinheta;
@@ -101,7 +101,19 @@ public class VinhetaDinamicaVR : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (!habilitarVinheta || m_ImagemVinheta == null) return;
+        if (m_ImagemVinheta == null) return;
+
+        // Desativa completamente fora do modo VR ou quando a vinheta estiver desabilitada, evitando escurecimento ao girar
+        if (!habilitarVinheta || Application.isEditor || !XRSettings.isDeviceActive)
+        {
+            m_AlphaAtual = 0f;
+            if (m_ImagemVinheta.gameObject.activeSelf)
+            {
+                m_ImagemVinheta.color = Color.clear;
+                m_ImagemVinheta.gameObject.SetActive(false);
+            }
+            return;
+        }
 
         LocalizarReferencias();
         if (m_CameraAlvo == null) return;

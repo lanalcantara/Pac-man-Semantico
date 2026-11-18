@@ -104,10 +104,21 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
             urpAsset.supportsHDR = true;
             urpAsset.colorGradingMode = ColorGradingMode.HighDynamicRange;
             urpAsset.colorGradingLutSize = 32;
+            urpAsset.shadowDistance = 80f;
+        }
+
+        // Desativa qualquer TunnelingVignetteController ou Vignette de Post-Processing
+        var vignettes = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < vignettes.Length; i++)
+        {
+            if (vignettes[i] != null && vignettes[i].GetType().Name.Contains("TunnelingVignette"))
+            {
+                vignettes[i].enabled = false;
+            }
         }
 
         // 4. Configuração de Céu e Câmeras:
-        // Identidade clássica do arcade: Fundo absoluto (Skybox preta profunda, #000000)
+        // Luz ambiente estável (Flat) para que nenhuma área fique totalmente escura ao girar a câmera
         var cenario = FindAnyObjectByType<GerenciadorCenarioSemantico>();
         bool ehTemaClassicoDiurno = (cenario != null && cenario.temaAtual == GerenciadorCenarioSemantico.TipoTemaLabirinto.ClassicoVerdeCinza);
 
@@ -122,12 +133,13 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
         }
         else
         {
+            Color luzAmbienteEstavel = new Color(0.30f, 0.36f, 0.50f, 1f);
             RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = Color.black;
-            RenderSettings.ambientSkyColor = Color.black;
-            RenderSettings.ambientEquatorColor = Color.black;
-            RenderSettings.ambientGroundColor = Color.black;
-            RenderSettings.ambientIntensity = 0f;
+            RenderSettings.ambientLight = luzAmbienteEstavel;
+            RenderSettings.ambientSkyColor = luzAmbienteEstavel;
+            RenderSettings.ambientEquatorColor = luzAmbienteEstavel;
+            RenderSettings.ambientGroundColor = luzAmbienteEstavel;
+            RenderSettings.ambientIntensity = 1.0f;
         }
 
         Color corCeu = ehTemaClassicoDiurno ? new Color(0.65f, 0.78f, 0.92f, 1f) : Color.black;
@@ -198,6 +210,11 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
         bloom.threshold.value = bloomThreshold;
         bloom.intensity.overrideState = true;
         bloom.intensity.value = bloomIntensity;
+
+        if (profile.TryGet<Vignette>(out Vignette vignette))
+        {
+            vignette.active = false;
+        }
         bloom.scatter.overrideState = true;
         bloom.scatter.value = bloomScatter;
         bloom.highQualityFiltering.overrideState = true;

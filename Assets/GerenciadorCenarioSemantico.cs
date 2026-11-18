@@ -1764,39 +1764,34 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     }
 
     /// <summary>
-    /// Anexa uma pequena Point Light sem sombras (para não afetar o Shadow Atlas no Quest 3)
-    /// aos objetos principais (Nodos Ontológicos e Fantasmas/Reasoner Agents), destacando-os sobre o chão Dark Grid.
+    /// Substitui Point Lights em tempo real por Material Emissivo uniforme 360°,
+    /// evitando culling de luzes do URP ao girar a câmera e melhorando o FPS no WebGL e Quest 3.
     /// </summary>
     public static Light AnexarLuzPontualDestaque(GameObject alvo, Color corLuz, float alcance = 2.4f, float intensidade = 1.2f)
     {
         if (alvo == null) return null;
 
-        Transform tExistente = alvo.transform.Find("Luz_Destaque_Grid");
-        GameObject luzObj;
-        if (tExistente != null)
+        // Remove/desativa qualquer Light pontual existente para impedir oscilação de iluminação no URP
+        Light[] luzesExistentes = alvo.GetComponentsInChildren<Light>(true);
+        for (int i = 0; i < luzesExistentes.Length; i++)
         {
-            luzObj = tExistente.gameObject;
-        }
-        else
-        {
-            luzObj = new GameObject("Luz_Destaque_Grid");
-            luzObj.transform.SetParent(alvo.transform, false);
-            luzObj.transform.localPosition = new Vector3(0f, 0.45f, 0f);
+            if (luzesExistentes[i] != null && luzesExistentes[i].type != LightType.Directional)
+            {
+                luzesExistentes[i].enabled = false;
+            }
         }
 
-        Light ptLight = luzObj.GetComponent<Light>();
-        if (ptLight == null)
+        // Aplica brilho emissivo uniforme diretamente no material do objeto
+        Renderer[] rends = alvo.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < rends.Length; i++)
         {
-            ptLight = luzObj.AddComponent<Light>();
+            if (rends[i] != null && rends[i].material != null && rends[i].material.HasProperty("_EmissionColor"))
+            {
+                rends[i].material.EnableKeyword("_EMISSION");
+                rends[i].material.SetColor("_EmissionColor", new Color(corLuz.r, corLuz.g, corLuz.b, 1f) * 0.85f);
+            }
         }
-
-        ptLight.type = LightType.Point;
-        ptLight.color = new Color(corLuz.r, corLuz.g, corLuz.b, 1f);
-        ptLight.range = alcance;
-        ptLight.intensity = intensidade;
-        ptLight.shadows = LightShadows.None; // Essencial: sem sombra para manter 0 erros de Shadow Atlas no URP
-        ptLight.renderMode = LightRenderMode.Auto;
-        return ptLight;
+        return null;
     }
 
     /// <summary>
@@ -2516,6 +2511,11 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             dirLight = dlObj.AddComponent<Light>();
             dirLight.type = LightType.Directional;
         }
+        // Garante que a Directional Light esteja estritamente na raiz da cena (nunca filha da Câmera ou Jogador)
+        if (dirLight.transform.parent != null)
+        {
+            dirLight.transform.SetParent(null, true);
+        }
         return dirLight;
     }
 
@@ -2524,20 +2524,21 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         Light dirLight = ObterOuCriarLuzDirecional();
         if (dirLight != null)
         {
-            dirLight.intensity = 0.55f;
-            dirLight.color = new Color(0.85f, 0.90f, 1.0f, 1f);
-            dirLight.shadows = LightShadows.None; // Zero custo de draw call/shadow map no Quest 3
-            dirLight.transform.rotation = Quaternion.Euler(45f, 40f, 0f);
+            dirLight.intensity = 0.85f;
+            dirLight.color = new Color(0.92f, 0.95f, 1.0f, 1f);
+            dirLight.shadows = LightShadows.None; // Zero oscilação de sombra ao girar a câmera
+            dirLight.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
         }
 
-        // Fundo absoluto (Skybox preta profunda, #000000)
+        // Fundo absoluto (Skybox preta profunda, #000000) com luz ambiente estável
+        Color luzAmbienteEstavel = new Color(0.30f, 0.36f, 0.50f, 1f);
         RenderSettings.skybox = null;
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientLight = Color.black;
-        RenderSettings.ambientSkyColor = Color.black;
-        RenderSettings.ambientEquatorColor = Color.black;
-        RenderSettings.ambientGroundColor = Color.black;
-        RenderSettings.ambientIntensity = 0f;
+        RenderSettings.ambientLight = luzAmbienteEstavel;
+        RenderSettings.ambientSkyColor = luzAmbienteEstavel;
+        RenderSettings.ambientEquatorColor = luzAmbienteEstavel;
+        RenderSettings.ambientGroundColor = luzAmbienteEstavel;
+        RenderSettings.ambientIntensity = 1.0f;
 
         Color corCeuDark = Color.black; // #000000
         Camera[] todasCameras = FindObjectsByType<Camera>();
@@ -4057,8 +4058,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         if (rend != null)
         {
             rend.material = matRegiao;
-            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
-            rend.receiveShadows = true;
+            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rend.receiveShadows = false;
         }
 
         parede.isStatic = true;

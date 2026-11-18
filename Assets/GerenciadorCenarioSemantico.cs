@@ -897,21 +897,11 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                         gema.raioCaptura = 0.38f;
                     }
 
-                    // Otimização VR 90 FPS: mantém luz dinâmica apenas nas Triplas de Poder; as demais usam emissão pura URP
-                    var luz = objInstanciado.GetComponentInChildren<Light>();
+                    // Iluminação uniforme 360° via Material Emissivo (sem Point Lights dinâmicas para evitar culling no URP)
+                    var luz = objInstanciado.GetComponentInChildren<Light>(true);
                     if (luz != null)
                     {
-                        if (ehTriplaDePoder)
-                        {
-                            luz.enabled = true;
-                            luz.color = new Color(1.0f, 0.85f, 0.0f);
-                            luz.intensity = 3.2f;
-                            luz.range = 4.0f;
-                        }
-                        else
-                        {
-                            luz.enabled = false;
-                        }
+                        luz.enabled = false;
                     }
 
                     if (ehTriplaDePoder)
@@ -919,7 +909,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                         var rend = objInstanciado.GetComponentInChildren<Renderer>();
                         if (rend != null)
                         {
-                            rend.material = CriarMaterialTranslúcidoNodo(new Color(1.0f, 0.82f, 0.0f, 1.0f), 0.92f);
+                            rend.material = CriarMaterialTranslúcidoNodo(new Color(1.0f, 0.85f, 0.0f, 1.0f), 0.96f);
                         }
                     }
 

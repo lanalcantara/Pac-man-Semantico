@@ -76,6 +76,16 @@ public class PainelInventarioABoxVR : MonoBehaviour
     private readonly List<EntradaTriplaABox> m_HistoricoTriplas = new List<EntradaTriplaABox>();
     private const int MAX_CARDS_EXIBIDOS = 4;
 
+    public IReadOnlyList<EntradaTriplaABox> HistoricoTriplas => m_HistoricoTriplas;
+
+    public void DefinirVisibilidadePainel(bool visivel)
+    {
+        if (m_PainelRaiz != null && m_PainelRaiz.activeSelf != visivel)
+        {
+            m_PainelRaiz.SetActive(visivel);
+        }
+    }
+
     private ControladorXRJogador m_ControladorJogador;
     private float m_TimerFlashCardRecente = 0f;
 

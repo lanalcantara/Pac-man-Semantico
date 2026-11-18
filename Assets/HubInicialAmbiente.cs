@@ -626,6 +626,7 @@ public class HubInicialAmbiente : MonoBehaviour
 
     public void AcaoIrParaMenuPrincipal()
     {
+        Time.timeScale = 1.0f;
         partidaEmAndamento = false;
 
         if (m_PainelJanelaGameOver != null) m_PainelJanelaGameOver.SetActive(false);
@@ -713,6 +714,7 @@ public class HubInicialAmbiente : MonoBehaviour
     /// </summary>
     public void AcaoPlayIniciarPartida()
     {
+        Time.timeScale = 1.0f;
         StartCoroutine(RotinaContagemRegressivaEInicio());
     }
 

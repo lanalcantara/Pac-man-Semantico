@@ -296,6 +296,35 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
 
     public int TotalTriplasMissao => m_TotalOrbesSequencia > 0 ? m_TotalOrbesSequencia : 38;
 
+    public List<string> ObterClassesTriplasFaltantes()
+    {
+        var faltantes = new List<string>();
+        if (m_FilaNodosOrbes == null) return faltantes;
+
+        for (int i = 0; i < m_FilaNodosOrbes.Count; i++)
+        {
+            var n = m_FilaNodosOrbes[i];
+            if (n == null) continue;
+            bool coletada = false;
+            if (n.GameObjectInstance != null)
+            {
+                var gema = n.GameObjectInstance.GetComponent<GemaValidaSemantica>();
+                if (gema != null && gema.Coletada) coletada = true;
+            }
+            else if (i < m_IndiceOrbeAtual)
+            {
+                coletada = true;
+            }
+
+            if (!coletada)
+            {
+                string classe = string.IsNullOrEmpty(n.ConceptClass) ? n.Label : n.ConceptClass;
+                faltantes.Add($"#{i + 1:D2} {InstanciaSemanticaBase.FormatarNomeClasse(classe)} ({n.Id})");
+            }
+        }
+        return faltantes;
+    }
+
     // Coleções ativas do labirinto
     private readonly List<IInstanciaSemantica> m_InstanciasSemanticas = new List<IInstanciaSemantica>();
     private readonly List<GameObject> m_ObjetosInstanciados = new List<GameObject>();

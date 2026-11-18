@@ -80,11 +80,12 @@ public class HUDGameplayPeriferico : MonoBehaviour
         if (!exibirHUD || m_PainelRaiz == null) return;
 
         // Oculta durante o Menu Hub aberto, partida não iniciada ou telas finais de Vitória/GameOver
-        if (HubInicialAmbiente.Instancia != null &&
+        bool telaFinalAberta = PainelGrafoSemanticoProtege.Instancia != null && PainelGrafoSemanticoProtege.Instancia.ExibindoTelaFinal;
+        if (telaFinalAberta || (HubInicialAmbiente.Instancia != null &&
             (HubInicialAmbiente.Instancia.hubAberto ||
              HubInicialAmbiente.Instancia.GameOverAberto ||
              HubInicialAmbiente.Instancia.VitoriaAberta ||
-             !HubInicialAmbiente.Instancia.partidaEmAndamento))
+             !HubInicialAmbiente.Instancia.partidaEmAndamento)))
         {
             if (m_PainelRaiz.activeSelf) m_PainelRaiz.SetActive(false);
             return;

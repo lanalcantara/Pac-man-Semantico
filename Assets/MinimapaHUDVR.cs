@@ -32,10 +32,10 @@ public class MinimapaHUDVR : MonoBehaviour
     [Header("Configurações do Labirinto (Mundo para UI)")]
     public Transform playerTransform;     // Referência ao XR Origin / Pac-Man no mundo 3D
     public Transform orbeAtualTransform;  // Referência à orbe ativa na cena
-    public float mundoMinX = -10.5f;
-    public float mundoMaxX = 10.5f;
-    public float mundoMinZ = -10.5f;
-    public float mundoMaxZ = 10.5f;
+    public float mundoMinX = -13.5f;
+    public float mundoMaxX = 13.5f;
+    public float mundoMinZ = -13.5f;
+    public float mundoMaxZ = 13.5f;
     public float mapaUIRadius = 75f;      // Raio máximo em pixels dentro do HUD circular
 
     [Header("Ergonomia VR & Acompanhamento Suave")]
@@ -49,6 +49,11 @@ public class MinimapaHUDVR : MonoBehaviour
     private Camera m_CameraPrincipal;
     private float m_PulsoOrbeTimer = 0f;
     private static Texture2D s_TexGridRadarCircular;
+
+    // Marcadores de Todas as Triplas Restantes no Mapa
+    private readonly List<Image> m_MarcadoresTriplas = new List<Image>();
+    private RectTransform m_ContainerMarcadores;
+    private RectTransform m_SetaBorda;
 
     private void Awake()
     {
@@ -97,7 +102,8 @@ public class MinimapaHUDVR : MonoBehaviour
             partidaAtiva = HubInicialAmbiente.Instancia.partidaEmAndamento &&
                           !HubInicialAmbiente.Instancia.hubAberto &&
                           !HubInicialAmbiente.Instancia.GameOverAberto &&
-                          !HubInicialAmbiente.Instancia.VitoriaAberta;
+                          !HubInicialAmbiente.Instancia.VitoriaAberta &&
+                          !HubInicialAmbiente.Instancia.JogoPausado;
         }
 
         // Oculta estritamente se a tela de Resultado Final estiver sendo exibida
@@ -118,34 +124,123 @@ public class MinimapaHUDVR : MonoBehaviour
         }
 
         // 1. Atualiza a posição do Pac-Man no minimapa em tempo real
+        Vector2 posicaoNormalizadaPac = Vector2.zero;
         if (playerTransform != null && iconePacMan != null)
         {
-            Vector2 posicaoNormalizada = NormalizarCoordenadas(playerTransform.position.x, playerTransform.position.z);
-            iconePacMan.anchoredPosition = posicaoNormalizada * mapaUIRadius;
+            posicaoNormalizadaPac = NormalizarCoordenadas(playerTransform.position.x, playerTransform.position.z);
+            iconePacMan.anchoredPosition = posicaoNormalizadaPac * mapaUIRadius;
 
-            // Rotaciona o ícone com base na rotação da câmera ou corpo do jogador
             float yRot = (m_CameraPrincipal != null) ? m_CameraPrincipal.transform.eulerAngles.y : playerTransform.eulerAngles.y;
             iconePacMan.rotation = Quaternion.Euler(0, 0, -yRot);
         }
 
-        // 2. Atualiza a posição da Orbe Alvo no minimapa
-        if (orbeAtualTransform != null && iconeOrbeAlvo != null)
+        // 2. Rastreia e renderiza TODAS as Triplas RDF ativas na cena (Fim do problema 37/38)
+        var todasGemas = FindObjectsByType<GemaValidaSemantica>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        int ativasCount = 0;
+        Transform gemaMaisProxima = null;
+        float menorDistSqr = float.MaxValue;
+        Vector3 posPac = playerTransform != null ? playerTransform.position : Vector3.zero;
+
+        for (int i = 0; i < todasGemas.Length; i++)
+        {
+            var g = todasGemas[i];
+            if (g == null || !g.gameObject.activeInHierarchy || g.Coletada) continue;
+            var col = g.GetComponent<Collider>();
+            if (col != null && !col.enabled) continue;
+
+            ativasCount++;
+            float d = (g.transform.position - posPac).sqrMagnitude;
+            if (d < menorDistSqr)
+            {
+                menorDistSqr = d;
+                gemaMaisProxima = g.transform;
+            }
+        }
+
+        orbeAtualTransform = gemaMaisProxima;
+
+        // Pulso de destaque: Se restarem 3 ou menos triplas, pulsa em alerta âmbar/ciano
+        bool modoPulsarDestaque = ativasCount <= 3 && ativasCount > 0;
+        m_PulsoOrbeTimer += Time.deltaTime * (modoPulsarDestaque ? 9.0f : 4.5f);
+        float tPulso = (Mathf.Sin(m_PulsoOrbeTimer) + 1.0f) * 0.5f;
+        Color corDestaque = Color.Lerp(new Color(0.0f, 1.0f, 1.0f, 1f), new Color(1.0f, 0.85f, 0.05f, 1f), tPulso);
+        float escalaPulso = Mathf.Lerp(1.0f, 1.8f, tPulso);
+
+        int idxMarcador = 0;
+        for (int i = 0; i < todasGemas.Length; i++)
+        {
+            var g = todasGemas[i];
+            if (g == null || !g.gameObject.activeInHierarchy || g.Coletada) continue;
+            var col = g.GetComponent<Collider>();
+            if (col != null && !col.enabled) continue;
+
+            if (idxMarcador >= m_MarcadoresTriplas.Count)
+            {
+                CriarMarcadorTriplaNoPool(m_ContainerMarcadores != null ? m_ContainerMarcadores : painelMinimapaRoot.transform);
+            }
+
+            var imgM = m_MarcadoresTriplas[idxMarcador];
+            var rtM = imgM.rectTransform;
+            if (!imgM.gameObject.activeSelf) imgM.gameObject.SetActive(true);
+
+            Vector2 posNorm = NormalizarCoordenadas(g.transform.position.x, g.transform.position.z);
+            Vector2 posRadar = Vector2.ClampMagnitude(posNorm, 0.95f) * mapaUIRadius;
+            rtM.anchoredPosition = posRadar;
+
+            bool ehFoco = (g.transform == gemaMaisProxima) || modoPulsarDestaque;
+            if (ehFoco)
+            {
+                imgM.color = corDestaque;
+                rtM.sizeDelta = new Vector2(8f * escalaPulso, 8f * escalaPulso);
+            }
+            else
+            {
+                imgM.color = new Color(0.0f, 0.92f, 1.0f, 0.85f);
+                rtM.sizeDelta = new Vector2(6f, 6f);
+            }
+
+            idxMarcador++;
+        }
+
+        // Desativa marcadores não utilizados
+        for (int i = idxMarcador; i < m_MarcadoresTriplas.Count; i++)
+        {
+            if (m_MarcadoresTriplas[i].gameObject.activeSelf)
+                m_MarcadoresTriplas[i].gameObject.SetActive(false);
+        }
+
+        // 3. Atualiza Ícone Alvo e Seta Direcional da Borda para a Tripla mais próxima
+        if (gemaMaisProxima != null && iconeOrbeAlvo != null)
         {
             if (!iconeOrbeAlvo.gameObject.activeSelf) iconeOrbeAlvo.gameObject.SetActive(true);
-            Vector2 posOrbeNorm = NormalizarCoordenadas(orbeAtualTransform.position.x, orbeAtualTransform.position.z);
-            iconeOrbeAlvo.anchoredPosition = posOrbeNorm * mapaUIRadius;
-
-            // Efeito visual pulsante no ícone da orbe alvo
-            m_PulsoOrbeTimer += Time.deltaTime * 5.0f;
-            float escalaPulso = 1.0f + Mathf.Sin(m_PulsoOrbeTimer) * 0.25f;
+            Vector2 posOrbeNorm = NormalizarCoordenadas(gemaMaisProxima.position.x, gemaMaisProxima.position.z);
+            Vector2 posRadarAlvo = posOrbeNorm * mapaUIRadius;
+            iconeOrbeAlvo.anchoredPosition = Vector2.ClampMagnitude(posRadarAlvo, mapaUIRadius * 0.92f);
             iconeOrbeAlvo.localScale = new Vector3(escalaPulso, escalaPulso, 1f);
+            iconeOrbeAlvo.GetComponent<Image>().color = modoPulsarDestaque ? corDestaque : new Color(0.0f, 1.0f, 1.0f, 1f);
+
+            // Seta direcional na borda do radar apontando na direção da tripla alvo
+            if (m_SetaBorda != null)
+            {
+                Vector2 dirParaOrbe = posOrbeNorm - posicaoNormalizadaPac;
+                if (dirParaOrbe.sqrMagnitude > 0.001f)
+                {
+                    dirParaOrbe.Normalize();
+                    if (!m_SetaBorda.gameObject.activeSelf) m_SetaBorda.gameObject.SetActive(true);
+                    m_SetaBorda.anchoredPosition = dirParaOrbe * (mapaUIRadius * 0.96f);
+                    float ang = Mathf.Atan2(dirParaOrbe.y, dirParaOrbe.x) * Mathf.Rad2Deg - 90f;
+                    m_SetaBorda.rotation = Quaternion.Euler(0f, 0f, ang);
+                    m_SetaBorda.GetComponent<Image>().color = modoPulsarDestaque ? corDestaque : new Color(1.0f, 0.85f, 0.05f, 1f);
+                }
+            }
         }
-        else if (iconeOrbeAlvo != null && iconeOrbeAlvo.gameObject.activeSelf)
+        else
         {
-            iconeOrbeAlvo.gameObject.SetActive(false);
+            if (iconeOrbeAlvo != null && iconeOrbeAlvo.gameObject.activeSelf) iconeOrbeAlvo.gameObject.SetActive(false);
+            if (m_SetaBorda != null && m_SetaBorda.gameObject.activeSelf) m_SetaBorda.gameObject.SetActive(false);
         }
 
-        // 3. Controla o tempo de sumir o aviso de captura (Warning)
+        // 4. Controla o tempo de sumir o aviso de captura (Warning)
         if (warningTimer > 0)
         {
             warningTimer -= Time.deltaTime;
@@ -440,6 +535,33 @@ public class MinimapaHUDVR : MonoBehaviour
         rawGrid.texture = ObterTexturaGridRadarCircular();
         rawGrid.color = new Color(0.0f, 1.0f, 1.0f, 0.25f);
 
+        // Container de Marcadores de TODAS as Triplas RDF no Radar
+        GameObject containerMarcadoresObj = new GameObject("Container_Marcadores_Triplas", typeof(RectTransform));
+        containerMarcadoresObj.transform.SetParent(bgObj.transform, false);
+        m_ContainerMarcadores = containerMarcadoresObj.GetComponent<RectTransform>();
+        m_ContainerMarcadores.anchorMin = new Vector2(0.5f, 0.5f);
+        m_ContainerMarcadores.anchorMax = new Vector2(0.5f, 0.5f);
+        m_ContainerMarcadores.pivot = new Vector2(0.5f, 0.5f);
+        m_ContainerMarcadores.sizeDelta = Vector2.zero;
+        m_ContainerMarcadores.anchoredPosition = Vector2.zero;
+
+        // Pré-popula o pool de marcadores para as 38+ triplas
+        for (int i = 0; i < 45; i++)
+        {
+            CriarMarcadorTriplaNoPool(m_ContainerMarcadores);
+        }
+
+        // Seta direcional na borda do radar apontando para a tripla mais próxima
+        GameObject setaObj = new GameObject("Seta_Direcional_Borda", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        setaObj.transform.SetParent(bgObj.transform, false);
+        m_SetaBorda = setaObj.GetComponent<RectTransform>();
+        m_SetaBorda.sizeDelta = new Vector2(14f, 14f);
+        m_SetaBorda.anchoredPosition = Vector2.zero;
+        Image imgSeta = setaObj.GetComponent<Image>();
+        imgSeta.color = new Color(1.0f, 0.85f, 0.05f, 1f);
+        imgSeta.sprite = CriarSpriteTrianguloDirecao();
+        setaObj.SetActive(false);
+
         // 4. Ícone da Orbe Alvo (Losango pulsante ciano)
         GameObject orbeObj = new GameObject("Icone_Orbe_Alvo", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         orbeObj.transform.SetParent(bgObj.transform, false);
@@ -517,6 +639,25 @@ public class MinimapaHUDVR : MonoBehaviour
         textoWarning.overflowMode = TextOverflowModes.Truncate;
 
         m_BannerWarningRoot.SetActive(false);
+    }
+
+    private Image CriarMarcadorTriplaNoPool(Transform pai)
+    {
+        GameObject dotObj = new GameObject($"Dot_Tripla_{m_MarcadoresTriplas.Count}", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        dotObj.transform.SetParent(pai, false);
+        RectTransform rt = dotObj.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(6f, 6f);
+        rt.anchorMin = new Vector2(0.5f, 0.5f);
+        rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+
+        Image img = dotObj.GetComponent<Image>();
+        img.color = new Color(0.0f, 0.92f, 1.0f, 0.85f);
+        img.sprite = CriarSpriteCircularSuave();
+        dotObj.SetActive(false);
+
+        m_MarcadoresTriplas.Add(img);
+        return img;
     }
 
     private static Sprite CriarSpriteCircularSuave()

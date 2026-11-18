@@ -267,7 +267,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     private int m_TotalOrbesSequencia = 12;
     private GameObject m_OrbeAtivaAtual = null;
 
-    // Coordenadas verificadas de corredores navegáveis do labirinto clássico
+    // Coordenadas verificadas de corredores navegáveis do labirinto clássico (Livres de Colisão com Paredes/Árvores)
     public static readonly Vector2[] s_CorredoresLabirinto = new Vector2[]
     {
         // Corredor Horizontal Norte (Z = 4.0) - 7 pontos
@@ -278,13 +278,13 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         new Vector2(-9.0f, -4.0f), new Vector2(-6.0f, -4.0f), new Vector2(-3.0f, -4.0f),
         new Vector2(3.0f, -4.0f),  new Vector2(6.0f, -4.0f),  new Vector2(9.0f, -4.0f),
 
-        // Corredor Vertical Interno Oeste (X = -4.5) - 7 pontos
-        new Vector2(-4.5f, -9.5f), new Vector2(-4.5f, -6.5f), new Vector2(-4.5f, -2.0f),
-        new Vector2(-4.5f, 0.0f),  new Vector2(-4.5f, 2.0f),  new Vector2(-4.5f, 6.5f),  new Vector2(-4.5f, 9.5f),
+        // Corredor Vertical Interno Oeste (X = -4.5 / -5.8) - 7 pontos
+        new Vector2(-4.5f, -9.5f), new Vector2(-4.5f, -7.5f), new Vector2(-4.5f, -2.0f),
+        new Vector2(-5.8f, 0.0f),  new Vector2(-4.5f, 2.0f),  new Vector2(-4.5f, 7.5f),  new Vector2(-4.5f, 9.5f),
 
-        // Corredor Vertical Interno Leste (X = 4.5) - 7 pontos
-        new Vector2(4.5f, -9.5f), new Vector2(4.5f, -6.5f), new Vector2(4.5f, -2.0f),
-        new Vector2(4.5f, 0.0f),  new Vector2(4.5f, 2.0f),  new Vector2(4.5f, 6.5f),  new Vector2(4.5f, 9.5f),
+        // Corredor Vertical Interno Leste (X = 4.5 / 5.8) - 7 pontos
+        new Vector2(4.5f, -9.5f), new Vector2(4.5f, -7.5f), new Vector2(4.5f, -2.0f),
+        new Vector2(5.8f, 0.0f),  new Vector2(4.5f, 2.0f),  new Vector2(4.5f, 7.5f),  new Vector2(4.5f, 9.5f),
 
         // Corredores Perimetrais Norte e Sul (Z = 11.2 e Z = -11.2) - 8 pontos
         new Vector2(-9.5f, 11.2f), new Vector2(-4.5f, 11.2f), new Vector2(0.0f, 11.2f), new Vector2(4.5f, 11.2f), new Vector2(9.5f, 11.2f),
@@ -819,6 +819,67 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     }
 
     /// <summary>
+    /// Validação estrita de Spawn Seguro: Garante que nenhuma Tripla RDF nasça dentro de paredes,
+    /// árvores de Natal ou obstáculos inacessíveis, testando colisão física e superfície navegável.
+    /// </summary>
+    public static Vector3 ValidarPosicaoSpawnSegura(Vector3 posOriginal)
+    {
+        // 1. Tenta amostrar no NavMesh pré-calculado
+        if (UnityEngine.AI.NavMesh.SamplePosition(posOriginal, out var hit, 1.8f, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            Vector3 posCandidata = new Vector3(hit.position.x, 0.42f, hit.position.z);
+            if (!ExisteColisorBloqueante(posCandidata, 0.38f))
+            {
+                return posCandidata;
+            }
+        }
+
+        // 2. Se a posição original colidir com obstáculo/parede/árvore, busca o ponto livre mais próximo
+        if (!ExisteColisorBloqueante(posOriginal, 0.38f))
+        {
+            return posOriginal;
+        }
+
+        // Teste de 8 direções radiais em anel
+        Vector3[] direcoes = new Vector3[]
+        {
+            Vector3.forward, Vector3.back, Vector3.left, Vector3.right,
+            new Vector3(1f, 0f, 1f).normalized, new Vector3(-1f, 0f, 1f).normalized,
+            new Vector3(1f, 0f, -1f).normalized, new Vector3(-1f, 0f, -1f).normalized
+        };
+
+        for (float r = 0.5f; r <= 2.5f; r += 0.5f)
+        {
+            for (int d = 0; d < direcoes.Length; d++)
+            {
+                Vector3 teste = posOriginal + direcoes[d] * r;
+                teste.y = 0.42f;
+                if (!ExisteColisorBloqueante(teste, 0.35f))
+                {
+                    return teste;
+                }
+            }
+        }
+
+        return posOriginal;
+    }
+
+    private static bool ExisteColisorBloqueante(Vector3 pos, float raio)
+    {
+        var cols = Physics.OverlapSphere(pos, raio);
+        for (int i = 0; i < cols.Length; i++)
+        {
+            var c = cols[i];
+            if (c == null || c.isTrigger) continue;
+            string nome = c.gameObject.name.ToLower();
+            if (nome.Contains("chao") || nome.Contains("piso") || nome.Contains("plane") || nome.Contains("terrain"))
+                continue;
+            return true; // Encontrou parede, árvore ou obstáculo sólido
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Distribui todas as 38 Triplas RDF pelos corredores do labirinto em wireframe simultaneamente,
     /// ou atualiza o radar para apontar para a Tripla RDF ativa mais próxima do pesquisador.
     /// </summary>
@@ -865,7 +926,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 Node node = m_FilaNodosOrbes[i];
                 bool ehTriplaDePoder = ((i + 1) % 7 == 0);
                 Vector2 coordCorredor = s_CorredoresLabirinto[i % s_CorredoresLabirinto.Length];
-                Vector3 posSpawn = new Vector3(coordCorredor.x, 0.42f, coordCorredor.y);
+                Vector3 posBruta = new Vector3(coordCorredor.x, 0.42f, coordCorredor.y);
+                Vector3 posSpawn = ValidarPosicaoSpawnSegura(posBruta);
 
                 DadoInstanciaSemantica dado = new DadoInstanciaSemantica
                 {
@@ -894,7 +956,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                         gema.ehOrbeDePoder = ehTriplaDePoder;
                         gema.indiceOrbe = i + 1;
                         gema.totalOrbes = m_TotalOrbesSequencia;
-                        gema.raioCaptura = 0.38f;
+                        gema.raioCaptura = 0.65f;
                     }
 
                     // Iluminação uniforme 360° via Material Emissivo (sem Point Lights dinâmicas para evitar culling no URP)

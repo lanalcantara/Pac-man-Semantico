@@ -452,6 +452,7 @@ public class ControladorXRJogador : MonoBehaviour
                           (HubInicialAmbiente.Instancia.hubAberto ||
                            HubInicialAmbiente.Instancia.GameOverAberto ||
                            HubInicialAmbiente.Instancia.VitoriaAberta ||
+                           HubInicialAmbiente.Instancia.JogoPausado ||
                            !HubInicialAmbiente.Instancia.partidaEmAndamento);
 
         if (menuAberto)
@@ -466,23 +467,7 @@ public class ControladorXRJogador : MonoBehaviour
 
         if (travarCursorAoClicar)
         {
-            bool escPressed = Input.GetKeyDown(KeyCode.Escape) ||
-                              (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame);
-
-            if (escPressed)
-            {
-                if (Cursor.lockState == CursorLockMode.Locked)
-                {
-                    Cursor.lockState = CursorLockMode.None;
-                    Cursor.visible = true;
-                }
-                else
-                {
-                    Cursor.lockState = CursorLockMode.Locked;
-                    Cursor.visible = false;
-                }
-            }
-            else if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
+            if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
             {
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;

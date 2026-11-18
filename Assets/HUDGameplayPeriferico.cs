@@ -79,12 +79,13 @@ public class HUDGameplayPeriferico : MonoBehaviour
     {
         if (!exibirHUD || m_PainelRaiz == null) return;
 
-        // Oculta durante o Menu Hub aberto, partida não iniciada ou telas finais de Vitória/GameOver
+        // Oculta durante o Menu Hub aberto, partida não iniciada, pausa ou telas finais de Vitória/GameOver
         bool telaFinalAberta = PainelGrafoSemanticoProtege.Instancia != null && PainelGrafoSemanticoProtege.Instancia.ExibindoTelaFinal;
         if (telaFinalAberta || (HubInicialAmbiente.Instancia != null &&
             (HubInicialAmbiente.Instancia.hubAberto ||
              HubInicialAmbiente.Instancia.GameOverAberto ||
              HubInicialAmbiente.Instancia.VitoriaAberta ||
+             HubInicialAmbiente.Instancia.JogoPausado ||
              !HubInicialAmbiente.Instancia.partidaEmAndamento)))
         {
             if (m_PainelRaiz.activeSelf) m_PainelRaiz.SetActive(false);
@@ -355,6 +356,13 @@ public class HUDGameplayPeriferico : MonoBehaviour
             13, FontStyles.Bold,
             new Vector2(15f, -14f), new Vector2(290f, 22f),
             new Color(0.0f, 0.95f, 1.0f), TextAlignmentOptions.Left);
+
+        // Dica discreta de pausa no canto direito do cabeçalho
+        CriarTexto(painel.transform, "Txt_DicaPausa",
+            "<size=10><color=#00FFFF>[P / ESC]</color> <color=#88AAFF>Pausar</color></size>",
+            10, FontStyles.Normal,
+            new Vector2(15f, -14f), new Vector2(290f, 22f),
+            Color.white, TextAlignmentOptions.Right);
 
         // Divisor decorativo
         GameObject divisor = new GameObject("Divisor_HUD", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));

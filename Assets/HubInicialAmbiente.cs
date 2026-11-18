@@ -60,6 +60,11 @@ public class HubInicialAmbiente : MonoBehaviour
     private GameObject m_PainelJanelaHub;
     private GameObject m_PainelJanelaGameOver;
     private GameObject m_PainelJanelaVitoria;
+    private GameObject m_PainelJanelaPausa;
+    private TMP_Text m_TextoProgressoPausa;
+    private Button m_BtnPausaContinuar;
+    private Button m_BtnPausaReiniciar;
+    private Button m_BtnPausaMenu;
 
     // Sub-painéis de fluxo
     private GameObject m_PainelSelecaoOntologia;
@@ -143,6 +148,7 @@ public class HubInicialAmbiente : MonoBehaviour
     public bool GameOverAberto => m_PainelJanelaGameOver != null && m_PainelJanelaGameOver.activeSelf;
     public bool VitoriaAberta => m_PainelJanelaVitoria != null && m_PainelJanelaVitoria.activeSelf;
     public bool ContagemAtiva => m_PainelContagemRegressiva != null && m_PainelContagemRegressiva.activeSelf;
+    public bool JogoPausado => m_PainelJanelaPausa != null && m_PainelJanelaPausa.activeSelf;
 
     // Texturas em cache
     private Texture2D m_TexMapaNeon;
@@ -212,6 +218,7 @@ public class HubInicialAmbiente : MonoBehaviour
         if (m_CanvasHub == null) return;
 
         bool menuVisivel = hubAberto ||
+                           JogoPausado ||
                            (m_PainelJanelaGameOver != null && m_PainelJanelaGameOver.activeSelf) ||
                            (m_PainelJanelaVitoria != null && m_PainelJanelaVitoria.activeSelf) ||
                            (m_PainelContagemRegressiva != null && m_PainelContagemRegressiva.activeSelf);
@@ -538,13 +545,57 @@ public class HubInicialAmbiente : MonoBehaviour
             }
         }
 
-        // 3. Atalho do Botão SELECT / BACK / MENU durante gameplay ativo -> Volta ao Menu Principal
-        if (partidaEmAndamento && !hubAberto)
+        // 3. Atalho de Pausa (P / ESC / Botão Menu no VR) durante gameplay ativo
+        bool telaFinalAberta = PainelGrafoSemanticoProtege.Instancia != null && PainelGrafoSemanticoProtege.Instancia.ExibindoTelaFinal;
+        bool botaoPausar = Input.GetKeyDown(KeyCode.P) || Input.GetKeyDown(KeyCode.Escape) || botaoSelectMenu;
+#if ENABLE_INPUT_SYSTEM
+        if (UnityEngine.InputSystem.Keyboard.current != null)
         {
-            if (botaoSelectMenu)
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb.pKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
+                botaoPausar = true;
+        }
+#endif
+
+        if (partidaEmAndamento && !hubAberto && !GameOverAberto && !VitoriaAberta && !telaFinalAberta)
+        {
+            if (JogoPausado)
             {
-                AcaoIrParaMenuPrincipal();
-                return;
+                // Comandos enquanto o jogo está pausado
+                if (botaoPausar || botaoCancelar)
+                {
+                    AcaoContinuarPausa();
+                    return;
+                }
+
+                bool teclaR = Input.GetKeyDown(KeyCode.R);
+                bool teclaM = Input.GetKeyDown(KeyCode.M);
+#if ENABLE_INPUT_SYSTEM
+                if (UnityEngine.InputSystem.Keyboard.current != null)
+                {
+                    var kb = UnityEngine.InputSystem.Keyboard.current;
+                    if (kb.rKey.wasPressedThisFrame) teclaR = true;
+                    if (kb.mKey.wasPressedThisFrame) teclaM = true;
+                }
+#endif
+                if (teclaR)
+                {
+                    AcaoReiniciarPartidaPausa();
+                    return;
+                }
+                if (teclaM)
+                {
+                    AcaoMenuPrincipalPausa();
+                    return;
+                }
+            }
+            else
+            {
+                if (botaoPausar)
+                {
+                    PausarPartida();
+                    return;
+                }
             }
         }
 
@@ -794,8 +845,10 @@ public class HubInicialAmbiente : MonoBehaviour
     public void AcaoIrParaMenuPrincipal()
     {
         Time.timeScale = 1.0f;
+        AudioListener.pause = false;
         partidaEmAndamento = false;
 
+        if (m_PainelJanelaPausa != null) m_PainelJanelaPausa.SetActive(false);
         if (m_PainelJanelaGameOver != null) m_PainelJanelaGameOver.SetActive(false);
         if (m_PainelJanelaVitoria != null) m_PainelJanelaVitoria.SetActive(false);
         if (m_PainelContagemRegressiva != null) m_PainelContagemRegressiva.SetActive(false);
@@ -882,6 +935,8 @@ public class HubInicialAmbiente : MonoBehaviour
     public void AcaoPlayIniciarPartida()
     {
         Time.timeScale = 1.0f;
+        AudioListener.pause = false;
+        if (m_PainelJanelaPausa != null) m_PainelJanelaPausa.SetActive(false);
         StartCoroutine(RotinaContagemRegressivaEInicio());
     }
 
@@ -1379,6 +1434,9 @@ public class HubInicialAmbiente : MonoBehaviour
         ConstruirTelaEscolhaMapa(janela.transform);
         ConstruirTelaEscolhaCamera(janela.transform);
         ConstruirTelaConfiguracoes(janela.transform);
+
+        // Constrói o modal de Pausa In-Game (inicialmente oculto)
+        ConstruirInterfacePausa();
     }
 
     // -------------------------------------------------------------------------
@@ -1874,6 +1932,165 @@ public class HubInicialAmbiente : MonoBehaviour
         m_TextoContagemRegressiva = CriarTexto(painel.transform, "Texto_Contagem",
             "<color=#00E5FF><b>PREPARAR!</b></color>\n<size=110><color=#FFD700><b>5</b></color></size>",
             32, FontStyles.Bold, Vector2.zero, new Vector2(520f, 260f), Color.white);
+    }
+
+    // =========================================================================
+    // SISTEMA REAL DE PAUSA IN-GAME (TECLAS P / ESC / BOTÃO MENU VR)
+    // =========================================================================
+
+    public void AlternarPausaPartida()
+    {
+        if (JogoPausado)
+        {
+            AcaoContinuarPausa();
+        }
+        else
+        {
+            PausarPartida();
+        }
+    }
+
+    public void PausarPartida()
+    {
+        if (!partidaEmAndamento || hubAberto || GameOverAberto || VitoriaAberta) return;
+        if (PainelGrafoSemanticoProtege.Instancia != null && PainelGrafoSemanticoProtege.Instancia.ExibindoTelaFinal) return;
+
+        if (m_PainelJanelaPausa == null)
+        {
+            ConstruirInterfacePausa();
+        }
+
+        Time.timeScale = 0f;
+        AudioListener.pause = true;
+
+        int coletadas = InstanciaSemanticaBase.totalColetadas;
+        int total = GerenciadorCenarioSemantico.Instancia != null ? GerenciadorCenarioSemantico.Instancia.TotalTriplasMissao : 38;
+        if (m_TextoProgressoPausa != null)
+        {
+            m_TextoProgressoPausa.text = $"Triplas RDF: <color=#00E5FF><b>{coletadas} / {total}</b></color>";
+        }
+
+        if (m_PainelFundoEscuro != null) m_PainelFundoEscuro.SetActive(true);
+        if (m_PainelJanelaPausa != null) m_PainelJanelaPausa.SetActive(true);
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        LocalizarControladores();
+        if (controladorJogador != null)
+        {
+            controladorJogador.controlesHabilitados = false;
+        }
+
+        AtualizarAcompanhamentoOlharVR(true);
+    }
+
+    public void AcaoContinuarPausa()
+    {
+        Time.timeScale = 1.0f;
+        AudioListener.pause = false;
+
+        if (m_PainelJanelaPausa != null) m_PainelJanelaPausa.SetActive(false);
+        if (m_PainelFundoEscuro != null) m_PainelFundoEscuro.SetActive(false);
+
+        LocalizarControladores();
+        if (controladorJogador != null)
+        {
+            controladorJogador.controlesHabilitados = true;
+        }
+
+        bool modoPC = Application.isEditor || !XRSettings.isDeviceActive;
+        if (modoPC)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+    }
+
+    public void AcaoReiniciarPartidaPausa()
+    {
+        Time.timeScale = 1.0f;
+        AudioListener.pause = false;
+
+        if (m_PainelJanelaPausa != null) m_PainelJanelaPausa.SetActive(false);
+        if (m_PainelFundoEscuro != null) m_PainelFundoEscuro.SetActive(false);
+
+        AcaoPlayIniciarPartida();
+    }
+
+    public void AcaoMenuPrincipalPausa()
+    {
+        Time.timeScale = 1.0f;
+        AudioListener.pause = false;
+
+        if (m_PainelJanelaPausa != null) m_PainelJanelaPausa.SetActive(false);
+        if (m_PainelFundoEscuro != null) m_PainelFundoEscuro.SetActive(false);
+
+        AcaoIrParaMenuPrincipal();
+    }
+
+    private void ConstruirInterfacePausa()
+    {
+        if (m_CanvasHub == null) return;
+
+        GameObject janelaGO = new GameObject("Janela_Central_Pausa", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Outline));
+        janelaGO.transform.SetParent(m_CanvasHub.transform, false);
+        m_PainelJanelaPausa = janelaGO;
+
+        RectTransform rt = janelaGO.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.5f, 0.5f);
+        rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = new Vector2(620f, 430f);
+
+        Image img = janelaGO.GetComponent<Image>();
+        img.color = new Color(0.020f, 0.031f, 0.078f, 0.92f); // #050814 com 92% de alpha
+
+        Outline outline = janelaGO.GetComponent<Outline>();
+        outline.effectColor = new Color(0.0f, 1.0f, 1.0f, 0.95f); // #00FFFF
+        outline.effectDistance = new Vector2(2f, -2f);
+
+        // 1. Título "JOGO PAUSADO"
+        CriarTexto(janelaGO.transform, "Texto_Pausa_Titulo", "JOGO PAUSADO", 30, FontStyles.Bold,
+            new Vector2(0f, 155f), new Vector2(560f, 40f), new Color(0.0f, 1.0f, 1.0f));
+
+        // 2. Progresso "Triplas RDF: X / 38"
+        m_TextoProgressoPausa = CriarTexto(janelaGO.transform, "Texto_Pausa_Progresso",
+            "Triplas RDF: <color=#00E5FF><b>0 / 38</b></color>", 18, FontStyles.Bold,
+            new Vector2(0f, 110f), new Vector2(560f, 32f), Color.white);
+
+        // Divisor ciano
+        GameObject divisor = new GameObject("Divisor_Pausa", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        divisor.transform.SetParent(janelaGO.transform, false);
+        RectTransform rtDiv = divisor.GetComponent<RectTransform>();
+        rtDiv.anchoredPosition = new Vector2(0f, 85f);
+        rtDiv.sizeDelta = new Vector2(520f, 1.5f);
+        divisor.GetComponent<Image>().color = new Color(0.0f, 1.0f, 1.0f, 0.40f);
+
+        // 3. Botão "CONTINUAR"
+        m_BtnPausaContinuar = CriarBotao(janelaGO.transform, "Botao_Pausa_Continuar", "CONTINUAR", 18, FontStyles.Bold,
+            new Vector2(0f, 35f), new Vector2(440f, 48f),
+            new Color(0.04f, 0.28f, 0.22f, 0.95f), new Color(0.4f, 1.0f, 0.7f), AcaoContinuarPausa);
+        m_BtnPausaContinuar.gameObject.AddComponent<Outline>().effectColor = new Color(0.0f, 1.0f, 0.65f, 0.85f);
+
+        // 4. Botão "REINICIAR PARTIDA"
+        m_BtnPausaReiniciar = CriarBotao(janelaGO.transform, "Botao_Pausa_Reiniciar", "REINICIAR PARTIDA", 18, FontStyles.Bold,
+            new Vector2(0f, -25f), new Vector2(440f, 48f),
+            new Color(0.24f, 0.18f, 0.03f, 0.95f), new Color(1.0f, 0.90f, 0.2f), AcaoReiniciarPartidaPausa);
+        m_BtnPausaReiniciar.gameObject.AddComponent<Outline>().effectColor = new Color(1.0f, 0.85f, 0.1f, 0.85f);
+
+        // 5. Botão "MENU PRINCIPAL"
+        m_BtnPausaMenu = CriarBotao(janelaGO.transform, "Botao_Pausa_Menu", "MENU PRINCIPAL", 18, FontStyles.Bold,
+            new Vector2(0f, -85f), new Vector2(440f, 48f),
+            new Color(0.06f, 0.16f, 0.32f, 0.95f), new Color(0.4f, 0.85f, 1.0f), AcaoMenuPrincipalPausa);
+        m_BtnPausaMenu.gameObject.AddComponent<Outline>().effectColor = new Color(0.2f, 0.6f, 1.0f, 0.85f);
+
+        // 6. Texto de atalhos na base
+        CriarTexto(janelaGO.transform, "Texto_Pausa_Atalhos",
+            "[ESC / P] Continuar   |   [R] Reiniciar   |   [M] Menu Principal", 14, FontStyles.Italic,
+            new Vector2(0f, -155f), new Vector2(560f, 24f), new Color(0.70f, 0.78f, 0.90f));
+
+        janelaGO.SetActive(false);
     }
 
     // -------------------------------------------------------------------------

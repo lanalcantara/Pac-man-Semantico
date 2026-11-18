@@ -124,12 +124,13 @@ public class PainelInventarioABoxVR : MonoBehaviour
     {
         if (!exibirInventario || m_PainelRaiz == null) return;
 
-        // Oculta durante Hub Inicial, GameOver, Vitória ou Tela de Resultado Final
+        // Oculta durante Hub Inicial, GameOver, Vitória, Pausa ou Tela de Resultado Final
         bool telaFinalAberta = PainelGrafoSemanticoProtege.Instancia != null && PainelGrafoSemanticoProtege.Instancia.ExibindoTelaFinal;
         if (telaFinalAberta || (HubInicialAmbiente.Instancia != null &&
             (HubInicialAmbiente.Instancia.hubAberto ||
              HubInicialAmbiente.Instancia.GameOverAberto ||
              HubInicialAmbiente.Instancia.VitoriaAberta ||
+             HubInicialAmbiente.Instancia.JogoPausado ||
              !HubInicialAmbiente.Instancia.partidaEmAndamento)))
         {
             if (m_PainelRaiz.activeSelf) m_PainelRaiz.SetActive(false);

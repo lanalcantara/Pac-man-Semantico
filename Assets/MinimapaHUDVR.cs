@@ -261,7 +261,7 @@ public class MinimapaHUDVR : MonoBehaviour
         if (textoWarning != null)
         {
             textoWarning.gameObject.SetActive(true);
-            textoWarning.text = $"<color=#00FFFF>[✓] TRIPLA RDF COLETADA:</color>\n<size=16><color=#FFFF00><b>{nomeOrbe}</b></color></size>";
+            textoWarning.text = $"<color=#00FFFF>[OK] TRIPLA RDF COLETADA:</color>\n<size=16><color=#FFFF00><b>{nomeOrbe}</b></color></size>";
             warningTimer = 3.5f; // Fica visível por 3.5 segundos
         }
     }
@@ -496,7 +496,7 @@ public class MinimapaHUDVR : MonoBehaviour
         rtTxt.anchoredPosition = Vector2.zero;
 
         textoWarning = txtWarnObj.GetComponent<TextMeshProUGUI>();
-        textoWarning.text = "[✓] TRIPLA RDF COLETADA!";
+        textoWarning.text = "[OK] TRIPLA RDF COLETADA!";
         textoWarning.fontSize = 13f;
         textoWarning.alignment = TextAlignmentOptions.Center;
         textoWarning.color = Color.white;

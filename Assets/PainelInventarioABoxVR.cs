@@ -330,8 +330,8 @@ public class PainelInventarioABoxVR : MonoBehaviour
                     card.outlineBorda.effectColor = new Color(0.0f, 1.0f, 0.60f, (i == 0) ? 0.95f : 0.65f);
 
                     string ptsStr = (t.pontos >= 0) ? $"+{t.pontos}" : $"{t.pontos}";
-                    card.txtLinha1Status.text = $"#{t.indice:D2}  <color=#00FF99><b>[✓ CONSISTENTE]</b></color>   <color=#FFD700><b>{ptsStr} pts</b></color>";
-                    card.txtLinha2Tripla.text = $"<b>{t.sujeito}</b> <color=#00E5FF>──[{t.predicado}]──></color> <b>{t.objeto}</b>";
+                    card.txtLinha1Status.text = $"#{t.indice:D2}  <color=#00FF99><b>[OK CONSISTENTE]</b></color>   <color=#FFD700><b>{ptsStr} pts</b></color>";
+                    card.txtLinha2Tripla.text = $"<b>{t.sujeito}</b> <color=#00E5FF>--[{t.predicado}]-></color> <b>{t.objeto}</b>";
                     card.txtLinha3Axioma.text = $"<color=#88CCAA><size=9>Axioma DL: {t.axiomaDL}</size></color>";
                 }
                 else
@@ -339,9 +339,9 @@ public class PainelInventarioABoxVR : MonoBehaviour
                     card.imgFundo.color = new Color(0.12f, 0.02f, 0.04f, 0.92f);
                     card.outlineBorda.effectColor = new Color(1.0f, 0.20f, 0.30f, (i == 0) ? 0.95f : 0.65f);
 
-                    card.txtLinha1Status.text = $"#{t.indice:D2}  <color=#FF3344><b>[✗ INCONSISTÊNCIA DETECTADA]</b></color>   <color=#FF8899><b>{t.pontos} pts</b></color>";
-                    card.txtLinha2Tripla.text = $"<b>{t.sujeito}</b> <color=#FF4466>──[{t.predicado}]──></color> <b>{t.objeto}</b>";
-                    card.txtLinha3Axioma.text = $"<color=#FFAAAA><size=9>Violação: {t.axiomaDL}</size></color>";
+                    card.txtLinha1Status.text = $"#{t.indice:D2}  <color=#FF3344><b>[ERRO INCONSISTENCIA]</b></color>   <color=#FF8899><b>{t.pontos} pts</b></color>";
+                    card.txtLinha2Tripla.text = $"<b>{t.sujeito}</b> <color=#FF4466>--[{t.predicado}]-></color> <b>{t.objeto}</b>";
+                    card.txtLinha3Axioma.text = $"<color=#FFAAAA><size=9>Violacao: {t.axiomaDL}</size></color>";
                 }
             }
             else
@@ -400,89 +400,89 @@ public class PainelInventarioABoxVR : MonoBehaviour
         if (c.Contains("ascaris"))
         {
             return (
-                "⟨Homo_sapiens⟩",
+                "[Homo_sapiens]",
                 "has_parasite",
-                "⟨Ascaris_lumbricoides⟩",
-                "Nematoda ⊑ Parasite ⊓ ∃has_host.Human ⊓ ∃has_habitat.SmallIntestine"
+                "[Ascaris_lumbricoides]",
+                "Nematoda SUBCLASS_OF Parasite AND SOME has_host.Human AND SOME has_habitat.SmallIntestine"
             );
         }
         else if (c.Contains("enterobius"))
         {
             return (
-                "⟨Homo_sapiens⟩",
+                "[Homo_sapiens]",
                 "has_parasite",
-                "⟨Enterobius_vermicularis⟩",
-                "Nematoda ⊑ Parasite ⊓ ∃has_host.Human ⊓ ∃has_habitat.PerianalRegion"
+                "[Enterobius_vermicularis]",
+                "Nematoda SUBCLASS_OF Parasite AND SOME has_host.Human AND SOME has_habitat.PerianalRegion"
             );
         }
         else if (c.Contains("taenia"))
         {
             return (
-                "⟨Homo_sapiens⟩",
+                "[Homo_sapiens]",
                 "has_parasite",
-                "⟨Taenia_solium⟩",
-                "Platyhelminthes ⊑ Parasite ⊓ ∃has_host.Human ⊓ ∃has_transmission.UndercookedPork"
+                "[Taenia_solium]",
+                "Platyhelminthes SUBCLASS_OF Parasite AND SOME has_host.Human AND SOME has_transmission.UndercookedPork"
             );
         }
         else if (c.Contains("treatment") || c.Contains("tratamento") || c.Contains("pellet"))
         {
             return (
-                "⟨AntiparasiticTreatment⟩",
+                "[AntiparasiticTreatment]",
                 "neutralizes",
-                "⟨InfectionVector⟩",
-                "Treatment ⊑ ∃neutralizes.InfectionVector [SWRL Regra 1]"
+                "[InfectionVector]",
+                "Treatment SUBCLASS_OF SOME neutralizes.InfectionVector [SWRL Regra 1]"
             );
         }
         else if (c.Contains("nematoda"))
         {
             return (
-                "⟨Nematoda⟩",
+                "[Nematoda]",
                 "subClassOf",
-                "⟨Parasite⟩",
-                "Nematoda ⊑ Parasite ⊓ ∃has_morphology.Cylindrical"
+                "[Parasite]",
+                "Nematoda SUBCLASS_OF Parasite AND SOME has_morphology.Cylindrical"
             );
         }
         else if (c.Contains("platyhelm"))
         {
             return (
-                "⟨Platyhelminthes⟩",
+                "[Platyhelminthes]",
                 "subClassOf",
-                "⟨Parasite⟩",
-                "Platyhelminthes ⊑ Parasite ⊓ ∃has_morphology.FlatSegments"
+                "[Parasite]",
+                "Platyhelminthes SUBCLASS_OF Parasite AND SOME has_morphology.FlatSegments"
             );
         }
         else if (c.Contains("inconsistent") || c.Contains("specimen"))
         {
             return (
-                "⟨Specimen_Invalido⟩",
+                "[Specimen_Invalido]",
                 "has_morphology",
-                "⟨Cylindrical ⊓ FlatSegments⟩",
-                "Inconsistência ALCQ(D): MorfologiaMutuamenteExclusiva ≡ ⊥"
+                "[Cylindrical AND FlatSegments]",
+                "Inconsistencia ALCQ(D): MorfologiaMutuamenteExclusiva == FALSE"
             );
         }
         else if (c.Contains("hostmismatch") || c.Contains("mismatch"))
         {
             return (
-                "⟨Ascaris_lumbricoides⟩",
+                "[Ascaris_lumbricoides]",
                 "has_host",
-                "⟨InvertebrateVector⟩",
-                "Violação de Domínio: IncompatibleHostRestriction ⊑ ⊥"
+                "[InvertebrateVector]",
+                "Violacao de Dominio: IncompatibleHostRestriction SUBCLASS_OF FALSE"
             );
         }
         else if (c.Contains("habitat"))
         {
             return (
-                "⟨Enterobius_vermicularis⟩",
+                "[Enterobius_vermicularis]",
                 "has_habitat",
-                "⟨BloodStream⟩",
-                "Violação Anatômica: InvalidHabitatForNematoda ⊑ ⊥"
+                "[BloodStream]",
+                "Violacao Anatomica: InvalidHabitatForNematoda SUBCLASS_OF FALSE"
             );
         }
 
         // Fallback genérico DL
-        string s = "⟨Pesquisador⟩";
+        string s = "[Pesquisador]";
         string p = consistente ? "synthesizes" : "violates_axiom";
-        string o = $"⟨{nomeClasse}⟩";
+        string o = $"[{nomeClasse}]";
         string ax = string.IsNullOrEmpty(expressaoDL) ? "ConceptAssertion(C, a)" : expressaoDL;
 
         return (s, p, o, ax);

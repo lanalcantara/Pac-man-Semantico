@@ -48,7 +48,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     public enum TipoTemaLabirinto
     {
         DarkGridNeon = 0,
-        ClassicoVerdeCinza = 1,
+        Floresta = 1,
         EspecialNatal = 2
     }
 
@@ -2459,8 +2459,8 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
             case TipoTemaLabirinto.DarkGridNeon:
                 ConfigurarIluminacaoDarkGrid();
                 break;
-            case TipoTemaLabirinto.ClassicoVerdeCinza:
-                ConfigurarIluminacaoTardeClassica();
+            case TipoTemaLabirinto.Floresta:
+                ConfigurarIluminacaoFloresta();
                 break;
             case TipoTemaLabirinto.EspecialNatal:
                 ConfigurarIluminacaoNatalInverno();
@@ -2542,28 +2542,28 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         OtimizadorGraficoQuest3URP.AplicarOtimizacaoAutomaticaNoBoot();
     }
 
-    public void ConfigurarIluminacaoTardeClassica()
+    public void ConfigurarIluminacaoFloresta()
     {
         Light dirLight = ObterOuCriarLuzDirecional();
         if (dirLight != null)
         {
-            dirLight.intensity = 1.65f;
-            dirLight.color = new Color(1.0f, 0.93f, 0.84f, 1f);
-            dirLight.shadows = LightShadows.Soft;
-            dirLight.shadowStrength = 0.32f;
-            dirLight.transform.rotation = Quaternion.Euler(34f, 48f, 0f);
+            dirLight.intensity = 1.25f;
+            dirLight.color = new Color(1.0f, 0.96f, 0.86f, 1f);
+            dirLight.shadows = LightShadows.None; // Sem sombras: iluminacao estavel ao girar a camera
+            dirLight.transform.rotation = Quaternion.Euler(52f, -35f, 0f);
         }
 
-        // Fundo absoluto (Skybox preta profunda, #000000)
+        // Luz de dia estavel e uniforme (floresta)
+        Color luzAmbienteFloresta = new Color(0.58f, 0.66f, 0.58f, 1f);
         RenderSettings.skybox = null;
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientLight = Color.black;
-        RenderSettings.ambientSkyColor = Color.black;
-        RenderSettings.ambientEquatorColor = Color.black;
-        RenderSettings.ambientGroundColor = Color.black;
-        RenderSettings.ambientIntensity = 0f;
+        RenderSettings.ambientLight = luzAmbienteFloresta;
+        RenderSettings.ambientSkyColor = luzAmbienteFloresta;
+        RenderSettings.ambientEquatorColor = luzAmbienteFloresta;
+        RenderSettings.ambientGroundColor = luzAmbienteFloresta;
+        RenderSettings.ambientIntensity = 1.0f;
 
-        Color corCeuTarde = Color.black; // #000000
+        Color corCeuTarde = new Color(0.55f, 0.76f, 0.95f, 1f); // Ceu azul de dia
         Camera[] todasCameras = FindObjectsByType<Camera>();
         foreach (Camera cam in todasCameras)
         {
@@ -2633,13 +2633,13 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                 ConfigurarTrenoPacMan(false);
                 break;
 
-            case TipoTemaLabirinto.ClassicoVerdeCinza:
+            case TipoTemaLabirinto.Floresta:
                 usarEsteticaDarkGrid = false;
-                matChao = CriarMaterialChaoLaboratorio();
-                matParede = CriarMaterialParedePorSuperclasse("Parasitas");
-                ConfigurarIluminacaoDarkGrid();
-                ConfigurarDecoracoesGrid(true);
-                ConfigurarDecoracoesClassico(false);
+                matChao = CriarMaterialChaoFloresta();
+                matParede = CriarMaterialParedeFloresta();
+                ConfigurarIluminacaoFloresta();
+                ConfigurarDecoracoesGrid(false);
+                ConfigurarDecoracoesClassico(true);
                 ConfigurarDecoracoesNatal(false);
                 ConfigurarModelosTemaClassicoCIn(false);
                 ConfigurarTotemPortaoGrid(true);
@@ -2863,19 +2863,61 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
     // DECORAÇÕES TEMÁTICAS PROCEDURAIS (CLÁSSICO E NATAL)
     // =========================================================================
 
+    /// <summary>
+    /// Mapa Floresta: constroi (uma unica vez) ou ativa/desativa a floresta 360 ao redor do labirinto.
+    /// </summary>
     public void ConfigurarDecoracoesClassico(bool ativo)
     {
+        if (m_ContainerDecoracoesClassico == null)
+        {
+            Transform tExistente = transform.Find("Decoracoes_Classico_3D");
+            if (tExistente != null)
+            {
+                m_ContainerDecoracoesClassico = tExistente.gameObject;
+            }
+            else if (ativo)
+            {
+                m_ContainerDecoracoesClassico = ConstruirDecoracoesClassico();
+            }
+        }
+
         if (m_ContainerDecoracoesClassico != null)
         {
-            m_ContainerDecoracoesClassico.SetActive(false);
+            m_ContainerDecoracoesClassico.SetActive(ativo);
         }
-        Transform tExistente = transform.Find("Decoracoes_Classico_3D");
-        if (tExistente != null)
+    }
+
+    public Material CriarMaterialChaoFloresta()
+    {
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
+        Material mat = new Material(shader) { name = "Mat_Chao_Grama_Floresta" };
+        Color corGrama = new Color(0.20f, 0.52f, 0.20f, 1f);
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", corGrama);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", corGrama);
+        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.05f);
+        mat.DisableKeyword("_EMISSION");
+        if (mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", Color.black);
+        mat.mainTexture = null;
+        return mat;
+    }
+
+    public Material CriarMaterialParedeFloresta()
+    {
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
+        Material mat = new Material(shader) { name = "Mat_Parede_CercaViva_Floresta" };
+        Color corCerca = new Color(0.07f, 0.30f, 0.10f, 1f);
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", corCerca);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", corCerca);
+        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.08f);
+        if (mat.HasProperty("_EmissionColor"))
         {
-            if (Application.isPlaying) Destroy(tExistente.gameObject);
-            else DestroyImmediate(tExistente.gameObject);
-            m_ContainerDecoracoesClassico = null;
+            mat.EnableKeyword("_EMISSION");
+            mat.SetColor("_EmissionColor", corCerca * 0.25f);
         }
+        mat.mainTexture = null;
+        return mat;
     }
 
     private GameObject ConstruirDecoracoesClassico()
@@ -2917,7 +2959,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         pisoExt.transform.localScale = new Vector3(18f, 1f, 18f);
         RemoverColisorObjeto(pisoExt);
         Material matChaoExt = new Material(shaderLit) { name = "Mat_Chao_Floresta_Ext" };
-        Color corGramaExt = new Color(0.09f, 0.28f, 0.12f);
+        Color corGramaExt = new Color(0.16f, 0.42f, 0.17f);
         if (matChaoExt.HasProperty("_BaseColor")) matChaoExt.SetColor("_BaseColor", corGramaExt);
         if (matChaoExt.HasProperty("_Color")) matChaoExt.SetColor("_Color", corGramaExt);
         if (matChaoExt.HasProperty("_Smoothness")) matChaoExt.SetFloat("_Smoothness", 0.10f);
@@ -2931,7 +2973,7 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
         if (matPinheiro.HasProperty("_Smoothness")) matPinheiro.SetFloat("_Smoothness", 0.18f);
 
         // Gera 128 árvores distribuídas em 4 camadas perimétricas profundas (18m, 30m, 48m, 72m)
-        int[] arvoresPorCamada = new int[] { 28, 32, 34, 34 };
+        int[] arvoresPorCamada = new int[] { 18, 22, 26, 26 };
         float[] raiosCamada = new float[] { 19.5f, 32.0f, 48.0f, 72.0f };
 
         int idArvore = 0;
@@ -3003,151 +3045,6 @@ public class GerenciadorCenarioSemantico : MonoBehaviour
                     copa2.GetComponent<Renderer>().material = (i % 2 == 0) ? matCopa2 : matCopa1;
                 }
             }
-        }
-
-        // 2. QUADROS DECORATIVOS NAS PAREDES CINZAS INTERNAS (Estilo Casa / Galeria de Arte)
-        GameObject grupoQuadros = new GameObject("Grupo_Quadros_Paredes");
-        grupoQuadros.transform.SetParent(root.transform, false);
-
-        Material matMolduraQuadro = new Material(shaderLit) { name = "Mat_Moldura_MadeiraEscura" };
-        Color corMoldura = new Color(0.20f, 0.10f, 0.05f);
-        if (matMolduraQuadro.HasProperty("_BaseColor")) matMolduraQuadro.SetColor("_BaseColor", corMoldura);
-        if (matMolduraQuadro.HasProperty("_Color")) matMolduraQuadro.SetColor("_Color", corMoldura);
-        if (matMolduraQuadro.HasProperty("_Smoothness")) matMolduraQuadro.SetFloat("_Smoothness", 0.40f);
-
-        Color[] coresTelas = new Color[]
-        {
-            new Color(0.15f, 0.40f, 0.55f), // Paisagem Marinha / Céu
-            new Color(0.55f, 0.20f, 0.15f), // Retrato Clássico Vinho
-            new Color(0.20f, 0.48f, 0.25f), // Botânica / Floresta
-            new Color(0.50f, 0.42f, 0.18f), // Pergaminho / Parasitologia
-            new Color(0.35f, 0.18f, 0.50f), // Arte Abstrata Roxa
-            new Color(0.22f, 0.35f, 0.42f), // Ilustração Científica
-            new Color(0.55f, 0.35f, 0.10f), // Pôr do Sol Dourado
-            new Color(0.18f, 0.45f, 0.38f)  // Esmeralda Clássico
-        };
-
-        // Posições estratégicas nas paredes interiores a 1.55m de altura (nível dos olhos)
-        (Vector3 pos, Quaternion rot)[] spotsQuadros = new (Vector3, Quaternion)[]
-        {
-            (new Vector3(-7f, 1.55f, 5.26f), Quaternion.Euler(0f, 180f, 0f)),
-            (new Vector3(7f, 1.55f, 5.26f), Quaternion.Euler(0f, 180f, 0f)),
-            (new Vector3(-7f, 1.55f, -5.26f), Quaternion.Euler(0f, 0f, 0f)),
-            (new Vector3(7f, 1.55f, -5.26f), Quaternion.Euler(0f, 0f, 0f)),
-            (new Vector3(0f, 1.55f, 7.76f), Quaternion.Euler(0f, 180f, 0f)),
-            (new Vector3(0f, 1.55f, -7.76f), Quaternion.Euler(0f, 0f, 0f)),
-            (new Vector3(-9.76f, 1.55f, 0f), Quaternion.Euler(0f, 90f, 0f)),
-            (new Vector3(9.76f, 1.55f, 0f), Quaternion.Euler(0f, -90f, 0f))
-        };
-
-        for (int i = 0; i < spotsQuadros.Length; i++)
-        {
-            var spot = spotsQuadros[i];
-            GameObject quadro = new GameObject($"Quadro_Parede_{i}");
-            quadro.transform.SetParent(grupoQuadros.transform, false);
-            quadro.transform.position = spot.pos;
-            quadro.transform.rotation = spot.rot;
-
-            // Moldura externa
-            GameObject moldura = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            moldura.name = "Moldura";
-            moldura.transform.SetParent(quadro.transform, false);
-            moldura.transform.localPosition = Vector3.zero;
-            moldura.transform.localScale = new Vector3(1.30f, 0.95f, 0.08f);
-            RemoverColisorObjeto(moldura);
-            moldura.GetComponent<Renderer>().material = matMolduraQuadro;
-
-            // Tela de pintura interna
-            Material matTela = new Material(shaderLit) { name = $"Mat_Tela_{i}" };
-            Color corTela = coresTelas[i % coresTelas.Length];
-            if (matTela.HasProperty("_BaseColor")) matTela.SetColor("_BaseColor", corTela);
-            if (matTela.HasProperty("_Color")) matTela.SetColor("_Color", corTela);
-            if (matTela.HasProperty("_Smoothness")) matTela.SetFloat("_Smoothness", 0.60f);
-
-            GameObject tela = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            tela.name = "Pintura";
-            tela.transform.SetParent(quadro.transform, false);
-            tela.transform.localPosition = new Vector3(0f, 0f, 0.035f);
-            tela.transform.localScale = new Vector3(1.12f, 0.78f, 0.04f);
-            RemoverColisorObjeto(tela);
-            tela.GetComponent<Renderer>().material = matTela;
-        }
-
-        // 3. JANELAS DE CASA NAS PAREDES PERIMETRAIS (Estilo Interior de Residência)
-        GameObject grupoJanelas = new GameObject("Grupo_Janelas_Paredes");
-        grupoJanelas.transform.SetParent(root.transform, false);
-
-        Material matMolduraJanela = new Material(shaderLit) { name = "Mat_Moldura_Janela_Branca" };
-        Color corBranca = new Color(0.92f, 0.93f, 0.96f);
-        if (matMolduraJanela.HasProperty("_BaseColor")) matMolduraJanela.SetColor("_BaseColor", corBranca);
-        if (matMolduraJanela.HasProperty("_Color")) matMolduraJanela.SetColor("_Color", corBranca);
-        if (matMolduraJanela.HasProperty("_Smoothness")) matMolduraJanela.SetFloat("_Smoothness", 0.30f);
-
-        Material matVidroJanela = new Material(shaderLit) { name = "Mat_Vidro_Janela_Dia" };
-        Color corVidro = new Color(0.68f, 0.88f, 1.0f);
-        if (matVidroJanela.HasProperty("_BaseColor")) matVidroJanela.SetColor("_BaseColor", corVidro);
-        if (matVidroJanela.HasProperty("_Color")) matVidroJanela.SetColor("_Color", corVidro);
-        if (matVidroJanela.HasProperty("_Smoothness")) matVidroJanela.SetFloat("_Smoothness", 0.85f);
-        if (matVidroJanela.HasProperty("_EmissionColor"))
-        {
-            matVidroJanela.EnableKeyword("_EMISSION");
-            matVidroJanela.SetColor("_EmissionColor", corVidro * 0.40f);
-        }
-
-        (Vector3 pos, Quaternion rot)[] spotsJanelas = new (Vector3, Quaternion)[]
-        {
-            (new Vector3(-6.5f, 1.60f, 12.76f), Quaternion.Euler(0f, 180f, 0f)),
-            (new Vector3(6.5f, 1.60f, 12.76f), Quaternion.Euler(0f, 180f, 0f)),
-            (new Vector3(-6.5f, 1.60f, -12.76f), Quaternion.Euler(0f, 0f, 0f)),
-            (new Vector3(6.5f, 1.60f, -12.76f), Quaternion.Euler(0f, 0f, 0f)),
-            (new Vector3(12.76f, 1.60f, 5.0f), Quaternion.Euler(0f, -90f, 0f)),
-            (new Vector3(12.76f, 1.60f, -5.0f), Quaternion.Euler(0f, -90f, 0f)),
-            (new Vector3(-12.76f, 1.60f, 5.0f), Quaternion.Euler(0f, 90f, 0f)),
-            (new Vector3(-12.76f, 1.60f, -5.0f), Quaternion.Euler(0f, 90f, 0f))
-        };
-
-        for (int i = 0; i < spotsJanelas.Length; i++)
-        {
-            var spot = spotsJanelas[i];
-            GameObject janela = new GameObject($"Janela_Casa_{i}");
-            janela.transform.SetParent(grupoJanelas.transform, false);
-            janela.transform.position = spot.pos;
-            janela.transform.rotation = spot.rot;
-
-            // Vidro luminoso de dia
-            GameObject vidro = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            vidro.name = "Vidro_Dia";
-            vidro.transform.SetParent(janela.transform, false);
-            vidro.transform.localPosition = new Vector3(0f, 0f, 0.02f);
-            vidro.transform.localScale = new Vector3(1.40f, 1.25f, 0.04f);
-            RemoverColisorObjeto(vidro);
-            vidro.GetComponent<Renderer>().material = matVidroJanela;
-
-            // Moldura externa branca
-            GameObject moldura = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            moldura.name = "Moldura_Externa";
-            moldura.transform.SetParent(janela.transform, false);
-            moldura.transform.localPosition = Vector3.zero;
-            moldura.transform.localScale = new Vector3(1.52f, 1.38f, 0.06f);
-            RemoverColisorObjeto(moldura);
-            moldura.GetComponent<Renderer>().material = matMolduraJanela;
-
-            // Divisórias de 4 vidros (Cruzeta / Mullions)
-            GameObject barraVert = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            barraVert.name = "Divisoria_Vertical";
-            barraVert.transform.SetParent(janela.transform, false);
-            barraVert.transform.localPosition = new Vector3(0f, 0f, 0.045f);
-            barraVert.transform.localScale = new Vector3(0.08f, 1.25f, 0.04f);
-            RemoverColisorObjeto(barraVert);
-            barraVert.GetComponent<Renderer>().material = matMolduraJanela;
-
-            GameObject barraHoriz = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            barraHoriz.name = "Divisoria_Horizontal";
-            barraHoriz.transform.SetParent(janela.transform, false);
-            barraHoriz.transform.localPosition = new Vector3(0f, 0f, 0.045f);
-            barraHoriz.transform.localScale = new Vector3(1.40f, 0.08f, 0.04f);
-            RemoverColisorObjeto(barraHoriz);
-            barraHoriz.GetComponent<Renderer>().material = matMolduraJanela;
         }
 
         return root;

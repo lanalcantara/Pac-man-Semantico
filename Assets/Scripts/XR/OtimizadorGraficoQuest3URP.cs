@@ -120,7 +120,7 @@ public class OtimizadorGraficoQuest3URP : MonoBehaviour
         // 4. Configuração de Céu e Câmeras:
         // Luz ambiente estável (Flat) para que nenhuma área fique totalmente escura ao girar a câmera
         var cenario = FindAnyObjectByType<GerenciadorCenarioSemantico>();
-        bool ehTemaClassicoDiurno = (cenario != null && cenario.temaAtual == GerenciadorCenarioSemantico.TipoTemaLabirinto.ClassicoVerdeCinza);
+        bool ehTemaClassicoDiurno = (cenario != null && cenario.temaAtual == GerenciadorCenarioSemantico.TipoTemaLabirinto.Floresta);
 
         RenderSettings.skybox = null;
         if (ehTemaClassicoDiurno)

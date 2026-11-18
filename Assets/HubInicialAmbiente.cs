@@ -253,12 +253,74 @@ public class HubInicialAmbiente : MonoBehaviour
     private void CarregarTexturasEmCache()
     {
         m_TexMapaNeon = Resources.Load<Texture2D>("Textures/Preview_Mapa_Neon");
-        m_TexMapaDia = Resources.Load<Texture2D>("Textures/Preview_Mapa_Dia");
+        m_TexMapaDia = GerarPreviewMapaFloresta();
         m_TexMapaNatal = Resources.Load<Texture2D>("Textures/Preview_Mapa_Natal");
 
         m_TexCam1P = Resources.Load<Texture2D>("Textures/Preview_Camera_1Pessoa");
         m_TexCam3P = Resources.Load<Texture2D>("Textures/Preview_Camera_3Pessoa");
         m_TexCamAerea = Resources.Load<Texture2D>("Textures/Preview_Camera_Aerea");
+    }
+
+    /// <summary>
+    /// Gera proceduralmente a miniatura (vista de cima) do Mapa Floresta: grama, cercas-vivas e arvores ao redor.
+    /// </summary>
+    private static Texture2D GerarPreviewMapaFloresta()
+    {
+        const int W = 480;
+        const int H = 150;
+        Texture2D tex = new Texture2D(W, H, TextureFormat.RGBA32, false);
+        Color grama = new Color(0.20f, 0.52f, 0.20f);
+        Color cerca = new Color(0.06f, 0.26f, 0.09f);
+        Color arvore1 = new Color(0.08f, 0.34f, 0.12f);
+        Color arvore2 = new Color(0.12f, 0.42f, 0.16f);
+        Color[] px = new Color[W * H];
+        for (int i = 0; i < px.Length; i++) px[i] = grama;
+
+        // Arvores nas bordas (circulos)
+        for (int k = 0; k < 46; k++)
+        {
+            float t = k / 46f;
+            float cx = Mathf.Lerp(8f, W - 8f, t);
+            DesenharCirculo(px, W, H, cx, 9f + (k % 3) * 3f, 9f, (k % 2 == 0) ? arvore1 : arvore2);
+            DesenharCirculo(px, W, H, cx, H - 9f - (k % 3) * 3f, 9f, (k % 2 == 0) ? arvore2 : arvore1);
+        }
+        for (int k = 0; k < 14; k++)
+        {
+            float cy = Mathf.Lerp(24f, H - 24f, k / 13f);
+            DesenharCirculo(px, W, H, 9f + (k % 3) * 3f, cy, 9f, (k % 2 == 0) ? arvore1 : arvore2);
+            DesenharCirculo(px, W, H, W - 9f - (k % 3) * 3f, cy, 9f, (k % 2 == 0) ? arvore2 : arvore1);
+        }
+
+        // Paredes (cerca-viva): contorno + blocos internos
+        DesenharRetangulo(px, W, H, 70, 30, W - 70, 36, cerca);
+        DesenharRetangulo(px, W, H, 70, H - 36, W - 70, H - 30, cerca);
+        DesenharRetangulo(px, W, H, 70, 30, 76, H - 30, cerca);
+        DesenharRetangulo(px, W, H, W - 76, 30, W - 70, H - 30, cerca);
+        DesenharRetangulo(px, W, H, 200, 58, W - 200, 92, cerca);
+        DesenharRetangulo(px, W, H, 110, 52, 170, 58, cerca);
+        DesenharRetangulo(px, W, H, W - 170, 52, W - 110, 58, cerca);
+        DesenharRetangulo(px, W, H, 110, H - 58, 170, H - 52, cerca);
+        DesenharRetangulo(px, W, H, W - 170, H - 58, W - 110, H - 52, cerca);
+
+        tex.SetPixels(px);
+        tex.Apply();
+        return tex;
+    }
+
+    private static void DesenharCirculo(Color[] px, int w, int h, float cx, float cy, float r, Color c)
+    {
+        int x0 = Mathf.Max(0, (int)(cx - r)), x1 = Mathf.Min(w - 1, (int)(cx + r));
+        int y0 = Mathf.Max(0, (int)(cy - r)), y1 = Mathf.Min(h - 1, (int)(cy + r));
+        for (int y = y0; y <= y1; y++)
+            for (int x = x0; x <= x1; x++)
+                if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r) px[y * w + x] = c;
+    }
+
+    private static void DesenharRetangulo(Color[] px, int w, int h, int xa, int ya, int xb, int yb, Color c)
+    {
+        for (int y = Mathf.Max(0, ya); y < Mathf.Min(h, yb); y++)
+            for (int x = Mathf.Max(0, xa); x < Mathf.Min(w, xb); x++)
+                px[y * w + x] = c;
     }
 
     /// <summary>
@@ -819,10 +881,10 @@ public class HubInicialAmbiente : MonoBehaviour
                 if (m_TextoIndicadorMapa != null) m_TextoIndicadorMapa.text = "● ○ ○  (1 de 3)";
                 break;
 
-            case 1: // Clássico Dia (CIn-UFPE)
+            case 1: // Mapa Floresta
                 if (m_ImgPreviewMapa != null && m_TexMapaDia != null) m_ImgPreviewMapa.texture = m_TexMapaDia;
-                if (m_TextoTituloMapa != null) m_TextoTituloMapa.text = "MAPA 2: CLÁSSICO DIA (CIn-UFPE)";
-                if (m_TextoDescricaoMapa != null) m_TextoDescricaoMapa.text = "Piso verde esmeralda, paredes cinzas com quadros e janelas, e floresta perimetral infinita 360° com mais de 120 árvores.";
+                if (m_TextoTituloMapa != null) m_TextoTituloMapa.text = "MAPA 2: FLORESTA";
+                if (m_TextoDescricaoMapa != null) m_TextoDescricaoMapa.text = "Chão de grama, paredes de cerca-viva e uma floresta de pinheiros e carvalhos ao redor do labirinto, com luz de dia.";
                 if (m_TextoIndicadorMapa != null) m_TextoIndicadorMapa.text = "○ ● ○  (2 de 3)";
                 break;
 
